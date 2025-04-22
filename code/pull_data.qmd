@@ -1,0 +1,184 @@
+---
+title: "Data Clean & Format"
+format: html
+---
+
+Here we are pulling our data from a Google Sheet, with a single 'sheet' containing data for a single sample.
+
+# Install & load packages
+
+```{r}
+library(dplyr)
+library(ggplot2) 
+library(stringr)
+library(ggimage)
+library(googlesheets4)
+```
+
+```{r}
+# Authenticate your Google account
+gs4_auth()
+```
+
+```{r}
+# This is the Google Sheet URL
+sheet_url <- "https://docs.google.com/spreadsheets/d/1Gj7aiv3p68cmMo6j-T_U_r57rQo8CoIWyrbhQE7Jt0g/edit?gid=1617870343#gid=1617870343"
+```
+
+# Import dataframes to a list
+
+Download all sheets in the workbook. Each sheet is data from a single microscopy slide.
+
+There are 120 slides (i.e. samples).
+
+All of these data frames will be imported into a list named `sheets_list` .
+
+```{r}
+# Get all sheet names (these are the sample_id)
+all_sheets <- sheet_names(sheet_url)
+
+# Read each sheet into a named list of data frames
+sheets_list <- lapply(all_sheets, function(sheet) {
+  read_sheet(sheet_url, sheet = sheet)
+})
+
+names(sheets_list) <- all_sheets
+
+```
+
+# Save each sheet as .csv
+
+```{r}
+# Make sure the folder exists (creates it if it doesn't)
+if (!dir.exists("../data")) dir.create("../data", recursive = TRUE)
+
+# Save each sheet as a CSV in the ../data folder
+invisible(lapply(all_sheets, function(sheet) {
+  write.csv(
+    sheets_list[[sheet]],
+    file = file.path("../data", paste0(sheet, ".csv")),
+    row.names = FALSE
+  )
+})
+)
+```
+
+# Copy in all images
+
+-a: archive mode (preserves structure, permissions, etc.)
+
+-v: verbose (shows you what’s happening)
+
+--include '\*/': always include folders (so structure is kept)
+
+--include '\*.jpg': include jpg files
+
+--exclude '\*': exclude everything else
+
+/path/to/source/: your starting directory (note the trailing /)
+
+/path/to/destination/: where you want the .jpg files and folder structure copied
+
+```{bash}
+rsync -av --include '*/' --include '*.jpg' --exclude '*' "/c/Users/Minerva/Desktop/coral-embryo-leachate-scope-pics/" "/c/Users/Minerva/Documents/GitHub/coral-embryo-scope/images/"
+```
+
+# Create a tidy dataframe
+
+Remove sheets named `template` and `1C4_dims` from `sheets_list`
+
+```{r}
+sheets_list[["template"]] <- NULL
+sheets_list[["1C4_dims"]] <- NULL
+```
+
+```{r}
+# Combine into one tidy df and keep sheet name
+tidy_df <- bind_rows(sheets_list, .id = "sheet") %>% 
+  rename(sample_id = sample_name)
+
+summary(tidy_df)
+```
+
+# Add metadata
+
+```{r}
+metadata <- read.csv("../data/scope-metadata.csv")
+```
+
+```{r}
+tidy_embryos <- tidy_df %>%
+  left_join(
+    metadata %>%
+      select(sample_id,
+            parent_1 = parent_colony_a,
+            parent_2 = parent_colony_b,
+            treatment = leachate,
+            hpf),
+    by = "sample_id"
+  )
+```
+
+Check that `sheet` = `sample_name` by using filter to see any rows in which `sheet` does not (!=) equal `sample_name` ,
+
+```{r}
+tidy_embryos %>% 
+  filter(is.na(embryo_no))
+```
+
+::: callout-warning
+Here we have 8 samples that will need some attention... they did not contain any (0) viable embryos... only disintegrating embryos or embryo debris. How do we handle these zeros in the model? How do we count a 'zero'? Of note cross 2 (from the rack corals; 30-Orange (O) and 1-White (W) ) had loss fertilization viability and may need to be removed entirely from the analysis...
+:::
+
+Filter out (that is exclude) cross 2
+
+```{r}
+tidy_bros <- tidy_embryos %>% 
+  filter(!grepl("2", sample_id))
+```
+
+# Factor treatments and embryonic phases
+
+```{r}
+tidy_bros <- tidy_bros %>%
+  mutate(
+    treatment = factor(treatment, levels = c(
+      "control", "low", "mid", "high")),
+    embryo_phase = factor(embryo_phase, levels = c(
+      "egg", "cleavage", "4to16cell", "32to64cell", "prawnchip", "earlygastrula")),
+    status = factor(status, levels = c(
+      "typical", "uncertain", "malformed"))
+    )
+```
+
+There should be no `NAs` in `status` except for sample 3L9.. which had zero viable embryos! ...But what do we do with that?
+
+![Sample 3L9 only contained two dissolving debris fragments](images/3L9_4xstitch_anno.jpg)
+
+```{r}
+tidy_bros %>% filter(is.na(status))
+```
+
+```{r}
+summary(tidy_bros)
+```
+
+```{r}
+tidy_bros %>% filter(is.na(treatment))
+```
+
+# Plot facetgrid
+
+```{r}
+
+ggplot(tidy_bros, aes(x = embryo_phase, fill = status)) +
+  geom_bar() +
+  facet_grid(treatment ~ hpf) +  # rows = treatment, columns = hpf
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Embryo Phases by Treatment and Time",
+       x = "Embryo Phase",
+       y = "Count",
+       fill = "Status")
+
+```
