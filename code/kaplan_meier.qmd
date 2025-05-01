@@ -1,0 +1,114 @@
+---
+title: "kaplan_meier"
+format: html
+---
+
+# Install packages & load libraries
+
+```{r}
+install.packages("survival")
+library(survival)
+install.packages("survminer")
+library(survminer)  # for plotting
+```
+
+```{r}
+stages <- c("egg_total", "cleavage_total", "morula_total", 
+            "prawnchip_total", "earlygastrula_total")
+
+# Pivot the stage columns to long format
+long_data <- tidy_samples |>
+  select(hpf, treatment, all_of(stages)) |>
+  pivot_longer(cols = all_of(stages), names_to = "stage", values_to = "count")
+
+# Create stacked bar plot
+ggplot(long_data, aes(x = hpf, y = count, fill = stage)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ treatment) +  # optional: separate plots per treatment
+  labs(x = "hpf", y = "Total Embryos", fill = "Stage") +
+  theme_minimal()
+
+```
+
+# Kaplan-Meier Survivor dataframe
+
+"The first step in preparation for Kaplan-Meier analysis involves the construction of a table...containing the three key elements required for input. These are: 1) serial time, 2) status at serial time(1=event of interest; 0=censored), and 3) study group (group 1 or 2 etc). The table is then sorted by ascending serial times beginning with the shortest times for each group." - [Rich et al. 2010](https://app.paperpile.com/my-library/Rich-et-al-2010-pgHcnIxmPAxS7BMte2q4FvQ)
+
+For my data each embryo is a subject, with 'participation intervals' of 4hrs, some till 9hrs, some till 14hrs.
+
+1)  `hpf` acts as serial time
+
+2)  event of interest, `1` = event occurred (e.g., embryo developed typically)
+
+    `0` = censored (e.g., malformed, uncertain, or still in egg phase)
+
+3)  `treatment` acts as study group
+
+The Cox proportional hazards will show the increased rate of having an event in one curve versus the other.
+
+::: callout-warning
+Kaplan-Meier analysis requires you to know how many embryos died, I only know how many survived.... I don't know what the initial egg counts in each vial were, but I do know that they should be 15+/- 5.1 sd per bundle
+
+Can I flip it and have the event of interest be survival instead of death?
+
+Can I somehow build in the estimated start counts into a survival model?
+:::
+
+# KM survival 
+
+Create a new column with 1 representing the positive event of interest (survival) and 0 representing eggs, uncertain or malformed morphologies
+
+```{r}
+km_bros <- supertidy_bros %>%
+  mutate(km_status = ifelse(embryo_phase == "egg", 0,
+                            ifelse(status == "typical", 1, 0)))
+```
+
+Create survival object
+
+```{r}
+surv_obj <- Surv(time = km_bros$hpf, event = km_bros$km_status)
+
+```
+
+```{r}
+km_fit <- survfit(surv_obj ~ treatment, data = km_bros)
+
+```
+
+```{r}
+ggsurvplot(
+  km_fit,
+  data = km_bros,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = TRUE,
+  ggtheme = theme_minimal()
+)
+
+```
+
+# KM flipped
+
+```{r}
+km_bros <- km_bros %>%
+  mutate(km_status_flip = ifelse(embryo_phase == "egg", 1,
+                            ifelse(status == "typical", 0, 1)))
+
+surv_obj_flip <- Surv(time = km_bros$hpf, event = km_bros$km_status_flip)
+
+km_fit_flip <- survfit(surv_obj_flip ~ treatment, data = km_bros)
+
+ggsurvplot(
+  km_fit_flip,
+  data = km_bros,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = TRUE,
+  ggtheme = theme_minimal())
+
+```
+
+::: callout-important
+This is the correct way to run this for this data... the 'event of interest' is the developmental failure... either failure to fertilize at 4hpf (remain an egg), or visible malformity
+:::
