@@ -1,0 +1,93 @@
+---
+title: "Visualizing proportions"
+format: html
+---
+
+Install packages & load libraries
+
+```{r}
+library(tidyverse)
+library(tidyplots)
+library(ggplot2)
+```
+
+# Proportions
+
+```{r}
+# Step 1: Pivot to long format
+long_tidy_vials <- tidy_vials %>%
+  pivot_longer(
+    cols = starts_with("prop") | starts_with("n"),
+    names_to = c(".value", "category"),
+    names_pattern = "(prop|n)_(.*)"
+  )
+
+# Step 2: Calculate mean proportions for each category within each treatment
+prop_summary <- long_tidy_vials %>%
+  group_by(treatment, category, hpf_factor) %>%
+  summarize(mean_prop = mean(prop), .groups = "drop") %>% 
+  filter(category != "embryos")
+```
+
+## Developmental stage
+
+```{r}
+# Step 3: Plot
+prop_summary %>% 
+  filter(category %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula")) %>% 
+ggplot(., aes(x = treatment, y = mean_prop, fill = category)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Proportion of embryos at each embryonic stage", x = "Treatment", fill = "Embryonic Stage") +
+  facet_wrap(~ hpf_factor)+
+  theme_minimal()
+
+ggsave("../plots/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 300)
+```
+
+\
+
+::: callout-note
+9 low and 9 high have bars that don't sum to 1.0 because 3L9 and 7H9 had zero embryos
+:::
+
+## Embryo status
+
+```{r}
+prop_summary %>% 
+  filter(category %in% 
+         c("typical", 
+         "uncertain", 
+         "malformed")) %>% 
+ggplot(., aes(x = treatment, y = mean_prop, fill = category)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Proportion", x = "Treatment", fill = "Embryonic Status") +
+  facet_wrap(~ hpf_factor)+
+  theme_minimal()
+
+ggsave("../plots/proportion_status_stackedbar.png", width = 8, height = 6, dpi = 300)
+```
+
+## Stage x status
+
+```{r}
+prop_summary %>%
+    filter(!category %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula",
+         "typical", 
+         "uncertain", 
+         "malformed")) %>% 
+ ggplot(., aes(x = treatment, y = mean_prop, fill = category)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Mean Proportion", x = "Treatment", fill = "Embryonic stage x status") +
+  facet_wrap(~ hpf_factor)+
+  theme_minimal()
+```

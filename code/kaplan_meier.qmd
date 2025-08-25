@@ -17,7 +17,7 @@ stages <- c("egg_total", "cleavage_total", "morula_total",
             "prawnchip_total", "earlygastrula_total")
 
 # Pivot the stage columns to long format
-long_data <- tidy_samples |>
+long_data <- tidy_vials |>
   select(hpf, treatment, all_of(stages)) |>
   pivot_longer(cols = all_of(stages), names_to = "stage", values_to = "count")
 
@@ -107,6 +107,7 @@ ggsurvplot(
   risk.table = TRUE,
   ggtheme = theme_minimal())
 
+ggsave("../kaplan_meier.png", width = 8, height = 6, dpi = 300)
 ```
 
 ::: callout-important

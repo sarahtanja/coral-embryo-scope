@@ -11,9 +11,11 @@ Microscopy data will be visually examined for normal distribution and homogeneit
 library(tidyverse)
 ```
 
-# Is it normal?
+# ALL EMBRYOS : counts
 
-## Overlapping density plots
+## Is it normal?
+
+### Overlapping density plots
 
 ```{r}
 ggplot(tidy_vials, aes(x = n_embryos, fill = hpf_factor)) +
@@ -24,7 +26,7 @@ ggplot(tidy_vials, aes(x = n_embryos, fill = hpf_factor)) +
 
 ```
 
-## Q-Q plots
+### Q-Q plots
 
 ```{r}
 ggplot(tidy_vials, aes(sample = n_embryos)) +
@@ -35,7 +37,7 @@ ggplot(tidy_vials, aes(sample = n_embryos)) +
 
 ```
 
-## Shapiro-Wilk test
+### Shapiro-Wilk test
 
 ```{r}
 tidy_vials %>%
@@ -49,7 +51,7 @@ tidy_vials %>%
 Numbers of total surviving embryos (not looking at status or stage) for each time-point of hours post fertilization (hpf) across treatments form normal distributions.
 :::
 
-# What are the means and sd's?
+## What are the means and sd's?
 
 ```{r}
 # Calculate mean and SD for each hpf group
@@ -64,12 +66,11 @@ summary_data <- tidy_vials %>%
 print(summary_data)
 ```
 
-# Are the means different?
+## Are the means different?
 
-Are the mean numbers of total surviving embryos in each treatment across time different from each other? 
-This ANOVA ignores embryo status and all random effects (parentage, night of spawn)
+Are the mean numbers of total surviving embryos in each treatment across time different from each other? This ANOVA ignores embryo status and all random effects (parentage, night of spawn)
 
-## Two-way ANOVA by hpf and treatment
+### Two-way ANOVA by hpf and treatment
 
 ```{r}
 anova_result <- aov(n_embryos ~ hpf_factor * treatment, data = tidy_vials)
@@ -87,15 +88,100 @@ No PVC leachate treatments were found to have a significant effect on the total 
 The number of surviving embryos in each stage is significantly different, as expected... `p = 1.36e-15` , `p < 0***`
 :::
 
-## Tukey HSD
+### Tukey HSD
 
 ```{r}
 TukeyHSD(anova_result)
 ```
 
 ::: callout-important
-In summary the number of surviving embryos at the cleavage stage (4 hpf) is significantly different from the number of surviving embryos at the prawn chip (9 hpf) and early gastrula (14 hpf) stages; but the survival at 9 hpf is not significantly different from 14 hpf.
+In summary the number of embryos at the cleavage stage (4 hpf) is significantly different from the number of surviving embryos at the prawn chip (9 hpf) and early gastrula (14 hpf) stages; but the survival at 9 hpf is not significantly different from 14 hpf.
 :::
 
+# VIABLE EMBRYOS : counts
 
+## Is it normal?
 
+### Overlapping density plots
+
+```{r}
+ggplot(tidy_vials, aes(x = n_viable, fill = hpf_factor)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Counts of viable embryos", y = "Density") +
+  #scale_fill_brewer(palette = "Set2") +
+  theme_minimal()
+
+ggsave("../plots/density_viable.png", width = 8, height = 6, dpi = 300)
+```
+
+### Q-Q plots
+
+```{r}
+ggplot(tidy_vials, aes(sample = n_viable)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ hpf) +
+  theme_minimal()
+```
+
+### Shapiro-Wilk test
+
+```{r}
+tidy_vials %>%
+  group_by(hpf) %>%
+  summarise(shapiro_p = shapiro.test(n_viable)$p.value)
+```
+
+::: callout-important
+The distribution of viable embryos for 9 and 14 hpf are normal, however the 4 hpf group has a binomial distribution. !This is likely an artifact of fertilized eggs that just hadn't yet begun cleavage at 4 hpf and needed a little more time to develop! How do we approach this?? The unfertilized eggs mostly disintegrate between the 4 hpf and 9 hpf time points.
+:::
+
+# 4 'Schrodinger's coral egg'
+
+At 4 hpf most embryos are still in the 'oocyte' stage: leaving doubt as to whether they are successfully fertilized and proceeding with embryonic development or not.
+
+## 4 hpf proceed with binomial regression ...?
+
+::: callout-important
+Here we see that the 4 hpf group has a binomial distribution! NOT a normal distribution... It seems that samples either had fertilization success, or they didn't.
+
+Proceed to binomial regression code!!!
+:::
+
+## 9 hpf One-Way ANOVA
+
+```{r}
+anova_9 <- tidy_vials %>% 
+  filter(hpf_factor == "9") %>% 
+  aov(n_viable ~ treatment, data = .)
+
+summary(anova_9)
+```
+
+Here, `data = .` ensures that the filtered data is passed properly into `aov()`.
+
+::: callout-note
+At 9 hpf there is no significant difference between the number of viable embryos found in each treatment. Treatment was found to be non-significant (p=0.959) at 9 hpf.
+:::
+
+## 14 hpf One-Way ANOVA
+
+```{r}
+anova_14 <- tidy_vials %>% 
+  filter(hpf_factor == "14") %>% 
+  aov(n_viable ~ treatment, data = .)
+
+summary(anova_14)
+```
+
+# PROPORTIONS
+
+## Is it normal?
+
+```{r}
+ggplot(prop_summary, aes(x = mean_prop, fill = hpf_factor)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Proportions of viable embryos", y = "Density") +
+  #scale_fill_brewer(palette = "Set2") +
+  theme_minimal()
+```

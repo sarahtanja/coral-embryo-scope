@@ -9,11 +9,24 @@ library(ggplot2)
 library(ggbeeswarm)
 ```
 
+# Plot COUNTS facetgrid
+
+```{r}
+ggplot(tidy_bros, aes(x = dev_stage, fill = status)) +
+  geom_bar(alpha = 0.7) +
+  facet_grid(treatment ~ hpf) +  # rows = treatment, columns = hpf
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Embryo Phases by Treatment and Time",
+       x = "Embryo Phase",
+       y = "Count",
+       fill = "Status")
+```
 
 # Barcharts
 
 ```{r}
-ggplot(supertidy_bros, aes(x = hpf)) +
+ggplot(tidy_bros, aes(x = hpf)) +
   geom_bar(position = position_dodge(), aes(fill = treatment), alpha = 0.5) +
   labs(x = "hpf", y = "Total Embryos across Samples", fill = "Treatment") +
   theme_minimal()
@@ -24,7 +37,7 @@ By default, `geom_bar()` (and some other geoms) automatically aggregates your da
 But if you already have a y-value you want to use directly (like embryo_total, or a count column you calculated), you need to set: `stat = "identity"`
 
 ```{r}
-ggplot(tidy_samples, aes(x = hpf, y = embryo_total)) +
+ggplot(tidy_vials, aes(x = hpf, y = n_embryos)) +
   geom_bar(stat = "identity", position = position_dodge(), aes(fill = treatment), alpha = 0.5) +
   labs(x = "hpf", y = "Total Embryos per Sample", fill = "Treatment") +
   theme_minimal()
@@ -34,10 +47,10 @@ ggplot(tidy_samples, aes(x = hpf, y = embryo_total)) +
 # Boxplot
 
 ```{r}
-ggplot(tidy_samples, aes(x = hpf, y = embryo_total)) +
-  geom_boxplot(aes(fill = hpf), alpha = 0.4) +  # boxplot with semi-transparent fill
-  geom_beeswarm(aes(color = hpf), size = 1.8, cex = 3) +  # beeswarm points
-  labs(x = "hpf", y = "Embryo Total", color = "hpf") +
+ggplot(tidy_vials, aes(x = hpf_factor, y = n_viable)) +
+  geom_boxplot(aes(fill = hpf_factor), alpha = 0.4) +  # boxplot with semi-transparent fill
+  geom_beeswarm(aes(color = hpf_factor), size = 1.8, cex = 3) +  # beeswarm points
+  labs(x = "hpf", y = "Viable Embryo Total", color = "hpf") +
   theme_minimal()
 ```
 
@@ -54,15 +67,26 @@ ggplot(tidy_samples, aes(x = interaction(hpf, treatment), y = embryo_total, fill
 
 ```
 ```{r}
-ggplot(tidy_samples, aes(x = hpf, y = embryo_total, fill = treatment)) +
+ggplot(tidy_vials, aes(x = hpf_factor, y = n_embryos, fill = treatment)) +
   geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +  # Boxplots side by side
   #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
   #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
-  labs(x = "HPF", y = "Embryo Total") +
+  labs(x = "Hours post fertilization", y = "Total Embryo Counts") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
 
 ```
 
+```{r}
+ggplot(tidy_vials, aes(x = hpf_factor, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +  # Boxplots side by side
+  #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "Hours post fertilization", y = "Viable Embryo Counts") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+ggsave("../plots/counts_viable_boxplot.png", width = 8, height = 6, dpi = 300)
+```
 
 

@@ -198,7 +198,7 @@ tidy_vials <- tidy_bros %>%
     n_cleavage = sum(dev_stage == "cleavage"),
     prop_cleavage = mean(dev_stage == "cleavage"),
     n_morula = sum(dev_stage == "morula"),
-    prop_morula = sum(dev_stage == "morula"),
+    prop_morula = mean(dev_stage == "morula"),
     n_prawnchip = sum(dev_stage == "prawnchip"),
     prop_prawnchip = mean(dev_stage == "prawnchip"),
     n_earlygastrula = sum(dev_stage == "earlygastrula"),
@@ -215,6 +215,27 @@ tidy_vials <- tidy_vials %>%
 
 str(tidy_vials)
 ```
+## make a column for viable embryo counts
+
+This means malformed = dead, uncertain(torn) = viable, egg = dead. Ecologically, a malformed embryo isn't progressing.. but a torn embryo could continue to develop!
+
+So we're only counting the total number of embryos that are not eggs and are typical. To do that let's make new columns called n_viable and prop_viable for the number of viable embryos and proportion of viable embryos.
+
+```{r}
+tidy_vials <- tidy_vials %>% 
+  mutate(n_viable = n_embryos - 
+           (n_egg + 
+            n_cleavage_malformed + 
+            n_morula_malformed +
+            n_prawnchip_malformed +
+            n_earlygastrula_malformed)) %>% 
+  relocate(n_viable, .before = n_embryos) %>% 
+  mutate(prop_viable = n_viable/n_embryos) %>% 
+  relocate(prop_viable, .before = n_embryos)
+
+str(tidy_vials)
+```
+
 ## QAQC zeros & NAs
 ```{r}
 tidy_vials %>% 
@@ -237,11 +258,13 @@ tidy_vials[tidy_vials$sample_id == "7H9", ] <- tidy_vials[tidy_vials$sample_id =
          )
 ```
 
-## hpf as factor
+## Order factors
 Sometime for plotting purposes we need hpf to be ordered as a factor and not a numerical data
 ```{r}
 tidy_vials <- tidy_vials %>% 
-  mutate(hpf_factor = factor(hpf, levels = c("4","9","14"), ordered = TRUE ))
+  mutate(hpf_factor = factor(hpf, levels = c("4","9","14"), ordered = TRUE ),
+         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE)
+         )
 
 str(tidy_vials)
 ```
