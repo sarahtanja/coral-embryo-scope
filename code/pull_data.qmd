@@ -1,7 +1,69 @@
 ---
 title: "Download .csv Data from Google Sheet"
-format: html
+subtitle: "Using `googlesheets4`"
+author: "Sarah Tanja"
+date: 01/20/2025
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+------------------------------------------------------------------------
+# Background
+In August 2024, we made 120 permanent slides of *Montipora capitata* embryos at 3 developmental stages:
+(4 hours post-fertilization; cleavage) 
+(9 hours post-fertilization; prawn chip)
+(14 hours post-fertilization; early gastrula)
+
+These embryos were exposed to increasing levels of polyvinyl chloride (PVC) leachate:
+0 mg/L (control group: 0.22$\mu m$ filtered seawater from Kaneohe Bay, Oahu)
+0.01 mg/L (low level exposure group, nominally equivalent to 0.01 mg of PVC microplastics (<500$\mu m$ in particle size) per liter of seawater)
+0.1 mg/L (mid level exposure group)
+1 mg/L (high level exposure group)
+
+The embryos were fixed in 4% Z-fix, mounted with glycerol, and photographed at 40X using a Nikon DS-Fi 3 camera.
+Embryos in images were then annotated manually via Nikon's NIS Elements BR 4.6.00 64 bit software.
+
+Here we pull in the images and annotation data files for analysis in R. 
+
+## Inputs
+- annotation data files populated in a google sheet
+- annotated images originally taken on Nikon DS-Fi 3 camera
+- annotations added via Nikon's NIS Elements BR 4.6.00 64 bit software
+
+## Outputs
+- data sheets pulled from Google Sheet to git repo in `data/scope_annotation_data`
+- original annotated images archived in repo's `images` folder 
 
 Here we are pulling our data from a Google Sheet, with a single 'sheet' containing data for a single sample.
 
@@ -15,6 +77,7 @@ library(ggimage)
 library(googlesheets4)
 ```
 
+# Import dataframes to a list
 ```{r}
 # Authenticate your Google account
 gs4_auth()
@@ -24,8 +87,6 @@ gs4_auth()
 # This is the Google Sheet URL
 sheet_url <- "https://docs.google.com/spreadsheets/d/1Gj7aiv3p68cmMo6j-T_U_r57rQo8CoIWyrbhQE7Jt0g/edit?gid=1617870343#gid=1617870343"
 ```
-
-# Import dataframes to a list
 
 Download all sheets in the workbook. Each sheet is data from a single microscopy slide.
 
@@ -83,4 +144,8 @@ invisible(lapply(all_sheets, function(sheet) {
 rsync -av --include '*/' --include '*.jpg' --exclude '*' "/c/Users/Minerva/Desktop/coral-embryo-leachate-scope-pics/" "/c/Users/Minerva/Documents/GitHub/coral-embryo-scope/images/"
 ```
 
+# Summary & Next Steps
 
+We now have annotated scope images located in `images` and one .csv file per sample (n=120 samples, or 120 microscopy slides) in `data/scope_annotation_data` .
+
+Next steps are to compile the scope annotation data in `code/tidy.qmd` and visualize it for initial trends in `code/counts.qmd` and `code/proportions.qmd`

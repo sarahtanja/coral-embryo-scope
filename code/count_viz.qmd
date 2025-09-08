@@ -9,10 +9,39 @@ library(ggplot2)
 library(ggbeeswarm)
 ```
 
-# Plot COUNTS facetgrid
+```{r}
+tidy_bros <- read.csv("../data/output/tidy_bros.csv")
+```
+## Order factors
 
 ```{r}
-ggplot(tidy_bros, aes(x = dev_stage, fill = status)) +
+# Set your levels in order
+# embryo_phase
+bro_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
+
+# treatment
+treat_levels <- c("control", "low", "mid", "high")
+
+# status
+status_levels <- c("typical", "uncertain", "malformed")
+
+
+# Mutate dataframe to set factor levels
+tidy_bros <- tidy_bros %>%
+  mutate(stage = factor(stage, 
+                        levels = bro_levels,
+                        ordered = TRUE),
+         treatment = factor(treatment, 
+                            levels = treat_levels,
+                            ordered = TRUE),
+         status = factor(status, 
+                         levels = status_levels,
+                         ordered = TRUE))
+```
+
+# Plot COUNTS facetgrid
+```{r}
+ggplot(tidy_bros, aes(x = stage, fill = status)) +
   geom_bar(alpha = 0.7) +
   facet_grid(treatment ~ hpf) +  # rows = treatment, columns = hpf
   theme_minimal() +
@@ -67,14 +96,16 @@ ggplot(tidy_samples, aes(x = interaction(hpf, treatment), y = embryo_total, fill
 
 ```
 ```{r}
-ggplot(tidy_vials, aes(x = hpf_factor, y = n_embryos, fill = treatment)) +
+ggplot(tidy_vials, aes(x = hpf, y = n_embryos, fill = treatment)) +
   geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +  # Boxplots side by side
   #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
   #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
-  labs(x = "Hours post fertilization", y = "Total Embryo Counts") +
+  labs(x = "Hours post fertilization", y = "Viable Embryo Counts")+
+  ggtitle("Counts of total viable embryos across treatment and time")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
 
+ggsave("../plots/counts_survival_boxplot.png", width = 8, height = 6, dpi = 300)
 ```
 
 ```{r}

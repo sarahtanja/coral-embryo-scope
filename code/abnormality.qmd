@@ -1,0 +1,251 @@
+---
+title: "Analyzing abnormality proportions"
+subtitle: "with Dirichlet regression"
+date: 04/01/2024
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+# Background
+
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+
+# Install packages & Load libraries
+
+```{r, eval=FALSE}
+install.packages("betareg")
+install.packages("gamlss")
+install.packages("DirichletReg")
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(scales) # for percentages in Table formatting
+library(kableExtra)
+library(DirichletReg)
+```
+
+# Load data
+
+```{r}
+tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+```
+
+Drop the samples with zero embryos (drop zeros)
+
+```{r}
+tidy_vials_dropz <- tidy_vials %>% 
+  filter(sample_id != c("3L9", "7H9"))%>% 
+  mutate(treatment = factor(treatment, levels = c("control",
+                                                  "low",
+                                                  "mid",
+                                                  "high"))) %>% 
+  mutate(hpf = factor(hpf, levels = c("4",
+                                      "9",
+                                      "14")))
+```
+
+# Calculate proportion means
+
+```{r}
+# Step 1: Pivot to long format
+long_tidy_vials <- tidy_vials_dropz %>%
+  pivot_longer(
+    cols = starts_with("prop") | starts_with("n"),
+    names_to = c(".value", "stage"),
+    names_pattern = "(prop|n)_(.*)"
+  )
+
+# Step 2: Calculate mean proportions for each status within each treatment
+prop_summary <- long_tidy_vials %>%
+  group_by(treatment, stage, hpf) %>%
+  summarize(mean_prop = mean(prop), .groups = "drop") %>% 
+  filter(stage != "embryos") %>% 
+  filter(stage %in% 
+         c("typical", 
+         "uncertain", 
+         "malformed")) %>%  
+  mutate(status = factor(stage, levels = c("typical", "uncertain", "malformed"))) %>% 
+  mutate(hpf = factor(hpf, levels = c("4", "9", "14"))) %>% 
+  mutate(treatment = factor(treatment, levels = c("control", "low", "mid", "high"))) %>% 
+  select(!stage)
+
+str(prop_summary)
+```
+
+# Stacked barplot
+
+```{r}
+prop_summary %>% 
+  mutate(mean_perc = mean_prop*100) %>% 
+ggplot(., aes(x = treatment, y = mean_perc, fill = status))+
+  geom_bar(stat = "identity")+
+  ggtitle("Percentage of embryos categorized by status")+
+  labs(y = "Percentage", x = "Treatment", fill = "Embryonic Status")+
+  facet_wrap(~ hpf)+
+  theme_minimal()
+```
+
+```{r}
+ggsave("../plots/percentage_status_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+# Table
+
+```{r}
+table_status <-
+  prop_summary %>%
+  # set clear order
+  mutate(
+    status     = factor(status, levels = c("typical", "uncertain", "malformed")),
+    treatment = factor(treatment, levels = c("control","low","mid","high")),
+    hpf       = factor(hpf, levels = c(4, 9, 14))
+  ) %>%
+  select(treatment, hpf, status, mean_prop) %>%
+  pivot_wider(
+    names_from  = status,
+    values_from = mean_prop,
+    values_fill = 0
+  ) %>%
+  arrange(hpf, treatment) %>%
+  relocate(hpf, treatment) %>% 
+  # this orders across table top
+  select(hpf, treatment, typical, uncertain, malformed) %>%
+  # optional: nicer column labels for manuscript
+  rename(`PVC leachate` = treatment, Typical = typical, Uncertain = uncertain, Malformed = malformed) 
+
+# ----- percents (if mean_prop is a proportion 0–1) -----
+table_status <- table_status %>%
+  mutate(across(c(Typical, Uncertain, Malformed), 
+                ~ percent(.x, accuracy = 0.1)))
+
+```
+
+```{r}
+table_status %>%
+  kable(
+    format = "latex",               # use "latex" if knitting to PDF
+    digits = 3,                    # number of decimals
+    caption = "Percentage of typical, uncertain, and malformed embryos by treatment and hpf",
+    align = "c"                    # center align all columns
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+  column_spec(1, bold = TRUE) %>%  # bold hpf column
+  collapse_rows(columns = 1, valign = "top")  # group rows by hpf
+
+table_status
+```
+
+# Multinomial logistic regression
+
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+
+```{r}
+install.packages("VGAM")   # if not already installed
+library(VGAM)
+```
+
+```{r}
+# Make a response matrix of counts:
+Y_status <- as.matrix(tidy_vials_dropz[, c("n_typical",
+                            "n_uncertain",
+                            "n_malformed")])
+
+# Multinomial logistic regression of count matrix
+fit_status <- vglm(Y_status ~ treatment + hpf, family = multinomial, data = tidy_vials_dropz)
+
+summary(fit_status)
+```
+
+## Check for overdispersion
+
+```{r}
+deviance(fit_status) / df.residual(fit_status)
+```
+
+Values \>\> 1 indicate overdispersion.
+
+Proceed to Dirichlet regression
+
+# Dirichlet-multinomial regression
+
+This is essentially a multinomial with an extra dispersion parameter. Each row of counts is assumed to follow a Dirichlet-multinomial distribution.
+
+```{r}
+install.packages("MGLM")
+library(MGLM)
+```
+
+```{r}
+# Fit Dirichlet-multinomial regression to count matrix
+fit_status_DM <- MGLMreg(Y_status ~ treatment + hpf, data = tidy_vials_dropz, dist = "DM")
+```
+
+Coefficients
+
+```{r}
+coef(fit_status_DM)
+```
+
+Log-likelihood, AIC, BIC
+
+```{r}
+logLik(fit_status_DM)
+AIC(fit_status_DM)
+BIC(fit_status_DM)
+```
+
+ANOVA/ Likelihood ratio test
+
+```{r}
+fit_reduced <- MGLMreg(Y_status ~ hpf, data = tidy_vials_dropz, dist = "DM")
+anova(fit_reduced, fit_status_DM, test = "Chisq")
+```
+
+# Dirichlet regression on proportions
+
+Subset to each hours post fertilization end point (4, 9, 14) to simplify models. \## 4
+
+```{r}
+tidy_4 <- tidy_vials_dropz %>% 
+  filter(hpf == "4") %>% 
+  select(treatment, n_typical, n_uncertain, n_malformed, prop_typical, prop_uncertain, prop_malformed)
+nrow(tidy_4)
+```

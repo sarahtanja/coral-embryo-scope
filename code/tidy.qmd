@@ -1,34 +1,76 @@
 ---
 title: "Make tidy dataframes"
-format: html
+subtitle: "with `tidyverse`"
+date: 04/01/2024
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
 ---
 
-# Install & load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
 
+# Background
+Each sample (aka each microscopy slide) resulted in a total embryo count.
+ 
+For each sample, each embryo counted was classified by:
+- stage
+- status
+
+## Input
+- each sample's own annotation .csv found in `data/scope_annotation_data`
+## Output
+- `data/output/tidy_bros` each row is an embryo
+- `data/output/tidy_vials` each row is a sample
+
+# Install & load packages
 ```{r}
 library(tidyverse)
 ```
 
 # tidy_bros : each row is an embryo
-
-There should be 120 csv files representing: 10 'crosses' of somewhat random parentage (1-10) 4 'treatments' encompassing a control, low, mid, and high pvc leachate exposure (C, L, M, H) 3 'embryonic stages' or hours post fertilization (4, 9, 14)
-
--   `list.files()` finds all .csv files in the directory.
-
--   `map_dfr(read_csv)` reads each file and binds rows together (\_dfr = data frame row-bind).
+There should be 120 csv files, representing each sample, named by the convention of: 
+- 10 'crosses' of somewhat random parentage **(1-10)**
+- 4 'treatments' encompassing a control, low, mid, and high pvc leachate exposure **(C, L, M, H)**
+- 3 'embryonic stages' or hours post-fertilization **(4, 9, 14)**
 
 The columns for each file are:
-
-sample_name = col_character()
-
-embryo_no = col_integer()
-
-embryo_phase = col_factor()
-
-status = col_factor
-
-notes = col_factor
-
+- sample_name = col_character()
+- embryo_no = col_integer()
+- embryo_phase = col_factor()
+- status = col_factor
+- notes = col_factor
+::: callout-note
+`list.files()` finds all .csv files in the directory.
+`map_dfr(read_csv)` reads each file and binds rows together (\_dfr = data frame row-bind).
+:::
 ```{r}
 # list all csv files
 csv <- list.files("../data/scope_annotation_data", pattern = "\\.csv$", full.names = TRUE)
@@ -46,7 +88,10 @@ tidy_embryos <- tidy_embryos %>%
   
 
 summary(tidy_embryos)
+unique(tidy_embryos$stage)
+unique(tidy_embryos$status)
 ```
+
 
 ## Add metadata
 
@@ -69,18 +114,16 @@ metadata_clean <- metadata %>%
 tidy_embryos <- tidy_embryos %>%
   left_join(metadata_clean, by = "sample_id")
 
-summary(tidy_embryos)
+str(tidy_embryos)
 ```
 
 ## Collapse to morula
 
 ```{r}
 tidy_bros <- tidy_embryos %>% 
-  mutate(dev_stage = if_else(stage %in% c("4to16cell", "32to64cell"), "morula", stage)) %>% 
-  select(-stage) %>% 
-  relocate(dev_stage, .after = sample_id)
+  mutate(stage = if_else(stage %in% c("4to16cell", "32to64cell"), "morula", stage))
 
-unique(tidy_bros$dev_stage)
+unique(tidy_bros$stage)
 ```
 
 ## Order factors
@@ -99,9 +142,9 @@ status_levels <- c("typical", "uncertain", "malformed")
 
 # Mutate dataframe to set factor levels
 tidy_bros <- tidy_bros %>%
-  mutate(dev_stage = factor(dev_stage, 
-                               levels = bro_levels,
-                               ordered = TRUE),
+  mutate(stage = factor(stage, 
+                        levels = bro_levels,
+                        ordered = TRUE),
          treatment = factor(treatment, 
                             levels = treat_levels,
                             ordered = TRUE),
@@ -128,7 +171,7 @@ tidy_bros %>%
 ```
 
 ::: callout-warning
-Here we have 9 samples that will need some attention... they did not contain any (0) viable embryos... only disintegrating embryos or embryo debris. How do we handle these zeros in the model? How do we count a 'zero'? Of note cross 2 (from the rack corals; 30-Orange (O) and 1-White (W) ) had no fertilization and it should be removed entirely from the analysis. Note that at 4 hpf cross 2 eggs had not yet dissolved despite having zero fertilization! This is good evidence that the unfertilized eggs are still visible at 4 hpf.
+Here we have 9 samples that will need some attention... they did not contain any (0) viable embryos... only disintegrating embryos or embryo debris. How do we handle these zeros? How do we count a 'zero'? Of note cross 2 (from the rack corals; 30-Orange (O) and 1-White (W) ) had no fertilization and it should be removed entirely from the analysis. Note that at 4 hpf cross 2 eggs had not yet dissolved despite having zero fertilization! This is good evidence that the unfertilized eggs are still visible at 4 hpf.
 :::
 
 ## Drop cross 2
@@ -139,21 +182,13 @@ tidy_bros <- tidy_bros %>%
   filter(!grepl("2", sample_id))
 ```
 
-There should now be no `NAs` in `status` except for sample 3L9.. which had zero viable embryos! **...But what do we do with that?**
-
+There should now be no `NAs` in `status` except for samples 3L9 & 7H9.. which had zero viable embryos! **...But what do we do with that?**
+```{r}
+tidy_bros %>% 
+  filter(if_any(everything(), is.na))
+```
 ![Sample 3L9 only contained two dissolving debris fragments](../images/3L9/3L9_4xstitch_anno.jpg)
 ![Sample 7H9 contained many dissolving debris fragments, but none appearing viable](../images/7H9/7H9_manualstitch_anno.jpg)
-
-```{r}
-tidy_bros %>% filter(if_any(everything(), is.na))
-```
-
-These two sample rows are here as placeholders to show that they had zero surviving embryos. 
-
-```{r}
-str(tidy_bros)
-```
-
 ## Save dataframe
 
 ```{r}
@@ -162,16 +197,16 @@ write_csv(tidy_bros, "../data/output/tidy_bros.csv")
 
 # tidy_vials : each row is a sample
 
-Counts and proportions of combined and distinct dev_stage and status values in each vial
+Counts and proportions of combined and distinct stage and status values in each vial
 ```{r}
 # Count + proportion per group
 vials <- tidy_bros %>%
-  count(sample_id, dev_stage, status, name = "n") %>%
+  count(sample_id, stage, status, name = "n") %>%
   group_by(sample_id) %>%
   mutate(prop = n / sum(n)) %>%
   ungroup() %>%
   pivot_wider(
-    names_from = c(dev_stage, status),
+    names_from = c(stage, status),
     values_from = c(n, prop),
     values_fill = 0
   ) %>% 
@@ -193,47 +228,54 @@ tidy_vials <- tidy_bros %>%
     prop_typical = mean(status == "typical"),
     prop_malformed = mean(status == "malformed"),
     prop_uncertain = mean(status == "uncertain"),
-    n_egg = sum(dev_stage == "egg"),
-    prop_egg = mean(dev_stage == "egg"),
-    n_cleavage = sum(dev_stage == "cleavage"),
-    prop_cleavage = mean(dev_stage == "cleavage"),
-    n_morula = sum(dev_stage == "morula"),
-    prop_morula = mean(dev_stage == "morula"),
-    n_prawnchip = sum(dev_stage == "prawnchip"),
-    prop_prawnchip = mean(dev_stage == "prawnchip"),
-    n_earlygastrula = sum(dev_stage == "earlygastrula"),
-    prop_earlygastrula = mean(dev_stage == "earlygastrula"),
+    n_egg = sum(stage == "egg"),
+    prop_egg = mean(stage == "egg"),
+    n_cleavage = sum(stage == "cleavage"),
+    prop_cleavage = mean(stage == "cleavage"),
+    n_morula = sum(stage == "morula"),
+    prop_morula = mean(stage == "morula"),
+    n_prawnchip = sum(stage == "prawnchip"),
+    prop_prawnchip = mean(stage == "prawnchip"),
+    n_earlygastrula = sum(stage == "earlygastrula"),
+    prop_earlygastrula = mean(stage == "earlygastrula"),
     .groups = "drop"
   )
 
+str(tidy_vials)
 ```
 
 ```{r}
 tidy_vials <- tidy_vials %>% 
   left_join(vials, by = "sample_id") %>% 
   relocate(c(treatment, hpf, parent_1, parent_2, date), .after = sample_id)
-
-str(tidy_vials)
 ```
 ## make a column for viable embryo counts
 
-This means malformed = dead, uncertain(torn) = viable, egg = dead. Ecologically, a malformed embryo isn't progressing.. but a torn embryo could continue to develop!
+This means malformed = dead, uncertain(torn) = viable. 
+Ecologically, a malformed embryo isn't progressing.. but a torn embryo could continue to develop!
 
-So we're only counting the total number of embryos that are not eggs and are typical. To do that let's make new columns called n_viable and prop_viable for the number of viable embryos and proportion of viable embryos.
+So we're only counting the total number of embryos that are typical or uncertain. To do that let's make new columns called n_viable and prop_viable for the number of viable embryos and proportion of viable embryos.
 
 ```{r}
-tidy_vials <- tidy_vials %>% 
-  mutate(n_viable = n_embryos - 
-           (n_egg + 
-            n_cleavage_malformed + 
-            n_morula_malformed +
-            n_prawnchip_malformed +
-            n_earlygastrula_malformed)) %>% 
-  relocate(n_viable, .before = n_embryos) %>% 
-  mutate(prop_viable = n_viable/n_embryos) %>% 
+tidy_vials <- tidy_vials %>%
+  mutate(
+    n_viable = case_when(
+      hpf == 4 ~ n_embryos - (n_egg_malformed + 
+                              n_cleavage_malformed + 
+                              n_morula_malformed +
+                              n_prawnchip_malformed +
+                              n_earlygastrula_malformed),
+      hpf %in% c(9, 14) ~ n_embryos - (n_egg + 
+                                        n_egg_malformed + 
+                                        n_cleavage_malformed + 
+                                        n_morula_malformed +
+                                        n_prawnchip_malformed +
+                                        n_earlygastrula_malformed)
+    )
+  ) %>%
+  relocate(n_viable, .before = n_embryos) %>%
+  mutate(prop_viable = n_viable / n_embryos) %>%
   relocate(prop_viable, .before = n_embryos)
-
-str(tidy_vials)
 ```
 
 ## QAQC zeros & NAs
@@ -242,31 +284,30 @@ tidy_vials %>%
   filter(if_any(everything(), is.na))
 ```
 
-3L9 had zero embryos
-It counted the row as '1' embryo, but the row was just a placeholder and really there were no viable embryos found in this sample (see above). Here we simply replace the '1' with a '0' and all the NA values in the columns with '0'. 
+3L9 had zero embryos & 7H9 had zero embryos
+These samples show '1' embryo, but the row was just a placeholder and really there were no viable embryos found in these sample (see above). Here we simply replace the '1' with a '0' and all the NA values in the columns with '0'. 
+
 ```{r}
-tidy_vials[tidy_vials$sample_id == "3L9", ] <- tidy_vials[tidy_vials$sample_id == "3L9", ] %>%
-  mutate(across(everything(), ~replace(., is.na(.), 0)),
-         n_embryos = if_else(sample_id == "3L9", 0, n_embryos)
-         )
+tidy_vials <- tidy_vials %>%
+  mutate(across(
+    c(n_viable, prop_viable, n_embryos),
+    ~if_else(sample_id %in% c("3L9", "7H9"), 0, .)
+  ))
 ```
-7H9 had zero embryos
+
+Should no longer be NA... n_viable and prop_viable and n_embryos should be 0
 ```{r}
-tidy_vials[tidy_vials$sample_id == "7H9", ] <- tidy_vials[tidy_vials$sample_id == "7H9", ] %>%
-  mutate(across(everything(), ~replace(., is.na(.), 0)),
-         n_embryos = if_else(sample_id == "7H9", 0, n_embryos)
-         )
+tidy_vials %>% 
+  filter(sample_id == c("3L9", "7H9"))
 ```
 
 ## Order factors
-Sometime for plotting purposes we need hpf to be ordered as a factor and not a numerical data
+Sometimes for plotting purposes we need hpf to be ordered as a factor and not a numerical data
 ```{r}
 tidy_vials <- tidy_vials %>% 
-  mutate(hpf_factor = factor(hpf, levels = c("4","9","14"), ordered = TRUE ),
-         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE)
+  mutate(hpf = factor(hpf, levels = c("4","9","14"), ordered = TRUE ),
+         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE),
          )
-
-str(tidy_vials)
 ```
 
 ## Save dataframe
@@ -274,7 +315,7 @@ str(tidy_vials)
 write_csv(tidy_vials, "../data/output/tidy_vials.csv")
 ```
 
-# Summary
+# Summary & Next Steps
 
 Ok! We have two tidy dataframes in long format to work with that should allow us to answer all our questions.
 
@@ -283,18 +324,18 @@ The following are thought-experiment dataframes... not fully flushed out yet
 
 ## embryos_summary : 
 ```{r}
-# Count embryos per (sample_id, dev_stage, status)
+# Count embryos per (sample_id, stage, status)
 embryos_summary <- tidy_bros %>%
-  count(sample_id, dev_stage, status, name = "n_embryos") %>%
+  count(sample_id, stage, status, name = "n_embryos") %>%
   group_by(sample_id) %>%
   mutate(proportion = n_embryos / sum(n_embryos)) %>%
   ungroup()
 
 ```
 
-## dev_stage_totals :
+## stage_totals :
 ```{r}
-# Total counts per dev_stage per sample_id
-dev_stage_totals <- tidy_bros %>%
-  count(sample_id, dev_stage, name = "total_n")
+# Total counts per stage per sample_id
+stage_totals <- tidy_bros %>%
+  count(sample_id, stage, name = "total_n")
 ```

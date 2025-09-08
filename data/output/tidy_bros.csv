@@ -1,4 +1,4 @@
-sample_id,dev_stage,status,parent_1,parent_2,treatment,hpf,date
+sample_id,stage,status,parent_1,parent_2,treatment,hpf,date
 10C14,earlygastrula,typical,B,J,control,14,2024-06-07
 10C14,earlygastrula,typical,B,J,control,14,2024-06-07
 10C14,earlygastrula,typical,B,J,control,14,2024-06-07

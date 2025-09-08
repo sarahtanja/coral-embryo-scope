@@ -1,7 +1,45 @@
 ---
-title: "anova"
-format: html
+title: "ANOVA"
+subtitle: 
+date: 04/02/2024
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+# Background
+We have a total of 108 samples. 
+This type of data is called cross-sectional data. 
 
 Microscopy data will be visually examined for normal distribution and homogeneity of variance. Microscopy data will be analyzed using a One-Way ANOVA, followed by a Tukey HSD post-hoc test.
 
@@ -9,6 +47,11 @@ Microscopy data will be visually examined for normal distribution and homogeneit
 
 ```{r}
 library(tidyverse)
+```
+
+```{r}
+tidy_bros <- read.csv("../data/output/tidy_bros.csv")
+tidy_vials <- read.csv("../data/output/tidy_vials.csv")
 ```
 
 # ALL EMBRYOS : counts
@@ -174,14 +217,4 @@ anova_14 <- tidy_vials %>%
 summary(anova_14)
 ```
 
-# PROPORTIONS
 
-## Is it normal?
-
-```{r}
-ggplot(prop_summary, aes(x = mean_prop, fill = hpf_factor)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Proportions of viable embryos", y = "Density") +
-  #scale_fill_brewer(palette = "Set2") +
-  theme_minimal()
-```
