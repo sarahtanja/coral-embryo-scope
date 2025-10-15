@@ -146,9 +146,7 @@ data_14hpf <- tidy_vials %>% filter(hpf_factor == "14")
 Install the following packages before running analyses:
 ```r
 install.packages(c(
-  "tidyverse",    # Data manipulation and visualization
-  "dplyr",        # Data manipulation
-  "ggplot2",      # Data visualization
+  "tidyverse",    # Includes dplyr, ggplot2, and other data manipulation tools
   "googlesheets4" # Google Sheets integration (for pull_data.qmd)
 ))
 ```
