@@ -1,5 +1,15 @@
 # Copilot Instructions for coral-embryo-scope
 
+## Quick Reference
+
+**Language**: R with Quarto (`.qmd`)  
+**Primary Libraries**: tidyverse, dplyr, ggplot2  
+**Data Format**: CSV files with tidy data structure  
+**Working Directory**: `/code` for running scripts  
+**Key Datasets**: 
+- Raw: `/data/scope_annotation_data/*.csv` (120 files)
+- Processed: `/data/output/tidy_bros.csv`, `/data/output/tidy_vials.csv`
+
 ## Project Overview
 
 This repository contains code and data for a survival analysis of *Montipora capitata* coral embryos exposed to polyvinyl chloride (PVC) leachate pollution. The project uses R and Quarto for data processing, statistical analysis, and visualization.
@@ -124,9 +134,105 @@ data_14hpf <- tidy_vials %>% filter(hpf_factor == "14")
 - **Gene expression analysis**: [coral-embryo-RNAseq](https://github.com/sarahtanja/coral-embryo-RNAseq)
 - **Microbiome analysis**: [coral-embryo-microbiome](https://github.com/sarahtanja/coral-embryo-microbiome)
 
+## Development Environment Setup
+
+### Prerequisites
+- **R**: Version 4.0 or higher
+- **RStudio**: Recommended IDE for working with `.qmd` files
+- **Quarto**: CLI tool for rendering Quarto documents
+  - Install from: https://quarto.org/docs/get-started/
+
+### Required R Packages
+Install the following packages before running analyses:
+```r
+install.packages(c(
+  "tidyverse",    # Includes dplyr, ggplot2, and other data manipulation tools
+  "googlesheets4" # Google Sheets integration (for pull_data.qmd)
+))
+```
+
+### Workspace Setup
+- Open `coral-embryo-scope.Rproj` in RStudio to set the correct working directory
+- Quarto documents use relative paths (e.g., `../data/`, `../plots/`)
+- Ensure you're in the `/code` directory when running `.qmd` files
+
+## Running/Rendering Quarto Documents
+
+### Rendering Individual Files
+```bash
+# From the /code directory
+quarto render filename.qmd
+```
+
+### Running in RStudio
+- Open the `.qmd` file in RStudio
+- Click "Render" button or use Ctrl+Shift+K (Cmd+Shift+K on Mac)
+- Output will generate both `.md` and `.html` files
+
+### Analysis Pipeline Order
+Execute documents in this sequence:
+1. `pull_data.qmd` - Pull data from Google Sheets (one-time setup)
+2. `tidy.qmd` - Create tidy datasets (run when raw data changes)
+3. All other `.qmd` files can be run in any order after tidy datasets exist
+
+### Important Notes
+- Set `eval = TRUE` in chunk options to actually run code (default is `eval = FALSE`)
+- Code chunks are set to not evaluate by default for safety
+- Always check that required data files exist before running analyses
+
+## Common Pitfalls and Troubleshooting
+
+### Path Issues
+- ❌ **Problem**: "Cannot find file" errors
+- ✅ **Solution**: Ensure you're in the `/code` directory when running scripts. All paths are relative to this location.
+
+### Factor Ordering
+- ❌ **Problem**: Plots or analyses show incorrect ordering of treatments or stages
+- ✅ **Solution**: Always set factor levels explicitly using the ordered levels defined in the coding standards section
+
+### Missing Data
+- ❌ **Problem**: Cross 2 data causes errors
+- ✅ **Solution**: Cross 2 has been removed from analyses. Use `tidy_bros %>% filter()` to exclude it if needed
+
+### Google Sheets Authentication
+- ❌ **Problem**: `pull_data.qmd` fails with authentication errors
+- ✅ **Solution**: Run `googlesheets4::gs4_auth()` interactively to authenticate with Google
+
+### Rendering Issues
+- ❌ **Problem**: Quarto rendering fails with package errors
+- ✅ **Solution**: Check that all required packages are installed. Use `install.packages()` for missing packages.
+
+### Data Loading Errors
+- ❌ **Problem**: "File not found" when loading tidy datasets
+- ✅ **Solution**: Run `tidy.qmd` first to generate `tidy_bros.csv` and `tidy_vials.csv` in `/data/output`
+
+### Empty or NA Values
+- ❌ **Problem**: Unexpected NA values in data
+- ✅ **Solution**: This is expected for some samples. The code includes QAQC sections to handle zeros and NAs appropriately.
+
+## File Modification Guidelines
+
+### Files You Should Modify
+- ✅ `.qmd` files in `/code` - Analysis scripts and documentation
+- ✅ `/plots` - Generated visualizations (created by scripts)
+- ✅ `/data/output` - Processed datasets (created by `tidy.qmd`)
+
+### Files You Should NOT Modify
+- ❌ `/data/scope_annotation_data/*.csv` - Raw annotation data from Google Sheets
+- ❌ `/data/metadata/scope-metadata.csv` - Original metadata
+- ❌ `/images` - Original microscopy images
+- ❌ `.Rproj.user/` - RStudio project files (in .gitignore)
+
+### Generated Files
+The following files are auto-generated and should not be manually edited:
+- `.html` files in `/code` (generated from `.qmd` files)
+- `.md` files in `/code` (generated from `.qmd` files)  
+- Files in `/code/tidy_files/` (Quarto rendering artifacts)
+
 ## Getting Help
 
 When working with this repository:
 - Check existing `.qmd` files for patterns and examples
 - Refer to `douma_weedon_2019_fig1.jpg` in `/code` for regression analysis methods
 - Consult README.md for detailed folder descriptions
+- Review this file for coding standards and common patterns
