@@ -39,6 +39,45 @@ graph TD
     E --> E1[Generated plot images]
 ```
 
+## Analysis Workflow
+
+The analysis follows a structured pipeline where data is pulled, tidied, and then analyzed through multiple complementary approaches:
+
+```mermaid
+flowchart TB
+    Start([Raw Data]) --> PullData[pull_data.qmd<br/>Import from Google Sheets]
+    PullData --> Tidy[tidy.qmd<br/>Create tidy datasets]
+    
+    Tidy --> TidyBros[(tidy_bros.csv<br/>Each row = embryo)]
+    Tidy --> TidyVials[(tidy_vials.csv<br/>Each row = sample)]
+    
+    TidyVials --> Anova[anova.qmd<br/>One-way ANOVA<br/>Embryo counts]
+    TidyVials --> Survival[survival.qmd<br/>Survival rate analysis]
+    TidyVials --> Abnormality[abnormality.qmd<br/>Abnormality proportions]
+    TidyVials --> Timing[timing.qmd<br/>Developmental stages]
+    TidyVials --> CountViz[count_viz.qmd<br/>Count visualizations]
+    
+    TidyBros --> KaplanMeier[kaplan_meier.qmd<br/>Survival analysis]
+    
+    Anova --> Plots1[Plots: ANOVA results]
+    Survival --> Plots2[Plots: Survival boxplots]
+    Abnormality --> Plots3[Plots: Status proportions]
+    Timing --> Plots4[Plots: Stage proportions]
+    CountViz --> Plots5[Plots: Count visualizations]
+    KaplanMeier --> Plots6[Plots: Survival curves]
+    
+    style PullData fill:#e1f5ff
+    style Tidy fill:#e1f5ff
+    style TidyBros fill:#ffe1e1
+    style TidyVials fill:#ffe1e1
+    style Anova fill:#fff4e1
+    style Survival fill:#fff4e1
+    style Abnormality fill:#fff4e1
+    style Timing fill:#fff4e1
+    style CountViz fill:#fff4e1
+    style KaplanMeier fill:#fff4e1
+```
+
 ## Folder Descriptions
 
 ### `/code`
