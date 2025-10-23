@@ -33,6 +33,10 @@ This analysis explores how embryo counts change over time (4, 9, and 14 hours po
 
 # Install packages & load libraries
 
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, warning = FALSE, message = FALSE, comment = "")
+```
+
 ```{r, eval=FALSE}
 install.packages("tidyverse")
 install.packages("ggplot2")
