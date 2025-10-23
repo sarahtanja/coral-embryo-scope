@@ -1,0 +1,520 @@
+---
+title: "Survival Analysis Test"
+subtitle: "Exploring count columns across time and treatment"
+date: 10/23/2025
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+---
+
+# Overview
+
+This analysis explores how embryo counts change over time (4, 9, and 14 hours post-fertilization) across different PVC leachate treatment levels (control, low, mid, high). We examine various count columns (n_XXX) from the tidy_vials.csv dataset to understand survival patterns.
+
+# Install packages & load libraries
+
+```{r, eval=FALSE}
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("survival")
+install.packages("survminer")
+```
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+library(tidyverse)
+library(ggplot2)
+library(survival)
+library(survminer)
+```
+
+# Load data
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+tidy_vials <- read_csv("../data/output/tidy_vials.csv")
+```
+
+# Data preparation
+
+Set factor levels for treatment and hpf
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Define ordered factor levels
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels <- c("4", "9", "14")
+
+# Prepare data with proper factor ordering
+survival_data <- tidy_vials %>%
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf_factor = factor(hpf, levels = hpf_levels, ordered = TRUE)
+  )
+
+str(survival_data)
+```
+
+# Exploratory Analysis
+
+## Summary statistics by treatment and time
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+summary_stats <- survival_data %>%
+  group_by(treatment, hpf_factor) %>%
+  summarise(
+    n_samples = n(),
+    mean_embryos = mean(n_embryos, na.rm = TRUE),
+    sd_embryos = sd(n_embryos, na.rm = TRUE),
+    mean_viable = mean(n_viable, na.rm = TRUE),
+    sd_viable = sd(n_viable, na.rm = TRUE),
+    mean_typical = mean(n_typical, na.rm = TRUE),
+    sd_typical = sd(n_typical, na.rm = TRUE),
+    mean_malformed = mean(n_malformed, na.rm = TRUE),
+    sd_malformed = sd(n_malformed, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+print(summary_stats)
+```
+
+## Viable embryo counts over time
+
+### Boxplot
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+ggplot(survival_data, aes(x = hpf_factor, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(aes(color = treatment), width = 0.2, alpha = 0.4, size = 2) +
+  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                "mid" = "#E69F00", "high" = "#D55E00")) +
+  scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                 "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(
+    title = "Viable embryo counts across time and treatment",
+    x = "Hours post-fertilization",
+    y = "Number of viable embryos"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+
+### Line plot showing mean trajectories
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+mean_trajectories <- survival_data %>%
+  group_by(treatment, hpf_factor) %>%
+  summarise(
+    mean_viable = mean(n_viable, na.rm = TRUE),
+    se_viable = sd(n_viable, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable, 
+                               color = treatment, group = treatment)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_viable - se_viable, 
+                    ymax = mean_viable + se_viable),
+                width = 0.2, linewidth = 0.8) +
+  scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                 "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(
+    title = "Mean viable embryo trajectories over time",
+    x = "Hours post-fertilization",
+    y = "Mean number of viable embryos (± SE)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+
+## Developmental stage counts over time
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Select relevant stage count columns
+stage_data <- survival_data %>%
+  select(sample_id, treatment, hpf_factor, 
+         n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "count",
+    names_prefix = "n_"
+  ) %>%
+  mutate(
+    stage = factor(stage, 
+                   levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"),
+                   ordered = TRUE)
+  )
+
+# Calculate mean counts by stage, treatment, and time
+stage_means <- stage_data %>%
+  group_by(treatment, hpf_factor, stage) %>%
+  summarise(
+    mean_count = mean(count, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(stage_means, aes(x = hpf_factor, y = mean_count, 
+                        fill = stage)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ treatment, ncol = 2) +
+  scale_fill_viridis_d(option = "plasma", begin = 0.2, end = 0.9) +
+  labs(
+    title = "Developmental stage distribution over time by treatment",
+    x = "Hours post-fertilization",
+    y = "Mean count",
+    fill = "Developmental stage"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    strip.text = element_text(face = "bold")
+  )
+```
+
+# Survival Rate Analysis
+
+## Calculate survival rates
+
+Calculate survival as the proportion of viable embryos relative to initial count at 4 hpf
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Get initial counts at 4 hpf for each sample's cross and treatment
+initial_counts <- survival_data %>%
+  filter(hpf == 4) %>%
+  select(parent_1, parent_2, treatment, n_embryos) %>%
+  group_by(parent_1, parent_2, treatment) %>%
+  summarise(initial_n = mean(n_embryos, na.rm = TRUE), .groups = "drop")
+
+# Join with full dataset and calculate survival rate
+survival_rates <- survival_data %>%
+  left_join(initial_counts, by = c("parent_1", "parent_2", "treatment")) %>%
+  mutate(
+    survival_rate = n_viable / initial_n,
+    survival_rate = ifelse(is.na(survival_rate) | is.infinite(survival_rate), 
+                          NA, survival_rate)
+  )
+
+# Summary of survival rates
+survival_summary <- survival_rates %>%
+  filter(!is.na(survival_rate)) %>%
+  group_by(treatment, hpf_factor) %>%
+  summarise(
+    mean_survival_rate = mean(survival_rate, na.rm = TRUE),
+    sd_survival_rate = sd(survival_rate, na.rm = TRUE),
+    n_samples = n(),
+    .groups = "drop"
+  )
+
+print(survival_summary)
+```
+
+## Survival rate visualization
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+ggplot(survival_rates %>% filter(!is.na(survival_rate)), 
+       aes(x = hpf_factor, y = survival_rate, fill = treatment)) +
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(aes(color = treatment), width = 0.2, alpha = 0.4, size = 2) +
+  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                "mid" = "#E69F00", "high" = "#D55E00")) +
+  scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                 "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(
+    title = "Survival rates relative to initial count at 4 hpf",
+    x = "Hours post-fertilization",
+    y = "Survival rate (viable / initial)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+
+# Statistical Analysis
+
+## Two-way ANOVA on viable counts
+
+Test for effects of treatment and time on viable embryo counts
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Filter out NA values
+viable_clean <- survival_data %>%
+  filter(!is.na(n_viable))
+
+# Two-way ANOVA
+anova_viable <- aov(n_viable ~ treatment * hpf_factor, data = viable_clean)
+summary(anova_viable)
+```
+
+### Check assumptions
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Residuals vs fitted
+plot(anova_viable, which = 1)
+
+# Q-Q plot
+plot(anova_viable, which = 2)
+
+# Shapiro-Wilk test on residuals
+shapiro.test(residuals(anova_viable))
+```
+
+## Pairwise comparisons
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Tukey's HSD test for multiple comparisons
+tukey_results <- TukeyHSD(anova_viable)
+print(tukey_results)
+```
+
+# Count decline analysis
+
+## Calculate rate of decline from 4 to 14 hpf
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Reshape data to calculate decline
+decline_data <- survival_data %>%
+  select(parent_1, parent_2, treatment, hpf, n_viable) %>%
+  pivot_wider(
+    names_from = hpf,
+    values_from = n_viable,
+    names_prefix = "hpf_"
+  ) %>%
+  mutate(
+    decline_4_to_9 = hpf_4 - hpf_9,
+    decline_9_to_14 = hpf_9 - hpf_14,
+    decline_4_to_14 = hpf_4 - hpf_14,
+    prop_decline_4_to_9 = decline_4_to_9 / hpf_4,
+    prop_decline_9_to_14 = decline_9_to_14 / hpf_9,
+    prop_decline_4_to_14 = decline_4_to_14 / hpf_4
+  )
+
+# Summary by treatment
+decline_summary <- decline_data %>%
+  group_by(treatment) %>%
+  summarise(
+    mean_decline_4_to_14 = mean(decline_4_to_14, na.rm = TRUE),
+    sd_decline_4_to_14 = sd(decline_4_to_14, na.rm = TRUE),
+    mean_prop_decline = mean(prop_decline_4_to_14, na.rm = TRUE),
+    sd_prop_decline = sd(prop_decline_4_to_14, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+print(decline_summary)
+```
+
+## Visualize decline patterns
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+ggplot(decline_summary, aes(x = treatment, y = mean_decline_4_to_14, fill = treatment)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  geom_errorbar(aes(ymin = mean_decline_4_to_14 - sd_decline_4_to_14,
+                    ymax = mean_decline_4_to_14 + sd_decline_4_to_14),
+                width = 0.2) +
+  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", 
+                                "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(
+    title = "Mean embryo count decline from 4 to 14 hpf",
+    x = "Treatment",
+    y = "Mean decline in viable embryos (± SD)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+
+# Typical vs Malformed Analysis
+
+## Trajectory comparison
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+status_data <- survival_data %>%
+  select(treatment, hpf_factor, n_typical, n_malformed, n_uncertain) %>%
+  pivot_longer(
+    cols = c(n_typical, n_malformed, n_uncertain),
+    names_to = "status",
+    values_to = "count",
+    names_prefix = "n_"
+  ) %>%
+  mutate(
+    status = factor(status, levels = c("typical", "uncertain", "malformed"), ordered = TRUE)
+  )
+
+status_means <- status_data %>%
+  group_by(treatment, hpf_factor, status) %>%
+  summarise(
+    mean_count = mean(count, na.rm = TRUE),
+    se_count = sd(count, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(status_means, aes(x = hpf_factor, y = mean_count, 
+                         color = status, group = status)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_count - se_count, 
+                    ymax = mean_count + se_count),
+                width = 0.2) +
+  facet_wrap(~ treatment, ncol = 2) +
+  scale_color_manual(values = c("typical" = "#009E73", 
+                                "uncertain" = "#E69F00", 
+                                "malformed" = "#D55E00")) +
+  labs(
+    title = "Embryo status counts over time by treatment",
+    x = "Hours post-fertilization",
+    y = "Mean count (± SE)",
+    color = "Status"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    strip.text = element_text(face = "bold")
+  )
+```
+
+# Summary
+
+This analysis explores survival patterns in coral embryos across different PVC leachate treatments and developmental time points. Key findings include:
+
+1. Changes in viable embryo counts from 4 to 14 hours post-fertilization
+2. Developmental stage progression across treatments
+3. Statistical comparisons of survival rates between treatments
+4. Patterns of embryo decline and malformation over time
+
+# Save plots
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+# Create plots directory if it doesn't exist
+if (!dir.exists("../plots")) {
+  dir.create("../plots", recursive = TRUE)
+}
+
+# Save key plots (would need to be uncommented and plots assigned to variables)
+# ggsave("../plots/survival_test_viable_boxplot.png", width = 10, height = 6, dpi = 300)
+```
