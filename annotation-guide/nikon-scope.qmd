@@ -1,0 +1,67 @@
+---
+title: "Nikon scope pictures & slide preservation protocol"
+subtitle: "For capturing embryonic development of Montipora capitata rice corals exposed to PVC leachate"
+author: "Sarah Tanja"
+date: 09/03/2024
+date-format: long
+date-modified: today
+categories: [protocols, coral]
+toc: true
+toc-title: Contents <i class="bi bi-bookmark-heart"></i>
+toc-depth: 5
+toc-location: left
+reference-location: margin
+citation-location: margin
+link-external-icon: true
+link-external-newwindow: true
+---
+
+# Make slides
+
+Watch ['Mounting Your Specimen](https://www.youtube.com/watch?v=4Nurc1hSN4o)' by Dr. Terry Bruce on YouTube
+
+::: callout-caution
+The following steps should be performed in a fume hood wearing nitrile gloves since the samples are preserved in 4% ZFIX (zinc-buffered formalin)
+:::
+
+-   use ethanol-proof marker to label the slide with the `sample id`, `PVC treatment`, `phase post-fertilization`, `date of spawning`, and `initials`
+-   use a p1000 pipette to concentrate embryos into as little seawater + 4% ZFIX as possible
+-   transfer them in a small drop on the slide
+-   use a transfer pipette to place a drop of glycerin mounting medium on your slide close enough to the seawater + 4% ZFIX drop such that they merge
+-   wait for 5 minutes before imaging for embryos to float together to the top of the combined drop
+
+::: callout-caution
+Do not put cover slide on yet... hold off until after photos have been taken. The cover slide spreads the embyos out, making it harder to account for them all in one stitched microscopy image. It is doable, but harder. Taking the photos prior to sealing the embryos with the coverslip makes this process a little easier and faster.
+:::
+
+# Take Nikon Microscopy 'manual stitch' photos
+
+Here I use a [Nikon DS-Fi 3 Camera](https://www.microscope.healthcare.nikon.com/products/cameras/ds-fi3/specifications) connected to a Nikon Eclipse Ni-U compound microscope and acquire manual large stitched images using NIS Elements BR software.
+
+#### Make sure camera & scope are setup correctly
+
+The camera has a female threaded cap that threads directly onto the Nikon C-Mount Adapter that sits in the Trinocular of the compound scope. If the camera is mounted on the Leica dissecting scope, you have to unthread it from that C-Mount Adapter and thread it into the Nikon C-Mount Adapter.
+
+-   Turn on lamp power supply
+
+-   Turn on Microscope
+
+-   Turn on power to the camera, indicated by the power button and a green light
+
+-   Turn on the Dell Precision Tower, login, and open the NIS Elements BR 4.6.00 64 bit software
+
+-   Make sure the binocular and camera switch is pressed 'in'
+
+-   Reference [Nikon Eclipse Ni-U instruction manual](https://www.mvi-inc.com/wp-content/uploads/Ni-U_E_Assembly_Maintenance.pdf) for assembly & maintenance
+
+#### Learn about NIS Elements Software
+
+[Nikon e-learning resources](https://www.microscope.healthcare.nikon.com/resources/e-learninghttps://www.microscope.healthcare.nikon.com/resources/e-learning)
+
+#### Manually acquire large stitched images
+
+# Permanently seal slide
+
+-   pick up a cover slip and gently lay one edge down over the glycerin drop that is encapsulating the coral embryos, and then gently allow the coverslip to lower over the droplet
+-   seal the cover slip edges with Insta-Dri clear nail polish and allow to dry for 24 hrs
+-   place slides in slide organizer and label accordingly

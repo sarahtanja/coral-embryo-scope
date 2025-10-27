@@ -1,0 +1,86 @@
+---
+title: "Statistics for embryo scope data"
+subtitle: "Exploring data from embryonic development of Montipora capitata rice corals exposed to PVC leachate"
+author: "Sarah Tanja"
+date: 09/06/2024
+date-format: long
+date-modified: today
+categories: [stats, coral]
+toc: true
+toc-title: Contents <i class="bi bi-bookmark-heart"></i>
+toc-depth: 5
+toc-location: left
+reference-location: margin
+citation-location: margin
+link-external-icon: true
+link-external-newwindow: true
+bibliography: ../coral-embryology.bib
+---
+
+What information can we get from looking at the *Montipora capitata* embryos that were exposed to varying levels of PVC leachate (High: 1mg/L, Mid: 0.1mg/L, Low: 0.01mg/L)? This experiment allowed embryos to develop from a bundle-bundle cross (meaning one egg-sperm bundle from one parent colony was placed in a 20mL scintillation vial with another egg-sperm bundle from a different parent colony). Colonies are not known to be able to self-fertilize... meaning it's important that each bundle came from a different parent colony. Each *Montipora capitata* egg sperm bundle contains a 'bundle' of eggs that are bound together around a 'packet' of sperm.
+
+Each egg-sperm bundle contains 15 +/- 5.1 oocytes (mean +/- SD, n = 214, from 26 colonies) [@padilla-gamino2011]
+
+::: callout-note
+This means that each bundle-bundle cross, if there was 100% fertilization success, should result in anywhere from \~18 to \~42 maturing embryos.
+
+Question \# 1: Do we use 100% fertilization success as our 'baseline' to compare all treatment groups (including the control?). This could provide insight into fertilization success ratios for bundle-bundle cross experiments, but may not be applicable to oceanic conditions, where there is sperm competition, mixing, and greater potential for dilution
+
+Answer: We will only assess fertilization success at the point of cleavage, where presumably, we will still see the unfertilized oocytes (any eggs that have not cleaved). In the prawn chip and early gastrula phases, the unfertilized eggs have already dissolved. In these phases, we will assess embryo mortality based on the fertilization rates we find from the cleavage data.
+:::
+
+# Cleavage
+
+# Prawn chip
+
+![2x Nikon scope image of sample 8M9 \| cross 8, Mid PVC treatment 0.1mg/L, 9 hours post fertilization (prawn chip phase)](8M9_stitch_001_crop_r90.png)
+
+# Early gastrula
+
+![4x Nikon scope image of sample 6L14 (cross 6, Low PVC treatment 0.01mg/L, 14 hours post fertilization (early gastrula phase))](6L14_stitch_001.png)
+
+::: callout-note
+Question #2: How should we treat fragmented embryos? I can tell by the cell structure that they made it to a certain phase... but I can't tell how many fragments make up one whole embryo (count data). Should we not the fragmented embryos? Are they fragmented, or are they deformed (abnormalities?)
+:::
+
+| variable | unit/type | statistical test |
+|------------------------|------------------------|------------------------|
+| embryo size | microns, continuous variable | One-Way ANOVA |
+| embryo stage | cell stage, ordinal categorical variable | Chi-Square Goodness of Fit or Log-Likelihood Ratio |
+| proportion of abnormality per cross | ratio, continuous variable | Log-Likelihood Ratio |
+| proportion of abnormality per treatment | ratio, continuous variable | Log-Likelihood Ratio |
+| proportion of fertilization success | ratio, continuous variable | Log-Likelihood Ratio |
+
+> If you take pics of X random embryos for every cross, you can get:
+>
+> 1.  Embryo size (unit: microns/mm, continuous variable)
+> 2.  Embryo stage (cell stage, ordinal categorical variable)
+> 3.  **Abnormality (yes/no, binary categorical variable)**
+> 4.  Proportion of abnormality per cross (ratios, continuous variable), which you can use to obtain % abnormality per treatment
+>
+> You can also assess
+>
+> 5.  **Fertilization success (yes/no per cross, binary categorical variable)**
+> 6.  Fertilization success (proportion per treatment, ratios, continuous variable)
+>
+> # How have others measured fertilization success in *Montipora capitata*?
+
+### Assessing fertilization success of the coral *Montipora capitata* under copper exposure: Does the night of spawning matter?[@hedouin_assessing_2013]
+
+-   only looked at initial cleavage (3 hpf)
+
+-   bundle-bundle cross in 10mL of 0.45um FSW
+
+> " After preservation, eggs were examined for the fertilization (showing normal cleavage) and the proportion of successful fertilization within treatment determined. Eggs showing no signs of cleavage were scored as unfertilized. 
+>
+> The proportions of fertilized eggs were used to estimate EC~50~, the concentration of copper that reduced the fertilization success rate by 50%, relative to untreated controls using R 2.11© software. A general model fitting function for concentration/dose response models was applied using the package drc from R 2.11© software and the EC~50~, EC~20~ and EC~10~ calculated. After transformation, data on fertilization success (%) were analyzed using one-way ANOVA and post hoc Tukey comparisons to detect any significant differences (*p* \< 0.05) among the treatments. One-way ANOVA and post hoc Tukey comparisons were also used to determine significant differences in eggs per bundle and egg size among the different spawning times.
+>
+> The fertilization rates in the untreated controls were relatively high for all the experiments, ranging from 86% to 96% ([Fig. 1](#f0005)), with the exception of the last experiment performed on August 1st, 2008, where almost no fertilization (\<10%) was observed in either control and experimental vials. "
+
+### **Effects of Toxic Compounds in *Montipora capitata* on Exogenous and Endogenous Zooxanthellae Performance and Fertilization Success**[@hagedorn_effects_2015]
+
+> "Fertilization success using untreated sperm was 79 ± 4% SEM, whereas the success rate dropped significantly after exposure to the crushed eggs, 1.3 ± 0% SEM. Unlike the eggs and the larvae, M. capitata sperm did not reduce the photosynthetic competency of P. compressa zooxanthellae, suggesting the sperm was nontoxic."
+
+### **Energetics, but not development, is impacted in coral embryos exposed to ocean acidification** [@chille2022a]
+
+> "All statistical analyses for morphological data were performed in RStudio (v1.3.959; <https://www.rstudio.com/>), using R version 4.0.2 (<https://www-r-project-org.offcampus.lib.washington.edu/>). A beta regression model (formula=proportion∼cleavage stage+treatment+cleavage stage:treatment) was used to analyze differences in the proportion of cells at each cleavage stage and treatment using the betareg R package (v3.1-4; Cribari-Neto and Zeileis, 2010). Differences between cleavage stages and treatments were then computed using the joint_tests function from the emmeans R package (v1.4.4; <https://cran-r-project-org.offcampus.lib.washington.edu/package=emmeans>), which effectively runs the beta regression model as a type III ANOVA. Additionally, a one-way nested ANOVA analysis tested the effect of tank on embryo and planula size wherein tank ID was nested within treatment. After determining that tank effects were non-significant (*P*\>0.05), one-way ANOVA analysis was used to test for the effect of treatment on fertilized embryo, gastrula and planula volume. *Post hoc* Tukey HSD tests were conducted when the effect of treatment was significant (*P*\<0.05). Data were visually examined for normal distribution and equal variance. The dependent variable was square-root transformed for the gastrulation and planula life stages in order to meet statistical assumptions prior to ANOVA analysis. Data points for these life stages were back-transformed for visualization in Fig. 2."

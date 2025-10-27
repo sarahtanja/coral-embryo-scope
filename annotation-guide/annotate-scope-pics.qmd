@@ -1,0 +1,93 @@
+---
+title: "Nikon scope pictures annotation & data collection"
+subtitle: "Annotating images of embryonic development of Montipora capitata rice corals exposed to PVC leachate"
+author: "Sarah Tanja"
+date: 09/09/2024
+date-format: long
+date-modified: today
+categories: [protocols, coral]
+toc: true
+toc-title: Contents <i class="bi bi-bookmark-heart"></i>
+toc-depth: 5
+toc-location: left
+reference-location: margin
+citation-location: margin
+link-external-icon: true
+link-external-newwindow: true
+---
+
+This guide is meant to illustrate the categories of embryonic development in *Montipora capitata* that we are characterizing in this study:
+
+-   oocyte (unfertilized egg)
+
+-   **cleavage** (3-4 hours post fertilization)
+
+-   4-16 cell stage
+
+-   32-64 cell stage
+
+-   **prawn chip** (9 hours post fertilization)
+
+-   **early gastrula** (14 hours post fertilization)
+
+-   gastrula
+
+Note that the phases in **bold** are the ones that we expect our embryos to be in based on hours post fertilization that they were preserved in 4% ZFIX. In this study, we conducted bundle-bundle crosses in 20mL of treatment solution (either a 0.22 micron filtered seawater `control`, or three increasing levels of PVC leachate derived from microplastics: 0.01 mg/L PVC leachate `low`, 0.1mg/L PVC leachate `mid`, or 1mg/L PVC leachate `high`).
+
+For a basic introduction to using NIS Elements Annotation & Measurement tool, check out [this elearning video](https://www.microscope.healthcare.nikon.com/resources/e-learning/annotations-and-measurements).
+
+# Oocyte
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# Cleavage
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# 4-16 cell
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# 32-64 cell
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# Prawn chip
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# Early gastrula
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
+
+# Gastrula
+
+#### exemplar
+
+#### fragmented
+
+#### deformed
