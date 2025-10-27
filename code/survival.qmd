@@ -1,0 +1,355 @@
+---
+title: "Survival rates"
+subtitle: "How many survived?"
+date: 08/27/2025
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+---
+
+# Install packages & load libraries
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+# Load in data
+```{r}
+tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+```
+
+```{r}
+# treatment
+treat_levels <- c("control", "low", "mid", "high")
+
+viable <- tidy_vials %>% 
+  select(sample_id, treatment, hpf, n_viable, n_embryos) %>% 
+   mutate(treatment = factor(treatment, 
+                            levels = treat_levels,
+                            ordered = TRUE),
+          hpf = factor(hpf,
+                       levels = c("4", "9", "14",
+                                  ordered = TRUE)))
+
+head(viable)
+```
+
+# Boxplot
+```{r}
+ggplot(viable, aes(group = treatment, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +
+  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
+  facet_wrap(~hpf, strip.position = "bottom") +
+  ggtitle("Survival: counts of total viable embryos across treatment and time")+
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+  )
+
+```
+
+```{r}
+ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
+```
+
+# Violin plot
+```{r}
+ggplot(viable, aes(x = treatment, y = n_viable, fill = treatment)) +
+  geom_violin(alpha = 0.4, position = "dodge", scale = "width", color = NA) +
+  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
+  facet_wrap(~hpf, strip.position = "bottom") +
+  ggtitle("Survival: counts of total viable embryos across treatment and time")+
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+  )
+
+```
+# Dispersion
+
+```{r}
+mean_viable_counts <- viable %>% 
+  group_by(treatment, hpf) %>%                      # group is your combined column (treatment_hpf)
+  summarise(
+    mean_viable = mean(n_viable, na.rm = TRUE),
+    sd_viable   = sd(n_viable, na.rm = TRUE),
+    var_viable  = var(n_viable, na.rm = TRUE),
+    n = n(),                                 # optional: number of observations per group
+    mean_embryos = mean(n_embryos)
+    ) %>%
+  ungroup() 
+
+print(mean_viable_counts)
+```
+
+Compare variance to the mean
+```{r}
+mean_viable_counts <- mean_viable_counts %>% 
+  mutate(dispersion = var_viable/mean_viable)
+
+mean_viable_counts %>% select(treatment, hpf, mean_viable, var_viable, dispersion)
+```
+:::: column-margin
+::: callout-caution
+dispersion is greater than 2 for some groups... but not others. If dispersion is greater than 2 in some groups but not others, it indicates heterogeneous overdispersion across your groups. This means some groups exhibit more variance than expected under a Poisson model, while others do not. How to handle this situation: Use a Negative Binomial model or a Negative Binomial GLMM (generalized linear mixed model) which can accommodate varying dispersion levels better than Poisson. Consider mixed-effects models to model random group-level effects that account for extra variability within certain groups. Overdispersion thresholds from simulations suggest: Poisson may be acceptable if dispersion ≤ 1.2. Negative Binomial preferred for moderate overdispersion (1.2 < dispersion ≤ ~1.5). **For higher dispersion (up to ~5), NB-GLMM handles extra variation better. If some groups have high overdispersion and others low, a model allowing group-specific dispersion parameters or random effects is advisable.** Check if unmodeled covariates or clustering cause overdispersion which could be modeled explicitly. In summary, a Negative Binomial model with mixed effects is a strong choice when facing differential overdispersion across groups.
+- generated via [perplexity AI](https://www.perplexity.ai/search/can-you-help-me-make-this-a-vi-XQFzYDU5TXahiCuUqcEzFg#6)
+:::
+::::
+
+# Relative survival
+Calculate the proportionate change from one time point to the next:
+
+Relative survival to time hpf9 =  (mean embryo count at hpf9)/(mean total embryo count at hpf4).
+Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean total embryo count at hpf4).
+
+Can we take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs?
+```{r}
+set.seed(123)  # for reproducibility
+
+# Simulate eggs per bundle: 2 bundles per vial, 120 vials
+n_vials <- 9
+n_bundles <- 2 * n_vials
+
+# Simulate egg counts per bundle
+eggs_per_bundle <- rnorm(n_bundles, mean = 15, sd = 5.1)
+
+# Optional: enforce only positive egg counts (truncated normal)
+eggs_per_bundle <- pmax(round(eggs_per_bundle), 1)
+
+# Group into vials: every two bundles go into one vial
+eggs_per_vial <- rowSums(matrix(eggs_per_bundle, ncol = 2, byrow = TRUE))
+
+# Summarize
+mean_eggs_per_vial <- mean(eggs_per_vial)
+sd_eggs_per_vial <- sd(eggs_per_vial)
+
+# Output
+mean_eggs_per_vial
+sd_eggs_per_vial
+```
+::: callout-note
+Here we use 31.5 as a starting point, our 100%, that we used to compare all our counts to for relative survival
+Is this legit? 
+:::
+
+```{r}
+# Extract mean of total embryos at hpf 4 
+hpf4_mean <- mean_viable_counts %>%
+  filter(hpf == 4) %>%
+  pull(mean_embryos) %>% 
+  mean()
+
+# Join back and calculate relative survival
+relative_survival <- mean_viable_counts %>%
+  #filter(hpf %in% c(9, 14)) %>%        # later time points
+  #mutate(hpf4_mean = hpf4_mean) %>%    # join hpf4 means
+  mutate(relative_survival = (mean_viable/31.5))
+```
+
+```{r}
+relative_survival %>% 
+  select(treatment, hpf, relative_survival) %>% 
+  arrange(hpf)
+```
+
+# GLM
+## Poisson (not)
+Fit poisson model
+```{r}
+poisson <- glm(n_viable ~ treatment + hpf, family = poisson, data = viable)
+```
+
+Calculate dispersion
+```{r}
+sum(residuals(poisson, type = "pearson")^2) / poisson$df.residual
+```
+::: callout-caution
+If dispersion > 1.5, there is overdispersion. For counts: Compare the variance to the mean. If variance ≈ mean, Poisson GLM may work; if variance > mean (overdispersion), Negative Binomial is better.
+:::
+```{r}
+install.packages("AER")
+library(AER)
+```
+
+## NB-GLMM
+```{r}
+install.packages("lme4")
+library(lme4)
+```
+
+Use formal dispersion tests (Pearson residuals, dispersiontest()), and likelihood ratio tests on Poisson vs Negative Binomial models for count data
+```{r}
+
+```
+
+# ANOVA
+
+::: callout-caution
+The denominator (mean total embryo count at hpf4) functions as our 'baseline' or initial count of total eggs present with potential to become fertilized and develop. The denominator is not significantly different for each treatment based on our One Way ANOVA above. So we can use an average across treatments to represent our baseline. 
+:::
+
+## Normality
+Are the number of embryos observed at 4 hours post fertilization different at each treatment?
+```{r}
+ggplot(viable, aes(x = n_embryos, fill = hpf)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Embryo Totals", y = "Density") +
+  theme_minimal()
+```
+
+### Q-Q plots
+
+```{r}
+ggplot(viable, aes(sample = n_embryos)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ hpf) +
+  theme_minimal()
+```
+
+### Shapiro-Wilk test
+
+```{r}
+viable %>%
+  group_by(hpf) %>%
+  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
+```
+::: callout-note
+Shapiro Wilk Test : If p < 0.05 the sample does not come from a normal distribution. If p > 0.05 the sample comes from a normal distribution. Here we see our count data for each hpf come from an approximately normal distribution. 
+:::
+## Summary
+```{r}
+anova <- viable %>% 
+  aov(n_viable ~ treatment + hpf, data = .)
+
+summary(anova)
+```
+::: callout-note
+Treatment is not a significant predictor of counts of viable embryos p = 0.658
+:::
+
+## 4 hpf One-Way ANOVA
+```{r}
+viable %>% 
+  filter(hpf == "4") %>% 
+ggplot(., aes(x = n_embryos, fill = hpf)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Embryo Totals", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+viable %>% 
+  filter(hpf == "4") %>%
+ggplot(., aes(sample = n_embryos)) +
+  stat_qq() +
+  stat_qq_line() +
+  theme_minimal()
+```
+
+```{r}
+viable %>%
+  filter(hpf == "4") %>% 
+  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
+```
+::: callout-note
+same as above with ~treatment + hpf!
+:::
+```{r}
+anova4 <- viable %>% 
+  filter(hpf =="4") %>% 
+  aov(n_viable ~ treatment, data = .)
+
+summary(anova4)
+```
+## 9 hpf One-Way ANOVA
+```{r}
+viable %>% 
+  filter(hpf == "9") %>% 
+ggplot(., aes(x = n_embryos, fill = hpf)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Embryo Totals", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+viable %>% 
+  filter(hpf == "9") %>%
+ggplot(., aes(sample = n_embryos)) +
+  stat_qq() +
+  stat_qq_line() +
+  theme_minimal()
+```
+
+```{r}
+viable %>%
+  filter(hpf == "9") %>% 
+  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
+```
+
+```{r}
+anova9 <- viable %>% 
+  filter(hpf == "9") %>% 
+  aov(n_viable ~ treatment, data = .)
+
+summary(anova9)
+```
+
+## 14 hpf One-Way ANOVA
+```{r}
+viable %>% 
+  filter(hpf == "14") %>% 
+ggplot(., aes(x = n_embryos, fill = hpf)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Embryo Totals", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+viable %>% 
+  filter(hpf == "14") %>%
+ggplot(., aes(sample = n_embryos)) +
+  stat_qq() +
+  stat_qq_line() +
+  theme_minimal()
+```
+
+```{r}
+viable %>%
+  filter(hpf == "14") %>% 
+  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
+```
+
+```{r}
+anova9 <- viable %>% 
+  filter(hpf == "14") %>% 
+  aov(n_viable ~ treatment, data = .)
+
+summary(anova9)
+```

@@ -1,0 +1,123 @@
+---
+title: "plot_exploration"
+format: html
+---
+# Install & load libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggbeeswarm)
+```
+
+```{r}
+tidy_bros <- read.csv("../data/output/tidy_bros.csv")
+```
+## Order factors
+
+```{r}
+# Set your levels in order
+# embryo_phase
+bro_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
+
+# treatment
+treat_levels <- c("control", "low", "mid", "high")
+
+# status
+status_levels <- c("typical", "uncertain", "malformed")
+
+
+# Mutate dataframe to set factor levels
+tidy_bros <- tidy_bros %>%
+  mutate(stage = factor(stage, 
+                        levels = bro_levels,
+                        ordered = TRUE),
+         treatment = factor(treatment, 
+                            levels = treat_levels,
+                            ordered = TRUE),
+         status = factor(status, 
+                         levels = status_levels,
+                         ordered = TRUE))
+```
+
+# Plot COUNTS facetgrid
+```{r}
+ggplot(tidy_bros, aes(x = stage, fill = status)) +
+  geom_bar(alpha = 0.7) +
+  facet_grid(treatment ~ hpf) +  # rows = treatment, columns = hpf
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Embryo Phases by Treatment and Time",
+       x = "Embryo Phase",
+       y = "Count",
+       fill = "Status")
+```
+
+# Barcharts
+
+```{r}
+ggplot(tidy_bros, aes(x = hpf)) +
+  geom_bar(position = position_dodge(), aes(fill = treatment), alpha = 0.5) +
+  labs(x = "hpf", y = "Total Embryos across Samples", fill = "Treatment") +
+  theme_minimal()
+```
+
+By default, `geom_bar()` (and some other geoms) automatically aggregates your data using `stat = "count"`. That means if you just give it a column like `aes(x = category`), it will count the number of occurrences of each category.
+
+But if you already have a y-value you want to use directly (like embryo_total, or a count column you calculated), you need to set: `stat = "identity"`
+
+```{r}
+ggplot(tidy_vials, aes(x = hpf, y = n_embryos)) +
+  geom_bar(stat = "identity", position = position_dodge(), aes(fill = treatment), alpha = 0.5) +
+  labs(x = "hpf", y = "Total Embryos per Sample", fill = "Treatment") +
+  theme_minimal()
+```
+
+
+# Boxplot
+
+```{r}
+ggplot(tidy_vials, aes(x = hpf_factor, y = n_viable)) +
+  geom_boxplot(aes(fill = hpf_factor), alpha = 0.4) +  # boxplot with semi-transparent fill
+  geom_beeswarm(aes(color = hpf_factor), size = 1.8, cex = 3) +  # beeswarm points
+  labs(x = "hpf", y = "Viable Embryo Total", color = "hpf") +
+  theme_minimal()
+```
+
+
+```{r}
+ggplot(tidy_samples, aes(x = interaction(hpf, treatment), y = embryo_total, fill = treatment)) +
+  geom_boxplot(alpha = 0.4, outlier.shape = NA) +  # Semi-transparent boxplots
+  geom_beeswarm(aes(color = treatment), size = 1.5, show.legend = FALSE) +  # Beeswarm points
+  #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "HPF x Treatment", y = "Embryo Total") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+```
+```{r}
+ggplot(tidy_vials, aes(x = hpf, y = n_embryos, fill = treatment)) +
+  geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +  # Boxplots side by side
+  #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "Hours post fertilization", y = "Viable Embryo Counts")+
+  ggtitle("Counts of total viable embryos across treatment and time")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+ggsave("../plots/counts_survival_boxplot.png", width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+ggplot(tidy_vials, aes(x = hpf_factor, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +  # Boxplots side by side
+  #scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  #scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+  labs(x = "Hours post fertilization", y = "Viable Embryo Counts") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+ggsave("../plots/counts_viable_boxplot.png", width = 8, height = 6, dpi = 300)
+```
+
+

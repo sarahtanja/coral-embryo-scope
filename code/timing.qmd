@@ -1,0 +1,702 @@
+---
+title: "Analyzing developmental proportions"
+subtitle: "with Dirichlet regression"
+date: 08/27/2025
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: full
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+# Background
+
+Additionally, we will use a beta regression model (using the betareg R
+package, (Cribari-Neto and Zeileis 2010) to analyze differences in the
+proportion of embryos reaching expected developmental stages across
+treatments(Cribari-Neto and Zeileis 2010). Differences in embryonic
+development among treatments will be evaluated using the joint_tests
+function from the emmeans R package (E. E. Chille et al. 2022; Searle,
+Speed, and Milliken 1980), which will run a beta regression model as a
+type III ANOVA (E. E. Chille et al. 2022; Searle, Speed, and Milliken
+1980).
+
+[![![](images/clipboard-2485478175.jpeg)Figure 1. from 'Analysing
+continuous proportions in ecology and evolution: A practical
+introduction to beta and Dirichlet regression' by Jacob C. Douma and
+James T. Weedon, Ecology and Evolution September
+2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+
+# Install packages & Load libraries
+
+```{r, eval=FALSE}
+install.packages("betareg")
+install.packages("gamlss")
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(betareg)
+library(gamlss)
+```
+
+# Load data
+
+```{r}
+tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+```
+
+Drop the samples with zero embryos (drop zeros)
+
+```{r}
+tidy_vials_dropz <- tidy_vials %>% 
+  filter(sample_id != c("3L9", "7H9"))%>% 
+  mutate(treatment = factor(treatment, levels = c("control",
+                                                  "low",
+                                                  "mid",
+                                                  "high"))) %>% 
+  mutate(hpf = factor(hpf, levels = c("4",
+                                      "9",
+                                      "14")))
+```
+
+# Calculate proportion means
+
+```{r}
+# Step 1: Pivot to long format
+long_tidy_vials <- tidy_vials_dropz %>%
+  pivot_longer(
+    cols = starts_with("prop") | starts_with("n"),
+    names_to = c(".value", "stage"),
+    names_pattern = "(prop|n)_(.*)"
+  )
+
+# Step 2: Calculate mean proportions for each stage within each treatment
+prop_summary <- long_tidy_vials %>%
+  group_by(treatment, stage, hpf) %>%
+  summarize(mean_prop = mean(prop), .groups = "drop") %>% 
+  filter(stage != "embryos") %>% 
+  filter(stage %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula")) %>% 
+  mutate(stage = factor(stage, levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"))) %>% 
+  mutate(hpf = factor(hpf, levels = c("4", "9", "14"))) %>% 
+  mutate(treatment = factor(treatment, 
+                        levels = c("control", "low", "mid", "high")))
+
+str(prop_summary)
+```
+
+
+# Stacked barplot
+
+```{r}
+# Step 3: Plot
+prop_summary %>% 
+ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Mean proportion of embryos at each embryonic stage")+
+  labs(y = "", x = "Treatment", fill = "Embryonic Stage") +
+  facet_wrap(~ hpf)+
+  theme_minimal()
+
+ggsave("../plots/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+::: callout-note
+Visually we can see there is little/no difference in proportion of
+embryos at each stage across treatments at each end-point (4,9,14 hpf).
+:::
+
+# Table
+
+```{r}
+str(prop_summary)
+```
+
+```{r}
+table_stage <- prop_summary %>%
+  filter(stage %in% c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>%
+  mutate(stage = factor(stage, 
+                        levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"))) %>%
+  select(treatment, hpf, stage, mean_prop) %>%
+  tidyr::pivot_wider(
+    names_from = stage,
+    values_from = mean_prop
+  ) %>% 
+  group_by(hpf) %>% 
+  select(hpf, treatment, egg, cleavage, morula, prawnchip, earlygastrula)
+
+table_stage
+```
+
+```{r}
+table_stage <-
+  prop_summary %>%
+  # keep only the 5 stages, set clear order
+  filter(stage %in% c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>%
+  mutate(
+    stage     = factor(stage, levels = c("egg","cleavage","morula","prawnchip","earlygastrula")),
+    treatment = factor(treatment, levels = c("control","low","mid","high")),
+    hpf       = factor(hpf, levels = c(4, 9, 14))
+  ) %>%
+  select(treatment, hpf, stage, mean_prop) %>%
+  pivot_wider(
+    names_from  = stage,
+    values_from = mean_prop,
+    values_fill = 0
+  ) %>%
+  arrange(hpf, treatment) %>%
+  relocate(hpf, treatment) %>% 
+  # this orders egg>cleavage>morula>prawnchip>earlygastrula across table top
+  select(hpf, treatment, egg, cleavage, morula, prawnchip, earlygastrula) %>%
+  # optional: nicer column labels for manuscript
+  rename(
+  `PVC leachate` = treatment, Egg = egg, Cleavage = cleavage, Morula = morula,
+    `Prawn chip` = prawnchip, `Early gastrula` = earlygastrula
+  ) 
+
+# ----- percents (if mean_prop is a proportion 0–1) -----
+table_stage_pct <-
+   table_stage %>%
+   mutate(across(c(Egg, Cleavage, Morula, `Prawn chip`, `Early gastrula`),
+                 ~ percent(.x, accuracy = 0.1)))
+
+```
+
+```{r}
+table_stage_pct
+```
+
+```{r}
+table_stage_pct %>%
+  kable(
+    format = "latex",               # use "latex" if knitting to PDF
+    digits = 3,                    # number of decimals
+    caption = "Proportion of embryos at each stage by treatment and hpf",
+    align = "c"                    # center align all columns
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+  column_spec(1, bold = TRUE) %>%  # bold hpf column
+  collapse_rows(columns = 1, valign = "top")  # group rows by hpf
+
+table_stage_pct
+```
+
+
+# Multinomial logistic regression
+[![![](images/clipboard-2485478175.jpeg)Figure 1. from 'Analysing
+continuous proportions in ecology and evolution: A practical
+introduction to beta and Dirichlet regression' by Jacob C. Douma and
+James T. Weedon, Ecology and Evolution September
+2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+
+```{r}
+# make sure treatment and hpf are factors 
+str(tidy_vials_dropz) 
+```
+
+## 4
+
+Subset to 4 hpf to simplify model At a given hpf, if some stages are
+not observed (e.g. no prawnchip or early gastrula at 4 hpf), drop those columns before modeling.
+
+```{r}
+tidy_4 <- tidy_vials_dropz %>% 
+  filter(hpf == "4") %>% 
+  select(treatment, n_egg, n_cleavage, n_morula, prop_egg, prop_cleavage, prop_morula)
+```
+
+```{r}
+# Make a response matrix of counts:
+Y4c <- as.matrix(tidy_4[, c("n_egg",
+                            "n_cleavage",
+                            "n_morula")])
+
+# Multinomial logistic regression of count matrix
+fit4 <- vglm(Y4c ~ treatment, family = multinomial, data = tidy_4)
+
+summary(fit4)
+```
+
+## Test for overdispersion
+
+Multinomial assumes that variance = mean × (1 – mean) × n. In practice,
+biological count data are often overdispersed (extra variability).
+
+```{r}
+deviance(fit4) / df.residual(fit4)
+```
+
+Value ≈ 1 → dispersion OK Value \>\> 1 → overdispersion present
+
+# Dirichlet-multinomial regression
+
+This is essentially a multinomial with an extra dispersion parameter.
+Each row of counts is assumed to follow a Dirichlet-multinomial
+distribution.
+
+```{r}
+install.packages("MGLM")
+library(MGLM)
+```
+
+```{r}
+# Fit Dirichlet-multinomial regression to count matrix
+fit_dm4 <- MGLMreg(Y4c ~ treatment, data = tidy_4, dist = "DM")
+
+summary(fit_dm4)
+```
+
+### Dirichlet regression to model proportions
+
+```{r}
+# Make response matrix of proportions:
+Y4 <- as.matrix(tidy_4[, c("prop_egg",
+                            "prop_cleavage",
+                            "prop_morula")])
+```
+
+Check that all proportions sum to 1
+
+```{r}
+abs(rowSums(Y4) - 1) < 1e-8
+```
+
+```{r}
+# Convert to DR_data object
+Y4 <- DR_data(Y4)
+
+# Fit model
+fit_4dr <- DirichReg(Y4 ~ treatment, data = tidy_4, model = "alternative")
+summary(fit_4dr)
+```
+
+::: callout-note
+🔹 Model structure
+
+Reference category: prop_egg (since model = "alternative", one stage is
+omitted and all coefficients are log-ratios of other stages vs egg).
+
+Response categories modeled: cleavage and morula.
+
+Predictors: treatment (factor with levels control, low, mid, high).
+
+🔹 Interpreting the results Standardized residuals
+
+Roughly between -2 and +2 for each stage → model fit looks fine (no
+extreme outliers).
+
+Mean models
+
+For cleavage vs egg:
+
+Intercept = -1.36 → under control, average log(cleavage/egg) is negative
+(egg more likely than cleavage).
+
+Treatment effects:
+
+Low, mid, high vs control: coefficients are small, p-values \>\> 0.05.
+
+→ No significant treatment effect on cleavage proportions relative to
+egg.
+
+For morula vs egg:
+
+Intercept = -1.19 → under control, egg is more likely than morula
+(log-ratio negative).
+
+Treatment effects: again, none significant.
+
+Precision model
+
+Intercept = 1.22 → describes how concentrated the distributions are (a
+measure of dispersion around the mean proportions).
+
+Significant (p \< 0.001), which is typical — but you usually don’t
+interpret this biologically; it just controls variability.
+
+🔹 What this tells you (at 4 hpf)
+
+The distribution of stages (egg, cleavage, morula) is dominated by eggs
+(reference).
+
+The odds of being in cleavage or morula (vs egg) do not differ
+significantly across treatments (all treatment coefficients
+non-significant).
+
+In other words: no treatment effect detected at 4 hpf. *generated via
+ChatGPT5 on 05SEPT2025*
+:::
+
+#### Results
+
+> At 4 hours post-fertilization (hpf), embryos were distributed
+> primarily in the egg stage, with smaller proportions observed in
+> cleavage and morula. We used Dirichlet regression to test whether the
+> relative stage distribution differed by treatment. In this model, egg
+> was specified as the reference category, such that coefficients
+> describe log-ratios of cleavage or morula relative to egg. The
+> intercept terms were significantly negative for both cleavage
+> (estimate = –1.36, SE = 0.36, z = –3.79, p \< 0.001) and morula
+> (estimate = –1.19, SE = 0.35, z = –3.40, p \< 0.001), indicating that
+> the odds of being in cleavage or morula were substantially lower than
+> being in the egg stage under control conditions. Treatment effects
+> were not statistically significant for either comparison. For example,
+> relative to control, the odds of cleavage versus egg under low
+> treatment increased modestly (estimate = 0.33, SE = 0.49, p = 0.50),
+> but this effect was not significant; similar non-significant results
+> were obtained for mid and high treatments (all p \> 0.5). Together,
+> these results indicate that at 4 hpf, stage distributions were
+> dominated by eggs, and treatment did not significantly alter the
+> relative proportions of cleavage or morula when compared with the
+> control.
+
+Subset `tidy_vials` to focus on proportions of developmental stages to
+get at developmental timing `devt`
+
+```{r}
+devt <- tidy_vials %>% select(treatment, 
+                              hpf, 
+                              prop_egg, 
+                              prop_cleavage,
+                              prop_morula,
+                              prop_prawnchip,
+                              prop_earlygastrula
+                          ) %>% 
+  mutate(treatment = factor(treatment, levels = c("control",
+                                                  "low",
+                                                  "mid",
+                                                  "high"))) %>% 
+  mutate(hpf = factor(hpf, levels = c("4",
+                                      "9",
+                                      "14")))
+
+str(devt)
+```
+
+```{r}
+install.packages("DirichletReg")
+library(DirichletReg)
+
+
+# Response must be a matrix/data.frame of proportions
+Y_dir <- devt[, c("prop_egg", "prop_cleavage", 
+                "prop_morula", "prop_prawnchip", 
+                "prop_earlygastrula")]
+
+fit <- DirichReg(Y_dir ~ treatment + hpf, data = devt)
+summary(fit)
+
+```
+
+### Zero-Inflated beta regression
+
+Subset data to just 4 hpf
+
+```{r}
+long_vials_4 <-  long_tidy_vials %>% 
+  filter(hpf == 4) %>% 
+  filter(stage %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula")) %>% 
+  select(sample_id, treatment, hpf, stage, prop, n)
+```
+
+```{r}
+table(long_vials_4$stage, long_vials_4$treatment)
+```
+
+```{r}
+ggplot(long_vials_4, aes(x = prop, fill = treatment)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Proportions of embryos", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
+mod4 <- gamlss(prop ~ stage * treatment, 
+              family = BEINF, 
+              weights = n,
+              data = long_vials_4)
+summary(mod4)
+
+```
+
+```{r}
+plot(mod4)
+```
+
+::: column-margin
+Results interpretation - The global deviance is like a model "fit"
+statistic (lower = better). - Convergence happened in 4 steps — ✅ good.
+
+The BEINF distribution models three components: \| Component \| What it
+models \| Link function \| \| --------- \|
+------------------------------------------------ \| ------------- \| \|
+**Mu** \| The mean of the beta-distributed values in (0,1) \| `logit` \|
+\| **Sigma** \| The precision (variance) of those values \| `logit` \|
+\| **Nu** \| The probability of zero or one inflation \| `log` \|
+
+Mu coefficients: What affects proportions in (0,1)? - Coefficients are
+on the logit scale (like logistic regression). - A positive estimate =
+higher proportion (on logit scale). - Main effects + interactions show
+how prop is affected by stage and treatment.
+
+(Intercept) -0.80435 \# baseline: cleavage stage, control treatment
+stageegg 0.79958 \*\* \# egg has higher prop than cleavage stagemorula
+0.26401 . \# morula slightly higher than cleavage treatmenthigh -0.14514
+\# no clear difference vs control ... stageegg:treatmenthigh 0.94601
+\*\* \# high treatment increases prop in egg stage stageegg:treatmentmid
+0.55047 \*\* \# mid treatment also increases prop in egg stage
+stagemorula:treatmentlow -0.36862 . \# low treatment may reduce prop in
+morula
+
+The egg stage has a significantly higher proportion of embryos compared
+to cleavage (main effect), and this effect is amplified under high and
+mid treatments. stageegg:treatmenthigh = strong positive interaction →
+higher-than-expected proportion of embryos in egg stage under high
+treatment.
+
+Sigma coefficient - Sigma (Intercept): -0.62709 \*\*\* - Interprets the
+precision (inverse of variance) of the beta distribution. - Since only
+the intercept is modeled, it means variance is assumed the same across
+groups. - This value is on the logit scale — not typically of primary
+biological interest unless you're modeling heteroskedasticity.
+
+Nu coefficient: Zero/one inflation Nu (Intercept): -18.54 (not
+significant) - This is the log of the odds of an observation being
+exactly 0 or 1. - A large negative number implies low probability of
+inflation — so most values are in (0,1), and zero-inflation didn’t
+dominate. - Not significant → zeros may not be strongly patterned.
+
+Summary: - You're testing whether the proportion of embryos in each
+stage changes by treatment. - You found significant interactions,
+especially in the egg stage under high and mid treatments → more embryos
+remain in egg stage than expected under these treatments. - The model
+handled your 0s appropriately. - The overall fit converged well.
+:::
+
+## 9
+
+Subset to 9 hpf to simplify model At a given hpf, if some stages are
+biologically impossible (e.g. no prawnchip or early gastrula at 4 hpf),
+drop those columns before modeling:
+
+```{r}
+tidy_9 <- tidy_vials_dropz %>% 
+  filter(hpf == "9") %>% 
+  select(treatment, prop_egg, prop_cleavage, prop_morula, prop_prawnchip)
+```
+
+Which columns contain all zeros at 9hpf? Just `earlygastrula`
+
+### Dirichlet regression
+
+```{r}
+# Make response matrix of proportions:
+Y9 <- as.matrix(tidy_9[, c("prop_prawnchip",
+                           "prop_cleavage",
+                           "prop_morula",
+                           "prop_egg")])
+```
+
+Check that all proportions sum to 1
+
+```{r}
+abs(rowSums(Y9) - 1) < 1e-8
+```
+
+```{r}
+# Convert to DR_data object
+Y9 <- DR_data(Y9)
+
+# Fit model
+fit_9dr <- DirichReg(Y9 ~ treatment, data = tidy_9, model = "alternative")
+summary(fit_9dr)
+```
+
+::: callout-note
+Dirichlet regression cannot handle exact 0 or 1 proportions.
+
+The function automatically added a tiny adjustment (usually \~1e-10) to
+those cells and rescaled the row.
+
+This is normal when you have many all-egg or all-prawnchip observations.
+
+✅ Safe to ignore as long as you’re aware — it’s essentially a built-in
+pseudocount.
+:::
+
+#### Results
+
+> At 9 hpf, embryos were overwhelmingly in the prawn chip stage, with
+> only small proportions in egg, cleavage, or morula (Table X).
+> Dirichlet regression with prawn chip as the reference category
+> confirmed that the odds of being in egg (estimate = –2.75, SE = 0.32,
+> p \< 0.001), cleavage (estimate = –2.98, SE = 0.34, p \< 0.001), or
+> morula (estimate = –2.37, SE = 0.30, p \< 0.001) were significantly
+> lower than prawn chip under control conditions. Treatment effects were
+> not significant for any stage comparison (all p \> 0.3), although a
+> modest trend toward fewer morulae under high treatment was noted
+> (estimate = –0.79, SE = 0.45, p = 0.08).
+
+Subset data to just 9 hpf \### Zero-infalted beta regression
+
+```{r}
+long_vials_9 <-  long_tidy_vials %>% 
+  filter(hpf == 9) %>% 
+  filter(stage %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula")) %>% 
+  select(sample_id, treatment, hpf, stage, prop, n)
+```
+
+```{r}
+table(long_vials_9$stage, long_vials_9$treatment)
+```
+
+```{r}
+ggplot(long_vials_9, aes(x = prop, fill = treatment)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Proportions of embryos", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
+mod9 <- gamlss(prop ~ stage * treatment, 
+              family = BEINF, 
+              weights = n,
+              data = long_vials_9)
+summary(mod9)
+
+```
+
+## 14
+
+Subset to 14 hpf to simplify model At a given hpf, if some stages are
+biologically impossible drop those columns before modeling:
+
+```{r}
+tidy_14 <- tidy_vials_dropz %>% 
+  filter(hpf == "14") %>% 
+  select(treatment, prop_egg, prop_morula, prop_prawnchip, prop_earlygastrula)
+```
+
+Which columns contain all zeros at 14hpf? Just `cleavage`. There are
+`egg` stages observed in the low and high treatments, which is strange.
+They are not fertilized but did not dissolve.
+
+### Dirichlet regression
+
+```{r}
+# Make response matrix of proportions:
+Y14 <- as.matrix(tidy_14[, c("prop_earlygastrula",
+                             "prop_prawnchip",
+                             "prop_morula",
+                             "prop_egg")])
+```
+
+Check that all proportions sum to 1
+
+```{r}
+abs(rowSums(Y14) - 1) < 1e-8
+```
+
+```{r}
+# Convert to DR_data object
+Y14 <- DR_data(Y14)
+```
+
+```{r}
+# Fit model
+fit_14dr <- DirichReg(Y14 ~ treatment, data = tidy_14, model = "alternative")
+summary(fit_14dr)
+```
+
+#### Results
+
+> At 14 hpf, embryos were overwhelmingly in the early gastrula stage,
+> with smaller proportions in prawn chip, morula, and egg (Table X).
+> Dirichlet regression with early gastrula as the reference category
+> confirmed that, under control conditions, the odds of being in prawn
+> chip (estimate = –3.08, SE = 0.31, z = –10.04, p \< 0.001), morula
+> (estimate = –3.32, SE = 0.32, z = –10.34, p \< 0.001), or egg
+> (estimate = –3.46, SE = 0.33, z = –10.53, p \< 0.001) were all
+> significantly lower than early gastrula. Treatment effects were not
+> significant for any stage comparison (all p \> 0.19). For example,
+> relative to control, the odds of prawn chip versus early gastrula were
+> slightly higher under high treatment (estimate = 0.51, SE = 0.40, p =
+> 0.20), but this effect did not reach significance. These results
+> indicate that by 14 hpf, most embryos had progressed to early
+> gastrula, and treatment did not significantly alter the relative stage
+> distribution.
+
+### Zero-inflated beta regression
+
+Subset data to just 14 hpf
+
+```{r}
+long_vials_14 <-  long_tidy_vials %>% 
+  filter(hpf == 14) %>% 
+  filter(stage %in% 
+         c("egg", 
+         "cleavage", 
+         "morula", 
+         "prawnchip", 
+         "earlygastrula")) %>% 
+  select(sample_id, treatment, hpf, stage, prop, n)
+```
+
+```{r}
+table(long_vials_14$stage, long_vials_14$treatment)
+```
+
+```{r}
+# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
+mod14 <- gamlss(prop ~ stage * treatment, 
+              family = BEINF, 
+              weights = n,
+              data = long_vials_14)
+summary(mod14)
+
+```
