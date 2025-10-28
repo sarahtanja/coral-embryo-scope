@@ -1,6 +1,0 @@
----
-title: "README"
-format: html
----
-
-> The egg–sperm bundles released by M. capitata measured approximately 1 mm and contained around 15 ± 5.1 oocytes (mean ± SD, n = 214, from 26 colonies), surrounding a central mass of spermatozoa (Fig. 4). (Padilla-Gamino et. al, 2011)
