@@ -83,6 +83,20 @@ tidy_vials_dropz <- tidy_vials %>%
                                       "14")))
 ```
 
+# 
+```{r}
+ggplot(data=tidy_vials, aes(x = reorder(sample_id, hpf), y = n_embryos))+
+  geom_col()+
+  theme_minimal()+
+  theme(
+    axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+
+
 # Calculate proportion means
 
 ```{r}

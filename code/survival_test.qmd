@@ -388,7 +388,10 @@ decline_data <- survival_data %>%
     names_from = hpf,
     values_from = n_viable,
     names_prefix = "hpf_"
-  ) %>%
+  ) 
+
+
+decline_data <- decline_data %>% 
   mutate(
     decline_4_to_9 = hpf_4 - hpf_9,
     decline_9_to_14 = hpf_9 - hpf_14,

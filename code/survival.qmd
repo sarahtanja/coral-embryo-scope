@@ -28,10 +28,19 @@ format:
 ---
 
 # Install packages & load libraries
+```{r}
+install.packages("remotes")
+remotes::install_github("wilkelab/cowplot")
+install.packages("colorspace", repos = "http://R-Forge.R-project.org")
+remotes::install_github("clauswilke/colorblindr")
+```
+
 
 ```{r}
 library(tidyverse)
 library(ggplot2)
+library(RColorBrewer)
+library(colorblindr)
 ```
 
 # Load in data
@@ -40,57 +49,245 @@ tidy_vials <- read.csv("../data/output/tidy_vials.csv")
 ```
 
 ```{r}
-# treatment
-treat_levels <- c("control", "low", "mid", "high")
+tidy_vials <- tidy_vials %>% 
+mutate(treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE),
+          hpf = factor(hpf, levels = c("4", "9", "14", ordered = TRUE)))
 
-viable <- tidy_vials %>% 
-  select(sample_id, treatment, hpf, n_viable, n_embryos) %>% 
-   mutate(treatment = factor(treatment, 
-                            levels = treat_levels,
-                            ordered = TRUE),
-          hpf = factor(hpf,
-                       levels = c("4", "9", "14",
-                                  ordered = TRUE)))
+head(tidy_vials %>% select(sample_id, treatment, hpf, n_viable, n_embryos))
+```
 
-head(viable)
+# Pick color schemes
+
+```{r, fig.height=8}
+display.brewer.all()
+```
+
+```{r}
+display.brewer.pal(9, name = "PuRd")
+display.brewer.pal(9, name = "Blues")
+display.brewer.pal(9, name = "Oranges")
+```
+```{r}
+# Get the four PuRd colors
+leachcolors <- brewer.pal(9, "PuRd")[c(3, 7, 8, 9)]
+leachcolors
+
+# Get the four Oranges colors
+hpfcolors <- brewer.pal(9, "Oranges")[c(2, 4, 6, 8)]
+hpfcolors
+```
+
+```{r}
+leachate_colors <- c("#D4B9DA", "#CE1256", "#980043", "#67001F","black")
+stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913", "#A63603")
 ```
 
 # Boxplot
 ```{r}
-ggplot(viable, aes(group = treatment, y = n_viable, fill = treatment)) +
-  geom_boxplot(alpha = 0.4, position = "dodge", outlier.shape = NA) +
-  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
-  scale_color_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.9, outlier.shape = ".") +
+  scale_fill_manual(values = leachate_colors) +
+  scale_color_manual(values = leachate_colors) +
   labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
-  facet_wrap(~hpf, strip.position = "bottom") +
   ggtitle("Survival: counts of total viable embryos across treatment and time")+
   theme_minimal() +
   theme(
-    axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
   )
 
+box
+
 ```
+
+```{r}
+# Create a data frame for the single point with error bars
+single_point <- data.frame(
+  hpf = 0,  
+  n_viable = 31.5,
+  ymin = 24.8,
+  ymax = 38.2,
+  mean_viable = 31.5,
+  treatment = "start"
+)
+```
+
+```{r}
+# Add the point and error bars to the existing plot
+box2 <- box +
+  geom_pointrange(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), color = "black")+
+  scale_y_continuous(expand = c(0,0))
+
+box2
+```
+
+```{r}
+cvd_grid(box)
+```
+
 
 ```{r}
 ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
 ```
 
+
+
 # Violin plot
 ```{r}
-ggplot(viable, aes(x = treatment, y = n_viable, fill = treatment)) +
-  geom_violin(alpha = 0.4, position = "dodge", scale = "width", color = NA) +
-  scale_fill_manual(values = c("control" = "#56B4E9", "low" = "#009E73", "mid" = "#E69F00", "high" = "#D55E00")) +
+ggplot(viable, aes(x = hpf, y = n_viable, fill = treatment, color = treatment)) +
+  geom_violin(scale = "width", alpha = 0.8)+
+  scale_fill_manual(values = colors) +
+  scale_color_manual(values = colors) +
   labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
-  facet_wrap(~hpf, strip.position = "bottom") +
   ggtitle("Survival: counts of total viable embryos across treatment and time")+
   theme_minimal() +
   theme(
-    axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
   )
 
 ```
+
+```{r}
+violin <- ggplot(viable, aes(x = hpf, y = n_viable, fill = treatment, color = treatment)) +
+  geom_violin(alpha = 0.8, scale = "width")+
+  scale_fill_manual(values = leachate_colors) +
+  scale_color_manual(values = leachate_colors) +
+  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
+  ggtitle("Survival: counts of total viable embryos across treatment and time")+
+  theme_minimal() +
+  theme(
+    axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+
+# Add the point and error bars to the existing plot
+violin +
+  geom_point(data = single_point, aes(x = hpf, y = n_viable), 
+             color = "black", size = 3, shape = 21) +
+  geom_errorbar(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), 
+                width = 0.2, color = "black")
+```
+
+```{r}
+cvd_grid(violin)
+```
+
+# Line plot
+```{r}
+mean_trajectories <- survival_data %>%
+  group_by(treatment, hpf_factor) %>%
+  summarise(
+    mean_viable = mean(n_viable, na.rm = TRUE),
+    se_viable = sd(n_viable, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+line <- ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable, 
+                               color = treatment, group = treatment)) +
+  geom_line(linewidth = 1.2, alpha = 0.6) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_viable - se_viable, 
+                    ymax = mean_viable + se_viable),
+                width = 0.2, linewidth = 0.8) +
+  scale_color_manual(values = leachate_colors) +
+  labs(
+    title = "Mean viable embryo trajectories over time",
+    x = "Hours post-fertilization",
+    y = "Mean number of viable embryos (± SE)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+
+# Add the point and error bars to the existing plot
+line +
+  geom_point(data = single_point, aes(x = hpf, y = n_viable), 
+             color = "black", size = 3, shape = 21) +
+  geom_errorbar(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), 
+                width = 0.2, color = "black")
+```
+
+# Barplots
+```{r}
+ggplot(viable, aes(x = reorder(sample_id, -n_embryos), y = n_embryos, fill = hpf))+
+  geom_col()
+```
+
+```{r}
+viable$group <- interaction(viable$hpf, viable$treatment, sep = "_")
+```
+
+
+```{r}
+viable <- viable %>%
+  arrange(hpf, treatment, desc(n_embryos)) %>%
+  mutate(sample_id = factor(sample_id, levels = unique(sample_id)))
+
+ggplot(viable, aes(x = sample_id, y = n_embryos, fill = treatment)) +
+  geom_col(position = position_dodge()) +
+  theme_minimal()+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank())
+
+```
+
+# Relative survival
+Calculate the proportionate change from one time point to the next:
+
+Relative survival to time hpf4 = (mean embryo count at hpf4)/(mean _eggs_per_vial)
+Relative survival to time hpf9 =  (mean embryo count at hpf9)/(mean _eggs_per_vial).
+Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean _eggs_per_vial).
+
+We take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs. In each vial we placed 2 bundles. 
+```{r}
+set.seed(123)  # for reproducibility
+
+# Simulate eggs per bundle: 2 bundles per vial, 120 vials
+n_vials <- 9
+n_bundles <- 2 * n_vials
+
+# Simulate egg counts per bundle
+eggs_per_bundle <- rnorm(n_bundles, mean = 15, sd = 5.1)
+
+# Optional: enforce only positive egg counts (truncated normal)
+eggs_per_bundle <- pmax(round(eggs_per_bundle), 1)
+
+# Group into vials: every two bundles go into one vial
+eggs_per_vial <- rowSums(matrix(eggs_per_bundle, ncol = 2, byrow = TRUE))
+
+# Summarize
+mean_eggs_per_vial <- mean(eggs_per_vial)
+sd_eggs_per_vial <- sd(eggs_per_vial)
+
+# Output
+mean_eggs_per_vial
+sd_eggs_per_vial
+```
+::: callout-note
+Here we use 31.5 as a starting point, our 100%, that we used to compare all our counts to for relative survival
+:::
+
+```{r}
+# calculate relative survival
+relative_survival <- mean_viable_counts %>%
+  mutate(relative_survival = (mean_viable/31.5))
+```
+
+```{r}
+relative_survival %>% 
+  select(treatment, hpf, relative_survival) %>% 
+  arrange(hpf)
+```
+
 # Dispersion
 
 ```{r}
@@ -121,62 +318,6 @@ dispersion is greater than 2 for some groups... but not others. If dispersion is
 - generated via [perplexity AI](https://www.perplexity.ai/search/can-you-help-me-make-this-a-vi-XQFzYDU5TXahiCuUqcEzFg#6)
 :::
 ::::
-
-# Relative survival
-Calculate the proportionate change from one time point to the next:
-
-Relative survival to time hpf9 =  (mean embryo count at hpf9)/(mean total embryo count at hpf4).
-Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean total embryo count at hpf4).
-
-Can we take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs?
-```{r}
-set.seed(123)  # for reproducibility
-
-# Simulate eggs per bundle: 2 bundles per vial, 120 vials
-n_vials <- 9
-n_bundles <- 2 * n_vials
-
-# Simulate egg counts per bundle
-eggs_per_bundle <- rnorm(n_bundles, mean = 15, sd = 5.1)
-
-# Optional: enforce only positive egg counts (truncated normal)
-eggs_per_bundle <- pmax(round(eggs_per_bundle), 1)
-
-# Group into vials: every two bundles go into one vial
-eggs_per_vial <- rowSums(matrix(eggs_per_bundle, ncol = 2, byrow = TRUE))
-
-# Summarize
-mean_eggs_per_vial <- mean(eggs_per_vial)
-sd_eggs_per_vial <- sd(eggs_per_vial)
-
-# Output
-mean_eggs_per_vial
-sd_eggs_per_vial
-```
-::: callout-note
-Here we use 31.5 as a starting point, our 100%, that we used to compare all our counts to for relative survival
-Is this legit? 
-:::
-
-```{r}
-# Extract mean of total embryos at hpf 4 
-hpf4_mean <- mean_viable_counts %>%
-  filter(hpf == 4) %>%
-  pull(mean_embryos) %>% 
-  mean()
-
-# Join back and calculate relative survival
-relative_survival <- mean_viable_counts %>%
-  #filter(hpf %in% c(9, 14)) %>%        # later time points
-  #mutate(hpf4_mean = hpf4_mean) %>%    # join hpf4 means
-  mutate(relative_survival = (mean_viable/31.5))
-```
-
-```{r}
-relative_survival %>% 
-  select(treatment, hpf, relative_survival) %>% 
-  arrange(hpf)
-```
 
 # GLM
 ## Poisson (not)
