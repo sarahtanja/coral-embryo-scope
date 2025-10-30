@@ -3,18 +3,40 @@ title: "Nikon scope pictures & slide preservation protocol"
 subtitle: "For capturing embryonic development of Montipora capitata rice corals exposed to PVC leachate"
 author: "Sarah Tanja"
 date: 09/03/2024
-date-format: long
 date-modified: today
-categories: [protocols, coral]
-toc: true
-toc-title: Contents <i class="bi bi-bookmark-heart"></i>
-toc-depth: 5
-toc-location: left
-reference-location: margin
-citation-location: margin
-link-external-icon: true
-link-external-newwindow: true
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: article
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, # Display code chunks
+  eval = TRUE, # Evaluate code chunks
+  warning = FALSE, # Hide warnings
+  message = FALSE, # Hide messages
+  comment = "", # Prevents appending '##' to beginning of lines in code output)
+ )        
+```
 
 # Make slides
 

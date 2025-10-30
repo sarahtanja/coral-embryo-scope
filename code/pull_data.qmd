@@ -11,7 +11,7 @@ format:
   html:
     theme: journal
     highlight-style: github
-    page-layout: full
+    page-layout: article
     code-background: true
     code-tools: 
       source: true
@@ -30,12 +30,12 @@ format:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,         # Display code chunks
-  eval = FALSE,        # Evaluate code chunks
-  warning = FALSE,     # Hide warnings
-  message = FALSE,     # Hide messages
-  comment = ""         # Prevents appending '##' to beginning of lines in code output
-)
+  echo = TRUE, # Display code chunks
+  eval = TRUE, # Evaluate code chunks
+  warning = FALSE, # Hide warnings
+  message = FALSE, # Hide messages
+  comment = "", # Prevents appending '##' to beginning of lines in code output)
+ )        
 ```
 
 ------------------------------------------------------------------------
