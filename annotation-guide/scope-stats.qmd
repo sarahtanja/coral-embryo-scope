@@ -3,19 +3,40 @@ title: "Statistics for embryo scope data"
 subtitle: "Exploring data from embryonic development of Montipora capitata rice corals exposed to PVC leachate"
 author: "Sarah Tanja"
 date: 09/06/2024
-date-format: long
 date-modified: today
-categories: [stats, coral]
-toc: true
-toc-title: Contents <i class="bi bi-bookmark-heart"></i>
-toc-depth: 5
-toc-location: left
-reference-location: margin
-citation-location: margin
-link-external-icon: true
-link-external-newwindow: true
-bibliography: ../coral-embryology.bib
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: article
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, # Display code chunks
+  eval = TRUE, # Evaluate code chunks
+  warning = FALSE, # Hide warnings
+  message = FALSE, # Hide messages
+  comment = "", # Prevents appending '##' to beginning of lines in code output)
+ )        
+```
 
 What information can we get from looking at the *Montipora capitata* embryos that were exposed to varying levels of PVC leachate (High: 1mg/L, Mid: 0.1mg/L, Low: 0.01mg/L)? This experiment allowed embryos to develop from a bundle-bundle cross (meaning one egg-sperm bundle from one parent colony was placed in a 20mL scintillation vial with another egg-sperm bundle from a different parent colony). Colonies are not known to be able to self-fertilize... meaning it's important that each bundle came from a different parent colony. Each *Montipora capitata* egg sperm bundle contains a 'bundle' of eggs that are bound together around a 'packet' of sperm.
 
