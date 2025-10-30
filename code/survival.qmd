@@ -29,10 +29,11 @@ format:
 
 # Install packages & load libraries
 ```{r}
-install.packages("remotes")
-remotes::install_github("wilkelab/cowplot")
-install.packages("colorspace", repos = "http://R-Forge.R-project.org")
-remotes::install_github("clauswilke/colorblindr")
+#install.packages("remotes")
+#remotes::install_github("wilkelab/cowplot")
+#install.packages("colorspace", repos = "http://R-Forge.R-project.org")
+#remotes::install_github("clauswilke/colorblindr")
+install.packages("ggbeeswarm")
 ```
 
 
@@ -40,7 +41,12 @@ remotes::install_github("clauswilke/colorblindr")
 library(tidyverse)
 library(ggplot2)
 library(RColorBrewer)
+library(viridis)
 library(colorblindr)
+library(ggbeeswarm)
+library(ggrepel)
+library(scales)
+library(ggtext)
 ```
 
 # Load in data
@@ -49,14 +55,25 @@ tidy_vials <- read.csv("../data/output/tidy_vials.csv")
 ```
 
 ```{r}
-tidy_vials <- tidy_vials %>% 
-mutate(treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE),
-          hpf = factor(hpf, levels = c("4", "9", "14", ordered = TRUE)))
 
-head(tidy_vials %>% select(sample_id, treatment, hpf, n_viable, n_embryos))
+map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
+
+tidy_vials <- tidy_vials %>% 
+mutate(
+  treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE),
+  hpf = factor(hpf, levels = c("4", "9", "14", ordered = TRUE)),
+  leachate_mgL = recode(treatment, !!!map_leachate)
+)
+
+
+head(tidy_vials %>% select(sample_id, treatment, leachate_mgL, hpf, n_viable, n_embryos))
 ```
 
 # Pick color schemes
+```{r}
+scale_fill_viridis_c(option = "cividis")
+```
+
 
 ```{r, fig.height=8}
 display.brewer.all()
@@ -68,8 +85,8 @@ display.brewer.pal(9, name = "Blues")
 display.brewer.pal(9, name = "Oranges")
 ```
 ```{r}
-# Get the four PuRd colors
-leachcolors <- brewer.pal(9, "PuRd")[c(3, 7, 8, 9)]
+# Get the three PuRd colors
+leachcolors <- brewer.pal(9, "PuRd")[c(1, 2, 4, 9)]
 leachcolors
 
 # Get the four Oranges colors
@@ -78,48 +95,57 @@ hpfcolors
 ```
 
 ```{r}
-leachate_colors <- c("#D4B9DA", "#CE1256", "#980043", "#67001F","black")
-stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913", "#A63603")
+leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
+leachate_colors <- c("grey60", "#C994C7", "#980043", "#67001F")
+stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
 ```
 
 # Boxplot
-```{r}
-box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, fill = treatment)) +
-  geom_boxplot(alpha = 0.9, outlier.shape = ".") +
-  scale_fill_manual(values = leachate_colors) +
-  scale_color_manual(values = leachate_colors) +
-  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
-  ggtitle("Survival: counts of total viable embryos across treatment and time")+
+```{r, fig.height=6}
+
+# labels for legend
+labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+
+box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, color = treatment, fill = treatment)) +
+  geom_boxplot(alpha = 0.65, outlier.shape = NA) +
+  geom_beeswarm(aes(group = interaction(hpf, treatment)),
+                dodge.width = 0.7, priority = "density", cex = 1.2) +
+  scale_fill_manual(
+    name   = "PVC leachate concentration",
+    values = leachate_colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  scale_color_manual(
+    name   = "PVC leachate concentration",
+    values = leachate_colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  labs(
+    x = "Hours post-fertilization", y = "Viable embryo counts",
+    title = "**Survival** of embryos across PVC leachate concentration and time"
+  ) +
+  geom_hline(yintercept = 31.5, linetype = "dashed") +
+  scale_y_continuous(
+    limits = c(0, 34), breaks = c(0, 10, 20, 30),
+    sec.axis = sec_axis(~ . / 31.5 * 100, name = "Percent relative survival",
+                        breaks = seq(0, 100, 10),
+                        labels = scales::label_number(accuracy = 1, suffix = "%"))
+  ) +
   theme_minimal() +
   theme(
     axis.ticks.x = element_blank(),
     panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
+    panel.grid.major = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.title.position = "top",
+    plot.title = element_markdown(size = 18, face = "plain")
   )
 
 box
-
-```
-
-```{r}
-# Create a data frame for the single point with error bars
-single_point <- data.frame(
-  hpf = 0,  
-  n_viable = 31.5,
-  ymin = 24.8,
-  ymax = 38.2,
-  mean_viable = 31.5,
-  treatment = "start"
-)
-```
-
-```{r}
-# Add the point and error bars to the existing plot
-box2 <- box +
-  geom_pointrange(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), color = "black")+
-  scale_y_continuous(expand = c(0,0))
-
-box2
 ```
 
 ```{r}
@@ -130,8 +156,6 @@ cvd_grid(box)
 ```{r}
 ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
 ```
-
-
 
 # Violin plot
 ```{r}
