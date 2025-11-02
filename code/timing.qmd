@@ -55,26 +55,139 @@ introduction to beta and Dirichlet regression' by Jacob C. Douma and
 James T. Weedon, Ecology and Evolution September
 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
-# Install packages & Load libraries
+# Setup
+## Install packages 
 
 ```{r, eval=FALSE}
 install.packages("betareg")
 install.packages("gamlss")
 ```
-
+## Load libraries
 ```{r}
 library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(betareg)
 library(gamlss)
+library(MASS) # for multinomial or negative binomial GLM
 ```
 
-# Load data
+## Load data
 
 ```{r}
 tidy_vials <- read.csv("../data/output/tidy_vials.csv")
 ```
+
+# Visualize
+
+> You first need to convert your count data from wide format (with separate columns for each stage) to long format with three columns:
+- treatment (factor for treatment groups)
+- stage (one of the 5 embryo stages)
+- count (number of embryos in that stage)
+This long format allows ggplot2 to map stage to the fill aesthetic for stacking.
+
+```{r}
+# Step 1: Pivot to long format
+long_tidy_counts <- tidy_vials %>%
+  dplyr::select(-starts_with("prop")) %>% 
+  pivot_longer(
+    cols = starts_with("n"),
+    names_to = c(".value", "stage"),
+    names_pattern = "(n)_(.*)"
+  ) %>% 
+  mutate(hpf_factor = factor(hpf_factor, levels = c(4, 9, 14), ordered = TRUE))
+
+# Filter down to just the counts that describe how many embryos are in each stage 
+long_timing_counts <- long_tidy_counts %>% 
+  filter(stage == c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>% 
+  mutate(
+    stage = factor(stage, 
+                   levels = c("egg", "cleavage", "morula", 
+                              "prawnchip", "earlygastrula"), ordered = TRUE),
+    treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
+                       ordered = TRUE))
+
+str(long_timing_counts)
+```
+
+```{r}
+# Create the stacked bar plot
+ggplot(long_timing_counts, aes(x = hpf_factor, y = n, fill = stage, group = stage)) +
+  geom_col(position = "stack", alpha = 0.8) +
+  facet_wrap(~ treatment, ncol = 1) +  # Optional: separate plots by treatment
+  labs(title = "Embryo counts by stage over time by treatment",
+       x = "Hours post-fertilization (hpf)",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") 
+```
+```{r}
+# Create the stacked bar plot
+ggplot(long_timing_counts, aes(x = stage, y = n, fill = stage, group = treatment)) +
+  geom_col(position = "stack", alpha = 0.8) +
+  facet_wrap(~ hpf_factor, ncol = 1) +  # Optional: separate plots by treatment
+  labs(title = "Embryo counts by stage over time by treatment",
+       x = "Hours post-fertilization (hpf)",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") 
+```
+
+> At 4 hpf, the majority of embryos are indeed in the egg or early cleavage stages, and very few or none are in advanced stages like prawnchip or early gastrula. 
+As time progresses to 9 and then 14 hpf, the embryo counts in the earlier stages (egg, cleavage) decrease, reflecting development progression, while counts in the later stages (prawnchip, early gastrula) increase correspondingly.
+
+```{r}
+# Create the stacked bar plot
+ggplot(long_timing_counts, aes(x = hpf_factor, y = n, fill = stage, group = stage)) +
+  geom_area(alpha = 0.8) +
+  facet_wrap(~ treatment, ncol = 1) +  # Optional: separate plots by treatment
+  labs(title = "Embryo counts by stage over time by treatment",
+       x = "Hours post-fertilization (hpf)",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") 
+```
+
+# Analyze
+
+Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
+```{r}
+long_timing_counts %>%
+  group_by(stage) %>%
+  summarize(prop_zero = mean(n == 0))
+```
+That's a lot of zeros!... We should use a zero-inflated model
+
+> Zero-inflated models are applicable when zeros occur from two distinct mechanisms (e.g., embryos haven't reached the stage yet, or random absence due to treatment or timing)
+
+## Counts
+
+> Counts: Analyzing raw counts per stage as outcome assumes that the number of embryos could, in principle, vary across samples (due to loss, differential fertilization, or experimental handling). It is suitable if embryo-to-embryo variation, losses, or cell death differ by group, or if there are systematic differences in sample size. Negative Binomial or Poisson GLM: For counts, if total embryo numbers vary non-trivially among vials, or **loss is biologically important**. If there is **systematic loss** or if absolute numbers (not only fractions) are meaningful, consider count-based models. 
+
+n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula
+
+## Poisson
+
+## Negative binomial per stage
+```{r}
+# Fit a negative binomial model per stage
+glm_list <- long_timing_counts %>% 
+  group_by(hpf_factor) %>%
+  do(model = glm.nb(n ~ treatment, data = .))
+```
+
+```{r}
+ltc_4 <- long_timing_counts %>% 
+  filter(hpf == 4)
+
+nb4 = glm.nb(n ~ treatment, data = ltc4)
+```
+
+
+
+
+
+# Proportions
 
 Drop the samples with zero embryos (drop zeros)
 

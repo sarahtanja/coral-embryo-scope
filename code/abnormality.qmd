@@ -39,7 +39,7 @@ knitr::opts_chunk$set(
 
 # Background
 
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
 # Install packages & Load libraries
 
@@ -81,7 +81,7 @@ tidy_vials_dropz <- tidy_vials %>%
 
 ```{r}
 # Step 1: Pivot to long format
-long_tidy_vials <- tidy_vials_dropz %>%
+long_tidy_vials <- tidy_vials %>%
   pivot_longer(
     cols = starts_with("prop") | starts_with("n"),
     names_to = c(".value", "stage"),
@@ -175,7 +175,7 @@ table_status
 
 # Multinomial logistic regression
 
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
 ```{r}
 install.packages("VGAM")   # if not already installed
@@ -184,12 +184,12 @@ library(VGAM)
 
 ```{r}
 # Make a response matrix of counts:
-Y_status <- as.matrix(tidy_vials_dropz[, c("n_typical",
+Y_status <- as.matrix(tidy_vials[, c("n_typical",
                             "n_uncertain",
                             "n_malformed")])
 
 # Multinomial logistic regression of count matrix
-fit_status <- vglm(Y_status ~ treatment + hpf, family = multinomial, data = tidy_vials_dropz)
+fit_status <- vglm(Y_status ~ treatment + hpf, family = multinomial, data = tidy_vials)
 
 summary(fit_status)
 ```
