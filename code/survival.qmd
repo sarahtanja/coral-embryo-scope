@@ -33,22 +33,23 @@ knitr::opts_chunk$set(
   eval = TRUE, # Evaluate code chunks
   warning = FALSE, # Hide warnings
   message = FALSE, # Hide messages
-  comment = "", # Prevents appending '##' to beginning of lines in code output)
+  comment = "" # Prevents appending '##' to beginning of lines in code output)
  )        
 ```
 
 # Install packages & load libraries
-```{r}
+
+```{r, eval=FALSE, include=FALSE}
 #install.packages("remotes")
 #remotes::install_github("wilkelab/cowplot")
 #install.packages("colorspace", repos = "http://R-Forge.R-project.org")
-#remotes::install_github("clauswilke/colorblindr")
-install.packages("ggbeeswarm")
+remotes::install_github("clauswilke/colorblindr")
+#install.packages("ggbeeswarm")
 ```
-
 
 ```{r}
 library(tidyverse)
+library(emmeans)
 library(ggplot2)
 library(RColorBrewer)
 library(viridis)
@@ -60,30 +61,45 @@ library(ggtext)
 ```
 
 # Load in data
+
 ```{r}
 tidy_vials <- read.csv("../data/output/tidy_vials.csv")
 ```
 
-```{r}
+## Data prep
 
+# Data preparation
+
+Set factor levels for treatment and hpf
+
+```{r}
+#| echo: true
+#| eval: FALSE
+#| warning: false
+#| message: false
+#| comment: ""
+
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
 map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
 
-tidy_vials <- tidy_vials %>% 
-mutate(
-  treatment = factor(treatment, levels = c("control", "low", "mid", "high"), ordered = TRUE),
-  hpf = factor(hpf, levels = c("4", "9", "14", ordered = TRUE)),
-  leachate_mgL = recode(treatment, !!!map_leachate)
-)
+survival <- tidy_vials %>%
+  mutate(
+    # ordered factors
+    treatment  = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf_factor = factor(hpf, levels = hpf_levels, ordered = TRUE),
 
+    # numeric concentration mapped from treatment (safe + explicit)
+    leachate_mgL = unname(map_leachate[as.character(treatment)])
+  ) %>%
+  dplyr::select(sample_id, treatment, hpf, hpf_factor, leachate_mgL, n_viable)
 
-head(tidy_vials %>% select(sample_id, treatment, leachate_mgL, hpf, n_viable, n_embryos))
+str(survival)
 ```
 
-# Pick color schemes
-```{r}
-scale_fill_viridis_c(option = "cividis")
-```
+# Visualize
 
+## Pick color schemes
 
 ```{r, fig.height=8}
 display.brewer.all()
@@ -94,6 +110,7 @@ display.brewer.pal(9, name = "PuRd")
 display.brewer.pal(9, name = "Blues")
 display.brewer.pal(9, name = "Oranges")
 ```
+
 ```{r}
 # Get the three PuRd colors
 leachcolors <- brewer.pal(9, "PuRd")[c(1, 2, 4, 9)]
@@ -110,16 +127,16 @@ leachate_colors <- c("grey60", "#C994C7", "#980043", "#67001F")
 stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
 ```
 
-# Boxplot
-```{r, fig.height=6}
+## Boxplot
 
+```{r, fig.height=6}
 # labels for legend
 labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
 
-box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, color = treatment, fill = treatment)) +
+box <- ggplot(survival, aes(x = hpf_factor, y = n_viable, color = treatment, fill = treatment)) +
   geom_boxplot(alpha = 0.65, outlier.shape = NA) +
-  geom_beeswarm(aes(group = interaction(hpf, treatment)),
+  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)),
                 dodge.width = 0.7, priority = "density", cex = 1.2) +
   scale_fill_manual(
     name   = "PVC leachate concentration",
@@ -137,10 +154,10 @@ box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, color = treatment, fill = t
     x = "Hours post-fertilization", y = "Viable embryo counts",
     title = "**Survival** of embryos across PVC leachate concentration and time"
   ) +
-  geom_hline(yintercept = 31.5, linetype = "dashed") +
+  geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
     limits = c(0, 34), breaks = c(0, 10, 20, 30),
-    sec.axis = sec_axis(~ . / 31.5 * 100, name = "Percent relative survival",
+    sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
                         breaks = seq(0, 100, 10),
                         labels = scales::label_number(accuracy = 1, suffix = "%"))
   ) +
@@ -158,61 +175,20 @@ box <- ggplot(tidy_vials, aes(x = hpf, y = n_viable, color = treatment, fill = t
 box
 ```
 
+Colorblind..
+
 ```{r}
 cvd_grid(box)
 ```
-
 
 ```{r}
 ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
 ```
 
-# Violin plot
-```{r}
-ggplot(viable, aes(x = hpf, y = n_viable, fill = treatment, color = treatment)) +
-  geom_violin(scale = "width", alpha = 0.8)+
-  scale_fill_manual(values = colors) +
-  scale_color_manual(values = colors) +
-  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
-  ggtitle("Survival: counts of total viable embryos across treatment and time")+
-  theme_minimal() +
-  theme(
-    axis.ticks.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
-  )
-
-```
+## Line plot
 
 ```{r}
-violin <- ggplot(viable, aes(x = hpf, y = n_viable, fill = treatment, color = treatment)) +
-  geom_violin(alpha = 0.8, scale = "width")+
-  scale_fill_manual(values = leachate_colors) +
-  scale_color_manual(values = leachate_colors) +
-  labs(x = "Hours post-fertilization", y = "Viable Embryo Total") +
-  ggtitle("Survival: counts of total viable embryos across treatment and time")+
-  theme_minimal() +
-  theme(
-    axis.ticks.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
-  )
-
-# Add the point and error bars to the existing plot
-violin +
-  geom_point(data = single_point, aes(x = hpf, y = n_viable), 
-             color = "black", size = 3, shape = 21) +
-  geom_errorbar(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), 
-                width = 0.2, color = "black")
-```
-
-```{r}
-cvd_grid(violin)
-```
-
-# Line plot
-```{r}
-mean_trajectories <- survival_data %>%
+mean_trajectories <- tidy_vials %>%
   group_by(treatment, hpf_factor) %>%
   summarise(
     mean_viable = mean(n_viable, na.rm = TRUE),
@@ -239,54 +215,30 @@ line <- ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable,
     plot.title = element_text(hjust = 0.5, face = "bold")
   )
 
-# Add the point and error bars to the existing plot
-line +
-  geom_point(data = single_point, aes(x = hpf, y = n_viable), 
-             color = "black", size = 3, shape = 21) +
-  geom_errorbar(data = single_point, aes(x = hpf, ymin = ymin, ymax = ymax), 
-                width = 0.2, color = "black")
+line
 ```
 
-# Barplots
-```{r}
-ggplot(viable, aes(x = reorder(sample_id, -n_embryos), y = n_embryos, fill = hpf))+
-  geom_col()
-```
+Colorblind...
 
 ```{r}
-viable$group <- interaction(viable$hpf, viable$treatment, sep = "_")
+cvd_grid(line)
 ```
+## Relative survival
 
+-   **Cross-sectional design**:\
+    At each timepoint (4, 9, 14 hpf) you *sample a different subset* of embryos — i.e., you don’t track the same individuals over time. You have **counts of viable (surviving) embryos** per treatment × timepoint combination. So, at each timepoint, you can measure *proportion surviving* relative to the **starting number of embryos**
 
-```{r}
-viable <- viable %>%
-  arrange(hpf, treatment, desc(n_embryos)) %>%
-  mutate(sample_id = factor(sample_id, levels = unique(sample_id)))
-
-ggplot(viable, aes(x = sample_id, y = n_embryos, fill = treatment)) +
-  geom_col(position = position_dodge()) +
-  theme_minimal()+
-  theme(
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank())
-
-```
-
-# Relative survival
 Calculate the proportionate change from one time point to the next:
 
-Relative survival to time hpf4 = (mean embryo count at hpf4)/(mean _eggs_per_vial)
-Relative survival to time hpf9 =  (mean embryo count at hpf9)/(mean _eggs_per_vial).
-Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean _eggs_per_vial).
+Relative survival to time hpf4 = (mean embryo count at hpf4)/(mean \_eggs_per_vial) Relative survival to time hpf9 = (mean embryo count at hpf9)/(mean \_eggs_per_vial). Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean \_eggs_per_vial).
 
-We take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs. In each vial we placed 2 bundles. 
+We take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs. In each vial we placed 2 bundles.
+
 ```{r}
 set.seed(123)  # for reproducibility
 
 # Simulate eggs per bundle: 2 bundles per vial, 120 vials
-n_vials <- 9
+n_vials <- 120
 n_bundles <- 2 * n_vials
 
 # Simulate egg counts per bundle
@@ -306,225 +258,146 @@ sd_eggs_per_vial <- sd(eggs_per_vial)
 mean_eggs_per_vial
 sd_eggs_per_vial
 ```
+
 ::: callout-note
-Here we use 31.5 as a starting point, our 100%, that we used to compare all our counts to for relative survival
+Here we use mean total embryos = 30, SD = 6.4 as a starting point, our 100%, that we used to compare all our counts to for relative survival
 :::
 
 ```{r}
-# calculate relative survival
-relative_survival <- mean_viable_counts %>%
-  mutate(relative_survival = (mean_viable/31.5))
-```
+survival <- survival %>%
+  mutate(relative_survival = n_viable / 30)
 
-```{r}
-relative_survival %>% 
-  select(treatment, hpf, relative_survival) %>% 
-  arrange(hpf)
-```
-
-# Dispersion
-
-```{r}
-mean_viable_counts <- viable %>% 
-  group_by(treatment, hpf) %>%                      # group is your combined column (treatment_hpf)
+survival_summary <- survival %>%
+  group_by(treatment, hpf) %>%
   summarise(
-    mean_viable = mean(n_viable, na.rm = TRUE),
-    sd_viable   = sd(n_viable, na.rm = TRUE),
-    var_viable  = var(n_viable, na.rm = TRUE),
-    n = n(),                                 # optional: number of observations per group
-    mean_embryos = mean(n_embryos)
-    ) %>%
-  ungroup() 
+    mean_survival_rate = mean(relative_survival, na.rm = TRUE),
+    sd_survival_rate   = sd(relative_survival, na.rm = TRUE),
+    n             = n(),
+    se_survival_rate   = sd_survival_rate / sqrt(n)  # optional: standard error
+  )
 
-print(mean_viable_counts)
+survival_summary
 ```
 
-Compare variance to the mean
 ```{r}
-mean_viable_counts <- mean_viable_counts %>% 
-  mutate(dispersion = var_viable/mean_viable)
-
-mean_viable_counts %>% select(treatment, hpf, mean_viable, var_viable, dispersion)
+ggplot(survival_summary, aes(x = hpf, y = mean_survival_rate, color = treatment, group = treatment)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_survival_rate - se_survival_rate,
+                    ymax = mean_survival_rate + se_survival_rate),
+                width = 0.3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    x = "Hours post-fertilization (hpf)",
+    y = "Mean relative survival (±SE)",
+    color = "Treatment",
+    title = "Cumulative relative survival by treatment and time"
+  ) +
+  theme_minimal()
 ```
-:::: column-margin
-::: callout-caution
-dispersion is greater than 2 for some groups... but not others. If dispersion is greater than 2 in some groups but not others, it indicates heterogeneous overdispersion across your groups. This means some groups exhibit more variance than expected under a Poisson model, while others do not. How to handle this situation: Use a Negative Binomial model or a Negative Binomial GLMM (generalized linear mixed model) which can accommodate varying dispersion levels better than Poisson. Consider mixed-effects models to model random group-level effects that account for extra variability within certain groups. Overdispersion thresholds from simulations suggest: Poisson may be acceptable if dispersion ≤ 1.2. Negative Binomial preferred for moderate overdispersion (1.2 < dispersion ≤ ~1.5). **For higher dispersion (up to ~5), NB-GLMM handles extra variation better. If some groups have high overdispersion and others low, a model allowing group-specific dispersion parameters or random effects is advisable.** Check if unmodeled covariates or clustering cause overdispersion which could be modeled explicitly. In summary, a Negative Binomial model with mixed effects is a strong choice when facing differential overdispersion across groups.
-- generated via [perplexity AI](https://www.perplexity.ai/search/can-you-help-me-make-this-a-vi-XQFzYDU5TXahiCuUqcEzFg#6)
-:::
-::::
+# Analyze
+## Run Two-way ANOVA
 
-# GLM
-## Poisson (not)
-Fit poisson model
+Are the mean numbers of total surviving viable embryos in each treatment across time different from each other? This ANOVA ignores embryo stage (where the embryo is in terms of development) and only looks at embryos with a status that is typical or uncertain and does not model any random effects (ex. night of spawn)
+
 ```{r}
-poisson <- glm(n_viable ~ treatment + hpf, family = poisson, data = viable)
+anova_result <- aov(n_viable ~ treatment * hpf_factor, data = survival)
 ```
 
-Calculate dispersion
+Summarize the ANOVA result
+
 ```{r}
-sum(residuals(poisson, type = "pearson")^2) / poisson$df.residual
+summary(anova_result)
 ```
-::: callout-caution
-If dispersion > 1.5, there is overdispersion. For counts: Compare the variance to the mean. If variance ≈ mean, Poisson GLM may work; if variance > mean (overdispersion), Negative Binomial is better.
-:::
-```{r}
-install.packages("AER")
-library(AER)
-```
-
-## NB-GLMM
-```{r}
-install.packages("lme4")
-library(lme4)
-```
-
-Use formal dispersion tests (Pearson residuals, dispersiontest()), and likelihood ratio tests on Poisson vs Negative Binomial models for count data
-```{r}
-
-```
-
-# ANOVA
-
-::: callout-caution
-The denominator (mean total embryo count at hpf4) functions as our 'baseline' or initial count of total eggs present with potential to become fertilized and develop. The denominator is not significantly different for each treatment based on our One Way ANOVA above. So we can use an average across treatments to represent our baseline. 
-:::
 
 ## Normality
-Are the number of embryos observed at 4 hours post fertilization different at each treatment?
+For ANOVA, it’s **the residuals** (not the raw data) that should be approximately normal.
+### Q-Q plot
 ```{r}
-ggplot(viable, aes(x = n_embryos, fill = hpf)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Embryo Totals", y = "Density") +
-  theme_minimal()
+plot(anova_result, which = 2)  # QQ plot
 ```
-
-### Q-Q plots
-
-```{r}
-ggplot(viable, aes(sample = n_embryos)) +
-  stat_qq() +
-  stat_qq_line() +
-  facet_wrap(~ hpf) +
-  theme_minimal()
-```
-
 ### Shapiro-Wilk test
+```{r}
+shapiro.test(residuals(anova_result))
+```
 
 ```{r}
-viable %>%
+survival %>%
   group_by(hpf) %>%
-  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
+  summarise(shapiro_p = shapiro.test(n_viable)$p.value)
 ```
-::: callout-note
-Shapiro Wilk Test : If p < 0.05 the sample does not come from a normal distribution. If p > 0.05 the sample comes from a normal distribution. Here we see our count data for each hpf come from an approximately normal distribution. 
-:::
-## Summary
-```{r}
-anova <- viable %>% 
-  aov(n_viable ~ treatment + hpf, data = .)
 
-summary(anova)
-```
 ::: callout-note
-Treatment is not a significant predictor of counts of viable embryos p = 0.658
+Shapiro Wilk Test : If p \< 0.05 the sample does not come from a normal distribution. If p \> 0.05 the sample comes from a normal distribution. Here we see our count data for each hpf come from an approximately normal distribution.
 :::
 
-## 4 hpf One-Way ANOVA
-```{r}
-viable %>% 
-  filter(hpf == "4") %>% 
-ggplot(., aes(x = n_embryos, fill = hpf)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Embryo Totals", y = "Density") +
-  theme_minimal()
-```
+## Equal variance
 
 ```{r}
-viable %>% 
-  filter(hpf == "4") %>%
-ggplot(., aes(sample = n_embryos)) +
-  stat_qq() +
-  stat_qq_line() +
-  theme_minimal()
+plot(anova_result, which = 1)
 ```
+✅ What looks good here
+The red line is nearly horizontal and centered around 0.
+There’s no obvious curve or systematic trend.
+Variance within each cluster of fitted values (≈ 8–15 and ≈ 25–27) looks roughly similar — no funnel shape.
+Residuals are fairly symmetrically distributed above/below zero.
+That means our data show no strong evidence of heteroscedasticity (variance inequality).
+The ANOVA’s equal-variance assumption looks reasonably met.
+
+⚠️ Things to keep an eye on
+We have two main clusters of fitted values (≈ 10–15 vs 25–27).
+That’s expected with our distinct mean embryo counts at early (4hpf) vs later (9 & 14 hpf) development.
+Variances look somewhat smaller in the higher-mean cluster, but not alarmingly so.
+A few labeled points (33, 87, 9) are outliers
+
+### Inspect outliers
+```{r}
+survival[c(9, 33, 87), ]
+```
+
+### Levene's test
+```{r}
+# Levene’s test (more robust)
+library(car)
+leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
+```
+
+
+## What are the means and sd's?
 
 ```{r}
-viable %>%
-  filter(hpf == "4") %>% 
-  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
-```
-::: callout-note
-same as above with ~treatment + hpf!
-:::
-```{r}
-anova4 <- viable %>% 
-  filter(hpf =="4") %>% 
-  aov(n_viable ~ treatment, data = .)
+# Calculate mean and SD for each hpf group
+summary_data <- survival %>%
+  group_by(hpf, treatment) %>%
+  summarise(
+    mean_embryo = mean(n_viable),
+    sd_embryo = sd(n_viable),
+    .groups = "drop"
+  )
 
-summary(anova4)
+print(summary_data)
 ```
-## 9 hpf One-Way ANOVA
-```{r}
-viable %>% 
-  filter(hpf == "9") %>% 
-ggplot(., aes(x = n_embryos, fill = hpf)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Embryo Totals", y = "Density") +
-  theme_minimal()
-```
+
+
+# emmeans
+
+> Within each developmental timepoint (4, 9, 14 hpf), do mean viable-embryo counts differ among treatments?
 
 ```{r}
-viable %>% 
-  filter(hpf == "9") %>%
-ggplot(., aes(sample = n_embryos)) +
-  stat_qq() +
-  stat_qq_line() +
-  theme_minimal()
+emmeans(anova_result, pairwise ~ treatment | hpf_factor)
 ```
 
-```{r}
-viable %>%
-  filter(hpf == "9") %>% 
-  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
-```
+| hpf | Treatment means (±SE) | Pattern | Tukey post-hoc contrasts |
+|-------------|-------------|---------------------------------|-------------|
+| **4 hpf** | Means ≈ 24–27 | All treatments roughly equal; p \> 0.6 for every pair | → no difference |
+| **9 hpf** | Means ≈ 11–13 | All treatments tightly clustered; p \> 0.9 | → no difference |
+| **14 hpf** | Means ≈ 9.5–14 | Slight trend: mid \> low \> control \> high, but SE = 2 and all p \> 0.36 | → no significant difference |
 
-```{r}
-anova9 <- viable %>% 
-  filter(hpf == "9") %>% 
-  aov(n_viable ~ treatment, data = .)
+> Across 4, 9, and 14 hpf: The treatment effect was consistently non-significant, even within each developmental stage window. .
 
-summary(anova9)
-```
 
-## 14 hpf One-Way ANOVA
-```{r}
-viable %>% 
-  filter(hpf == "14") %>% 
-ggplot(., aes(x = n_embryos, fill = hpf)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Embryo Totals", y = "Density") +
-  theme_minimal()
-```
+# Summary
 
-```{r}
-viable %>% 
-  filter(hpf == "14") %>%
-ggplot(., aes(sample = n_embryos)) +
-  stat_qq() +
-  stat_qq_line() +
-  theme_minimal()
-```
+> A two-way ANOVA found no significant effects of leachate treatment, developmental stage (hpf), or their interaction on the developmental index (all p \> 0.05). Pairwise Tukey comparisons within each hpf confirmed no differences among treatments (adjusted p \> 0.36). A two-way ANOVA found no significant interaction between treatment and developmental time (hpf) on embryo viability (p > 0.05). Estimated marginal means indicated similar numbers of viable embryos among treatments at 4 hpf (24–27 ± 2 SE), 9 hpf (11–13 ± 2 SE), and 14 hpf (10–14 ± 2 SE). Tukey-adjusted pairwise contrasts within each timepoint revealed no significant differences between treatments (all adjusted p > 0.36), indicating that leachate exposure did not measurably affect survival across embryonic stages.
 
-```{r}
-viable %>%
-  filter(hpf == "14") %>% 
-  summarise(shapiro_p = shapiro.test(n_embryos)$p.value)
-```
 
-```{r}
-anova9 <- viable %>% 
-  filter(hpf == "14") %>% 
-  aov(n_viable ~ treatment, data = .)
-
-summary(anova9)
-```

@@ -33,7 +33,7 @@ knitr::opts_chunk$set(
   eval = TRUE, # Evaluate code chunks
   warning = FALSE, # Hide warnings
   message = FALSE, # Hide messages
-  comment = "", # Prevents appending '##' to beginning of lines in code output)
+  comment = "" # Prevents appending '##' to beginning of lines in code output)
  )        
 ```
 
