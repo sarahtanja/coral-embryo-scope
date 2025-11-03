@@ -357,8 +357,6 @@ tidy_vials_dropz <- tidy_vials %>%
                                       "14")))
 ```
 
-# 
-
 # Calculate proportion means
 
 ```{r}
@@ -490,7 +488,7 @@ table_stage_pct
 
 # Multinomial logistic regression
 
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
 ```{r}
 # make sure treatment and hpf are factors 

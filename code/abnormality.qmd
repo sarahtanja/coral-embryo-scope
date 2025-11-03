@@ -1,7 +1,7 @@
 ---
 title: "Analyzing abnormality proportions"
 subtitle: "with Dirichlet regression"
-date: 04/01/2024
+date: 11/02/2025
 date-modified: today
 format:
   gfm: 
@@ -33,7 +33,7 @@ knitr::opts_chunk$set(
   eval = TRUE, # Evaluate code chunks
   warning = FALSE, # Hide warnings
   message = FALSE, # Hide messages
-  comment = "", # Prevents appending '##' to beginning of lines in code output)
+  comment = "" # Prevents appending '##' to beginning of lines in code output)
  )        
 ```
 
@@ -41,13 +41,17 @@ knitr::opts_chunk$set(
 
 [![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
-# Install packages & Load libraries
+# Setup
+
+## Install packages
 
 ```{r, eval=FALSE}
 install.packages("betareg")
 install.packages("gamlss")
 install.packages("DirichletReg")
 ```
+
+## Load libraries
 
 ```{r}
 library(tidyverse)
@@ -57,69 +61,275 @@ library(kableExtra)
 library(DirichletReg)
 ```
 
-# Load data
+## Load data
 
 ```{r}
-tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+tidy_vials <- read_csv("../output/tidy_vials.csv")
 ```
+
+### Prep data
+
+Set factor levels for treatment and hpf
+
+```{r}
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
+map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
+
+status <- tidy_vials %>%
+  mutate(
+    # ordered factors
+    treatment  = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf_factor = factor(hpf, levels = hpf_levels, ordered = TRUE),
+
+    # numeric concentration mapped from treatment (safe + explicit)
+    leachate_mgL = unname(map_leachate[as.character(treatment)])
+  ) %>%
+  dplyr::select(sample_id, 
+                treatment, 
+                hpf, 
+                hpf_factor, 
+                leachate_mgL, 
+                n_typical,
+                prop_typical, 
+                n_malformed,
+                prop_malformed,
+                n_uncertain,
+                prop_uncertain)
+
+str(status)
+```
+
+### Calculate proportion means
 
 Drop the samples with zero embryos (drop zeros)
 
 ```{r}
-tidy_vials_dropz <- tidy_vials %>% 
-  filter(sample_id != c("3L9", "7H9"))%>% 
-  mutate(treatment = factor(treatment, levels = c("control",
-                                                  "low",
-                                                  "mid",
-                                                  "high"))) %>% 
-  mutate(hpf = factor(hpf, levels = c("4",
-                                      "9",
-                                      "14")))
+status <- status %>% 
+  filter(sample_id != c("3L9", "7H9"))
 ```
 
-# Calculate proportion means
-
 ```{r}
-# Step 1: Pivot to long format
-long_tidy_vials <- tidy_vials %>%
+# Pivot to long format
+long_status <- status %>%
   pivot_longer(
     cols = starts_with("prop") | starts_with("n"),
-    names_to = c(".value", "stage"),
+    names_to = c(".value", "status"),
     names_pattern = "(prop|n)_(.*)"
   )
 
-# Step 2: Calculate mean proportions for each status within each treatment
-prop_summary <- long_tidy_vials %>%
-  group_by(treatment, stage, hpf) %>%
+# Calculate mean proportions for each status within each treatment
+status_summary <- long_status %>%
+  group_by(treatment, status, hpf) %>%
   summarize(mean_prop = mean(prop), .groups = "drop") %>% 
-  filter(stage != "embryos") %>% 
-  filter(stage %in% 
-         c("typical", 
-         "uncertain", 
-         "malformed")) %>%  
-  mutate(status = factor(stage, levels = c("typical", "uncertain", "malformed"))) %>% 
-  mutate(hpf = factor(hpf, levels = c("4", "9", "14"))) %>% 
-  mutate(treatment = factor(treatment, levels = c("control", "low", "mid", "high"))) %>% 
-  select(!stage)
+  mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"))) 
 
-str(prop_summary)
+status_summary
 ```
 
-# Stacked barplot
+# Visualize
+
+```{r, fig.height=8, eval=FALSE, echo=FALSE}
+display.brewer.all()
+```
+
+```{r brewer_hex}
+#| include: false
+display_brewer_hex <- function(pal){
+  stopifnot(pal %in% rownames(brewer.pal.info))
+  cols <- brewer.pal(brewer.pal.info[pal,"maxcolors"], pal)
+  df <- data.frame(i=seq_along(cols), hex=cols)
+  ggplot(df, aes(1, i, fill=hex, label=hex)) +
+    geom_tile(width=6, height=.9) + geom_text(size=5) +
+    scale_fill_identity() + theme_void() +
+    scale_x_continuous(breaks=NULL) + scale_y_reverse(breaks=NULL) +
+    coord_fixed() + labs(title=paste0(pal," (", length(cols), " colors)"))
+}
+```
 
 ```{r}
-prop_summary %>% 
+#| include: false
+display_brewer_hex("BuPu")
+```
+
+```{r}
+#| include: false
+display_brewer_hex("YlOrRd")
+```
+
+```{r}
+#| include: false
+display_brewer_hex("BuGn")
+```
+
+```{r}
+#| include: false
+status_colors <- c("#810F7C", "#FED976", "#41AE76")
+```
+
+## Stacked barplot
+
+```{r}
+# labels for legend
+labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+
+bar <- status_summary %>% 
   mutate(mean_perc = mean_prop*100) %>% 
 ggplot(., aes(x = treatment, y = mean_perc, fill = status))+
   geom_bar(stat = "identity")+
+  scale_fill_manual(values = status_colors)+
   ggtitle("Percentage of embryos categorized by status")+
   labs(y = "Percentage", x = "Treatment", fill = "Embryonic Status")+
   facet_wrap(~ hpf)+
   theme_minimal()
+
+bar
+```
+
+```{r}
+cvd_grid(bar)
 ```
 
 ```{r}
 ggsave("../plots/percentage_status_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+# Analyze
+
+# Multinomial logistic regression
+
+[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+
+```{r}
+install.packages("VGAM")   # if not already installed
+library(VGAM)
+```
+> vglm() expects the response as a n×k matrix where k = number of categories.
+It automatically treats the last column as the reference category.
+So you can control which category is the denominator in the log-ratios simply by column order.
+
+```{r}
+# Make a response matrix of counts:
+Y_status <- as.matrix(status[, c("n_uncertain",
+                            "n_malformed",
+                            "n_typical")]) # place `typical` as last column becomes reference
+
+# Rename the matrix columns for clarity (these names carry through to fitted() output)
+colnames(Y_status) <- c("uncertain", "malformed", "typical")
+
+# Multinomial logistic regression of count matrix
+fit_status <- vglm(Y_status ~ treatment * hpf_factor, family = multinomial, data = status)
+
+summary(fit_status)
+```
+
+## Check for overdispersion
+> For multinomial models, overdispersion means the observed variation among counts is larger than expected under the multinomial distribution (i.e., your embryos are not behaving as independent “trials”).
+
+```{r}
+deviance(fit_status) / df.residual(fit_status)
+```
+
+Values greater than 1 indicate overdispersion.
+
+Proceed to Dirichlet regression
+
+## Pearson residuals
+```{r}
+resid_pearson <- residuals(fit_status, type = "pearson")
+head(resid_pearson)
+
+fitted_probs <- fitted(fit_status)
+head(fitted_probs)
+
+```
+
+```{r}
+plot(fitted_probs[, "typical"], resid_pearson[, 1],
+     xlab = "Fitted probability (typical)",
+     ylab = "Pearson residual (uncertain vs typical)")
+abline(h = 0, lty = 2)
+```
+
+
+> What it shows:
+The x-axis is the model’s predicted probability that an observation is typical.
+The y-axis is the Pearson residual for the uncertain vs typical contrast.
+Interpretation:
+Ideally: points scatter randomly around 0 with no trend or funnel shape.
+Your plot:
+Slight fanning (more spread at high fitted probabilities).
+Some clusters of residuals around ±2–3.
+This suggests mild overdispersion — more variability in the counts than the multinomial assumes — but no severe systematic bias (the center stays around 0).
+There’s no clear nonlinear pattern, so your functional form (treatment × stage) looks okay.
+
+```{r}
+plot(fitted_probs[, "typical"], resid_pearson[, 2],
+     xlab = "Fitted probability (typical)",
+     ylab = "Pearson residual (malformed vs typical)")
+abline(h = 0, lty = 2)
+
+```
+
+
+
+```{r}
+obs_props <- prop.table(Y_status, 1)
+pred_props <- fitted(fit_status)
+plot(as.vector(obs_props), as.vector(pred_props),
+     xlab = "Observed proportions", ylab = "Predicted proportions")
+abline(0, 1, col = "red")
+
+```
+
+
+
+# Dirichlet-multinomial regression
+
+This is essentially a multinomial with an extra dispersion parameter. Each row of counts is assumed to follow a Dirichlet-multinomial distribution.
+
+```{r}
+install.packages("MGLM")
+library(MGLM)
+```
+
+```{r}
+# Fit Dirichlet-multinomial regression to count matrix
+fit_status_DM <- MGLMreg(Y_status ~ treatment + hpf, data = status, dist = "DM")
+```
+
+Coefficients
+
+```{r}
+coef(fit_status_DM)
+```
+
+Log-likelihood, AIC, BIC
+
+```{r}
+logLik(fit_status_DM)
+AIC(fit_status_DM)
+BIC(fit_status_DM)
+```
+
+ANOVA/ Likelihood ratio test
+
+```{r}
+fit_reduced <- MGLMreg(Y_status ~ hpf, data = status, dist = "DM")
+anova(fit_reduced, fit_status_DM, test = "Chisq")
+```
+
+# Dirichlet regression on proportions
+
+Subset to each hours post fertilization end point (4, 9, 14) to simplify models. 
+
+## 4
+```{r}
+tidy_4 <- tidy_vials_dropz %>% 
+  filter(hpf == "4") %>% 
+  select(treatment, n_typical, n_uncertain, n_malformed, prop_typical, prop_uncertain, prop_malformed)
+nrow(tidy_4)
 ```
 
 # Table
@@ -173,79 +383,4 @@ table_status %>%
 table_status
 ```
 
-# Multinomial logistic regression
-
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
-
-```{r}
-install.packages("VGAM")   # if not already installed
-library(VGAM)
-```
-
-```{r}
-# Make a response matrix of counts:
-Y_status <- as.matrix(tidy_vials[, c("n_typical",
-                            "n_uncertain",
-                            "n_malformed")])
-
-# Multinomial logistic regression of count matrix
-fit_status <- vglm(Y_status ~ treatment + hpf, family = multinomial, data = tidy_vials)
-
-summary(fit_status)
-```
-
-## Check for overdispersion
-
-```{r}
-deviance(fit_status) / df.residual(fit_status)
-```
-
-Values \>\> 1 indicate overdispersion.
-
-Proceed to Dirichlet regression
-
-# Dirichlet-multinomial regression
-
-This is essentially a multinomial with an extra dispersion parameter. Each row of counts is assumed to follow a Dirichlet-multinomial distribution.
-
-```{r}
-install.packages("MGLM")
-library(MGLM)
-```
-
-```{r}
-# Fit Dirichlet-multinomial regression to count matrix
-fit_status_DM <- MGLMreg(Y_status ~ treatment + hpf, data = tidy_vials_dropz, dist = "DM")
-```
-
-Coefficients
-
-```{r}
-coef(fit_status_DM)
-```
-
-Log-likelihood, AIC, BIC
-
-```{r}
-logLik(fit_status_DM)
-AIC(fit_status_DM)
-BIC(fit_status_DM)
-```
-
-ANOVA/ Likelihood ratio test
-
-```{r}
-fit_reduced <- MGLMreg(Y_status ~ hpf, data = tidy_vials_dropz, dist = "DM")
-anova(fit_reduced, fit_status_DM, test = "Chisq")
-```
-
-# Dirichlet regression on proportions
-
-Subset to each hours post fertilization end point (4, 9, 14) to simplify models. \## 4
-
-```{r}
-tidy_4 <- tidy_vials_dropz %>% 
-  filter(hpf == "4") %>% 
-  select(treatment, n_typical, n_uncertain, n_malformed, prop_typical, prop_uncertain, prop_malformed)
-nrow(tidy_4)
-```
+# Summary

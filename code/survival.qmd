@@ -63,22 +63,13 @@ library(ggtext)
 # Load in data
 
 ```{r}
-tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+tidy_vials <- read.csv("../output/tidy_vials.csv")
 ```
 
 ## Data prep
-
-# Data preparation
-
 Set factor levels for treatment and hpf
 
 ```{r}
-#| echo: true
-#| eval: FALSE
-#| warning: false
-#| message: false
-#| comment: ""
-
 treat_levels <- c("control", "low", "mid", "high")
 hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
 map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
@@ -99,19 +90,18 @@ str(survival)
 
 # Visualize
 
-## Pick color schemes
-
-```{r, fig.height=8}
+```{r, fig.height=8, eval=FALSE, echo=FALSE}
 display.brewer.all()
 ```
 
-```{r}
+```{r, eval=FALSE, echo=FALSE }
 display.brewer.pal(9, name = "PuRd")
 display.brewer.pal(9, name = "Blues")
 display.brewer.pal(9, name = "Oranges")
 ```
 
 ```{r}
+#| include: false
 # Get the three PuRd colors
 leachcolors <- brewer.pal(9, "PuRd")[c(1, 2, 4, 9)]
 leachcolors
@@ -121,7 +111,7 @@ hpfcolors <- brewer.pal(9, "Oranges")[c(2, 4, 6, 8)]
 hpfcolors
 ```
 
-```{r}
+```{r, include=FALSE}
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
 leachate_colors <- c("grey60", "#C994C7", "#980043", "#67001F")
 stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
@@ -152,7 +142,7 @@ box <- ggplot(survival, aes(x = hpf_factor, y = n_viable, color = treatment, fil
   ) +
   labs(
     x = "Hours post-fertilization", y = "Viable embryo counts",
-    title = "**Survival** of embryos across PVC leachate concentration and time"
+    title = "**Survival** of embryos"
   ) +
   geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
@@ -330,6 +320,16 @@ survival %>%
 ::: callout-note
 Shapiro Wilk Test : If p \< 0.05 the sample does not come from a normal distribution. If p \> 0.05 the sample comes from a normal distribution. Here we see our count data for each hpf come from an approximately normal distribution.
 :::
+
+Overlapping density plots
+
+```{r}
+ggplot(survival, aes(x = n_viable, fill = hpf_factor, group = hpf_factor)) +
+  geom_density(alpha = 0.4) +
+  labs(x = "Counts of viable embryos", y = "Density") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal()
+```
 
 ## Equal variance
 
