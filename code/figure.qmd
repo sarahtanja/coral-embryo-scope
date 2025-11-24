@@ -1,0 +1,334 @@
+---
+title: "Survival rates"
+subtitle: "How many survived?"
+date: 08/27/2025
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: article
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, # Display code chunks
+  eval = TRUE, # Evaluate code chunks
+  warning = FALSE, # Hide warnings
+  message = FALSE, # Hide messages
+  comment = "" # Prevents appending '##' to beginning of lines in code output)
+ )        
+```
+
+# Install packages & load libraries
+
+```{r, eval=FALSE, include=FALSE}
+#install.packages("remotes")
+#remotes::install_github("wilkelab/cowplot")
+#install.packages("colorspace", repos = "http://R-Forge.R-project.org")
+#remotes::install_github("clauswilke/colorblindr")
+#install.packages("ggbeeswarm")
+```
+
+```{r}
+library(tidyverse)
+library(emmeans)
+library(ggplot2)
+library(RColorBrewer)
+library(viridis)
+library(colorblindr)
+library(colorspace)
+library(ggbeeswarm)
+library(ggrepel)
+library(scales)
+library(ggtext)
+library(ggsidekick)
+library(patchwork)
+```
+
+# Load in data
+
+```{r}
+tidy_vials <- read.csv("../output/tidy_vials.csv")
+prop_summary <- read.csv("../output/prop_summary.csv")
+status_summary <- read.csv("../output/status_summary.csv")
+```
+
+## Data prep
+Set factor levels for treatment and hpf
+
+```{r}
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
+map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
+
+survival_df <- tidy_vials %>%
+  mutate(
+    # ordered factors
+    treatment  = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf_factor = factor(hpf, levels = hpf_levels, ordered = TRUE),
+
+    # numeric concentration mapped from treatment (safe + explicit)
+    leachate_mgL = unname(map_leachate[as.character(treatment)])
+  ) %>%
+  dplyr::select(sample_id, treatment, hpf, hpf_factor, leachate_mgL, n_viable)
+
+str(survival_df)
+```
+
+
+## Custom ggplot theme
+```{r}
+theme_sleek_axe <- function() {
+  theme_sleek() +
+    theme(
+      panel.border = element_blank(),
+      axis.line.x  = element_line(color = "grey70"),
+      axis.line.y  = element_line(color = "grey70"),
+      plot.title = element_text(
+      size  = 14,
+      color = "grey40",
+      hjust = 0.5,    # center
+      margin = margin(b = 20) # add space BELOW title
+      ),      ,       
+      plot.subtitle = element_text(
+      size   = 10,       # smaller than title
+      colour = "grey60", # lighter grey
+      hjust  = 0.5 ),      # center
+      margin = margin(b = 40) # add space BELOW title
+      )
+}
+
+```
+
+## Set colorschemes
+
+```{r}
+#colorspace::hclwizard()
+```
+
+### Leachate
+Leachate options
+Ocean environmental watery tones
+blue-purple
+```{r}
+leachate_0 <- c("#B0F4FA", "#75C165", "#A96C00", "#8B0069")
+leachate_1 <- c("#D5ECC0", "#6ACFBA", "#399AC2", "#80146E")
+leachate_2 <- c("#E4EBD6", "#8CC4AD", "#3E909F", "#4E4E7A")
+leachate_3 <- c("#DAE6FF", "#BBC7FF", "#9CA9FF", "#7D8BFF")
+
+leachate.colors <- c(control = "#AEF1FF", 
+                low = "#BBC7FF",
+                mid = "#7D8BFF", 
+                high = "#592F7D")
+```
+
+### Stage
+Earthy stony coral tones
+yellow-orange-red
+```{r}
+stage_0 <- c("#DCC14F", "#D89500", "#C86600")
+stage_1 <- c("#DCC14F", "#9F3D2F", "#000000")
+stage_2 <- c("#A2223C", "#E6AA83",  "#D9685B")
+stage_3 <- c("#D9685B", "#D89500",  "#9F3D2F")
+stage_4 <- c("#FFE362", "#EBA600", "#8D5300")
+
+stage.5.colors <- c(egg = "#FFE362",
+                    cleavage = "#EBA600", 
+                    morula = "#E6AA83",
+                    prawnchip = "#D9685B", 
+                    earlygastrula = "#A2223C")
+```
+
+### Spawn night
+
+```{r}
+night_0 <- c("#FDE725", "#440154", "#21918C")
+night_1 <- c("#FFCEF4", "#578B21", "#201158")
+night_2 <- c("#E3FAA5", "#B16776", "#1E2440")
+
+night.colors <- c(July_6th = "#E3FAA5", 
+                  July_7th = "#578B21", 
+                  July_8th = "#1E2440")
+```
+
+### Status
+```{r}
+status.colors <- c(typical = "#75C165", 
+                   uncertain = "#E3FAA5", 
+                   malformed = "#8B0069")
+```
+
+# Survival boxplot
+
+```{r, fig.height=6}
+# labels for legend
+labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+
+survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatment, fill = treatment)) +
+  geom_boxplot(alpha = 0.65, outlier.shape = NA) +
+  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)),
+                dodge.width = 0.7, priority = "density", cex = 1.2) +
+  scale_fill_manual(
+    name   = "PVC leachate concentration",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  scale_color_manual(
+    name   = "PVC leachate concentration",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  labs(
+    x = "Hours post-fertilization", y = "Viable embryo counts",
+    title = "Embryo survival"
+  ) +
+  geom_hline(yintercept = 30, linetype = "dashed") +
+  scale_y_continuous(
+    limits = c(0, 34), breaks = c(0, 10, 20, 30),
+    sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
+                        breaks = seq(0, 100, 10),
+                        labels = scales::label_number(accuracy = 1, suffix = "%"))
+  ) +
+  theme_sleek_axe() +
+  theme(
+    axis.ticks.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.title.position = "top",
+    plot.title = element_text(size = 14)
+  )
+
+survival
+```
+# Timing barplot
+
+# Stacked barplot
+
+```{r}
+prop_summary <- prop_summary %>% 
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    stage     = factor(stage, levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"), ordered = TRUE),
+    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE)
+  )
+```
+
+
+```{r}
+# Step 3: Plot
+timing <- prop_summary %>% 
+ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = stage.5.colors) +
+  ggtitle("Embryo stage composition")+
+  labs(y = "", x = "Treatment", fill = "Embryonic Stage") +
+  facet_wrap(~ hpf)+
+  theme_sleek_axe()+
+  theme(axis.text.x = element_text(
+      angle = 45,      # rotate 45°
+      hjust = 1,       # horizontal justification
+      vjust = 1        # tweak if you want
+    ))
+
+timing
+```
+
+```{r}
+ggsave("../figs/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+# Abnormalities barplot
+
+
+```{r}
+# labels for legend
+labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+status_summary <- status_summary %>%
+  mutate(
+    status    = factor(status, levels = c("typical", "uncertain", "malformed"), 
+                       ordered = TRUE))
+
+abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = status))+
+  geom_bar(stat = "identity")+
+  scale_fill_manual(values = status.colors)+
+  ggtitle("Embryo status composition")+
+  labs(y = "", x = "Treatment", fill = "Embryonic Status")+
+  facet_wrap(~ hpf)+
+  theme_sleek_axe()+
+  theme(axis.text.x = element_text(
+      angle = 45,      # rotate 45°
+      hjust = 1,       # horizontal justification
+      vjust = 1        # tweak if you want
+    ))
+
+abnormality
+```
+
+# Patchwork 
+
+## Add caption 
+```{r}
+cap_text <- paste(
+  "A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate.",
+  "B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint.",
+  "C. Stacked barplot indicating the status composition of samples at each treatment and timepoint.",
+  sep = " "
+)
+
+# wrap to, say, 100 characters per line (tweak as needed)
+cap_wrapped <- str_wrap(cap_text, width = 170)
+```
+
+## Patch it together
+```{r, fig.height=12, fig.width=10}
+survival / (timing + abnormality)+
+  plot_annotation(
+    title = "Embryo survival, developmental timing, and morphology following PVC leachate exposure",
+    tag_levels = "A",
+    caption = cap_wrapped,
+    theme = theme_sleek_axe()&
+      theme(
+        plot.tag = element_text(size = 10, 
+                                colour = "grey50"),
+        plot.caption = element_text(size   = 8,
+                                colour = "grey30",
+                                hjust  = 0.22,
+                                margin = margin(t = 0, r = 0, b = 5, l = 0)),
+        plot.title = element_text(
+          size   = 16,
+          color  = "grey40",
+          hjust  = 0.5,    # center
+          margin = margin(b = 30) # add space BELOW title
+        )
+      )
+  )
+```
+save figure
+```{r}
+ggsave("../figs/figure_survival_timing_morphology.png", width = 10, height = 12, dpi = 600)
+```
+

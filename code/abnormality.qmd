@@ -127,6 +127,11 @@ status_summary <- long_status %>%
 status_summary
 ```
 
+Save status summary as csv
+```{r}
+write_csv(status_summary, "../output/status_summary.csv")
+```
+
 # Visualize
 
 ```{r, fig.height=8, eval=FALSE, echo=FALSE}

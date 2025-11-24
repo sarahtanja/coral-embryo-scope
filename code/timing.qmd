@@ -72,7 +72,7 @@ library(DHARMa)
 ## Load data
 
 ```{r}
-tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+tidy_vials <- read.csv("../output/tidy_vials.csv")
 ```
 
 ```{r}
@@ -218,7 +218,7 @@ model_performance(zinb)
 ```
 
 | Metric | ZIP | ZINB | Interpretation |
-|:---------|:---------|:---------|:-----------------------------------------|
+|:------------|:------------|:------------|:----------------------------------|
 | **AIC** | 2551.1 | **1946.0** | The ZINB has a much lower AIC — a difference \> 100 points is extremely strong evidence in its favor. |
 | **BIC** | 2576.8 | **1976.1** | BIC also clearly supports the ZINB. |
 | **R² (marginal)** | 0.051 | **0.164** | The ZINB explains roughly three times more variance in the response. |
@@ -227,7 +227,7 @@ model_performance(zinb)
 
 > Your **zero-inflated negative binomial (ZINB)** fits the data *much* better than the **zero-inflated Poisson (ZIP)**:
 >
-> -    The **AIC drop of ≈ 600** indicates that accounting for **overdispersion** (via the NB distribution) substantially improves fit
+> -   The **AIC drop of ≈ 600** indicates that accounting for **overdispersion** (via the NB distribution) substantially improves fit
 >
 > -   The **increase in R²** suggests that the mean–variance relationship in your data is far from Poisson.
 >
@@ -246,7 +246,7 @@ testZeroInflation(res_zinb)
 
 ```
 
-## ZINB 
+## ZINB
 
 ```{r}
 # Add predictions to your original data
@@ -386,6 +386,12 @@ prop_summary <- long_tidy_vials %>%
 
 str(prop_summary)
 ```
+
+Save proportion summary as a csv
+```{r}
+write_csv(prop_summary, "../output/prop_summary.csv")
+```
+
 
 # Stacked barplot
 
