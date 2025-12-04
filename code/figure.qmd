@@ -37,15 +37,7 @@ knitr::opts_chunk$set(
  )        
 ```
 
-# Install packages & load libraries
-
-```{r, eval=FALSE, include=FALSE}
-#install.packages("remotes")
-#remotes::install_github("wilkelab/cowplot")
-#install.packages("colorspace", repos = "http://R-Forge.R-project.org")
-#remotes::install_github("clauswilke/colorblindr")
-#install.packages("ggbeeswarm")
-```
+# Load libraries
 
 ```{r}
 library(tidyverse)
@@ -61,6 +53,7 @@ library(scales)
 library(ggtext)
 library(ggsidekick)
 library(patchwork)
+library(cowplot) # for draw_image
 ```
 
 # Load in data
@@ -201,7 +194,7 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
   ) +
   labs(
     x = "Hours post-fertilization", y = "Viable embryo counts",
-    title = "Embryo survival"
+    title = "Survival"
   ) +
   geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
@@ -215,7 +208,7 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
     axis.ticks.x = element_blank(),
     panel.grid.minor = element_blank(),
     panel.grid.major = element_blank(),
-    legend.position = "top",
+    #legend.position = "top",
     legend.title = element_text(face = "bold"),
     legend.title.position = "top",
     plot.title = element_text(size = 14)
@@ -244,34 +237,63 @@ prop_summary <- prop_summary %>%
 
 ```{r}
 # Step 3: Plot
-tick_map <- c(control = "0 (control)", low = "0.01 (low)",
-              mid = "0.1 (mid)", high = "1 (high)")
+tick_map <- c(control = "control", low = "low",
+              mid = "mid", high = "high")
 
 timing <- prop_summary %>% 
-ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
+ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = stage.5.colors) +
-  ggtitle("Embryo stage composition")+
-  labs(y = "", x = "PVC Leachate (mg/L)", fill = "Embryonic Stage") +
+  ggtitle("Timing (stage composition)")+
+  labs(y = "", x = "PVC Leachate", fill = "Embryonic stage") +
   scale_x_discrete(
     breaks = names(tick_map),  # control, low, mid, high
     labels = tick_map          # pretty labels you defined
   )+
   scale_y_continuous(
-    expand = c(0, 0)   # << bars start flush at y = 0
-  )+
+    expand = c(0, 0),   # << bars start flush at y = 0
+    labels = scales::label_number(accuracy = 1, suffix = "%")  
+    )+
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
   theme(
-    base_size = 20,
-    #legend.position = "top",
-    axis.text.x = element_text(
-      angle = 45,      # rotate 45°
-      hjust = 1,       # horizontal justification
-      vjust = 1        # tweak if you want
-    ))
+    plot.title = element_text(margin = margin(b = 30)),
+    text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+  )
 
 timing
+```
+## Add pretty stage icons
+```{r, fig.height=6}
+timing_pretty <- ggdraw(timing) + draw_image(image='svg/egg.png',
+                        x=0.08, y=0.78, width=0.15, height=0.15)+
+  draw_image(image='svg/cleavage.png',
+                        x=0.205, y=0.78, width=0.15, height=0.15)+
+  draw_image(image='svg/morula.png',
+                        x=0.33, y=0.78, width=0.15, height=0.15)+
+  draw_image(image='svg/prawnchip.png',
+                        x=0.455, y=0.78, width=0.15, height=0.15)+
+  draw_image(image='svg/earlygastrula.png',
+                        x=0.58, y=0.78, width=0.15, height=0.15)
+
+timing_pretty
+```
+
+
+```{r}
+library(cowplot)
+library(patchwork)
+
+timing_pretty <- ggdraw() +
+  draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
+  draw_image('svg/egg.png',         x = 0.08,  y = 0.78, width = 0.15, height = 0.15) +
+  draw_image('svg/cleavage.png',    x = 0.205, y = 0.78, width = 0.15, height = 0.15) +
+  draw_image('svg/morula.png',      x = 0.33,  y = 0.78, width = 0.15, height = 0.15) +
+  draw_image('svg/prawnchip.png',   x = 0.455, y = 0.78, width = 0.15, height = 0.15) +
+  draw_image('svg/earlygastrula.png',
+                                   x = 0.58,  y = 0.78, width = 0.15, height = 0.15)
+timing_pretty
 ```
 
 ```{r}
@@ -282,23 +304,29 @@ ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
 
 
 ```{r}
-# labels for legend
-labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
-              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
 status_summary <- status_summary %>%
-  mutate(
-    status    = factor(status, levels = c("malformed", "uncertain", "typical"), 
-                       ordered = TRUE))
+  mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"), 
+                       ordered = TRUE),
+         treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+         hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE))
 
-abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = status))+
+abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill = status))+
   geom_bar(stat = "identity")+
   scale_fill_manual(values = status.colors)+
-  ggtitle("Embryo status composition")+
-  labs(y = "", x = "Treatment", fill = "Embryonic Status")+
+  ggtitle("Abnormality (status composition)")+
+  labs(y = "", x = "PVC Leachate", fill = "Embryonic status")+
+  scale_x_discrete(
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0),   # << bars start flush at y = 0
+    labels = scales::label_number(accuracy = 1, suffix = "%")
+  )+
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
-  theme(legend.position = "top",
-        axis.text.x = element_text(
+  theme(
+    #plot.title = element_text(margin = margin(b = 30)),
+      axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
       vjust = 1        # tweak if you want
@@ -306,6 +334,7 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = s
 
 abnormality
 ```
+
 ```{r}
 ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
@@ -325,10 +354,22 @@ cap_wrapped <- str_wrap(cap_text, width = 170)
 ```
 
 ## Patch it together
+
+```{r}
+timing_pretty <- timing_pretty + theme(aspect.ratio = 1.6)
+abnormality <- abnormality + theme(aspect.ratio = 1.6)
+
+combined <- timing_pretty | abnormality +
+  plot_layout(widths = c(1, 1))
+
+combined
+```
+
+
 ```{r, fig.height=12, fig.width=10}
-survival / (timing + abnormality)+
+survival / (timing_pretty | abnormality)+
   plot_annotation(
-    title = "Embryo survival, developmental timing, and morphology following PVC leachate exposure",
+    title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
     tag_levels = "A",
     caption = cap_wrapped,
     theme = theme_sleek_axe()&
