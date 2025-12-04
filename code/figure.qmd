@@ -355,24 +355,18 @@ cap_wrapped <- str_wrap(cap_text, width = 170)
 
 ## Patch it together
 
-```{r}
-timing_pretty <- timing_pretty + theme(aspect.ratio = 1.6)
-abnormality <- abnormality + theme(aspect.ratio = 1.6)
-
-combined <- timing_pretty | abnormality +
-  plot_layout(widths = c(1, 1))
-
-combined
-```
-
-
 ```{r, fig.height=12, fig.width=10}
-survival / (timing_pretty | abnormality)+
+# Wrap the cowplot/ggdraw object so patchwork can handle it properly
+timing_wrapped <- wrap_elements(full = timing_pretty)
+
+# Combine the three plots with survival on top and timing/abnormality on bottom
+survival / (timing_wrapped | abnormality) +
+  plot_layout(heights = c(1, 1)) +
   plot_annotation(
     title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
     tag_levels = "A",
     caption = cap_wrapped,
-    theme = theme_sleek_axe()&
+    theme = theme_sleek_axe() &
       theme(
         plot.tag = element_text(size = 10, 
                                 colour = "grey50"),
