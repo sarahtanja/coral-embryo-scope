@@ -189,6 +189,21 @@ tidy_bros %>%
 ```
 ![Sample 3L9 only contained two dissolving debris fragments](../images/3L9/3L9_4xstitch_anno.jpg)
 ![Sample 7H9 contained many dissolving debris fragments, but none appearing viable](../images/7H9/7H9_manualstitch_anno.jpg)
+
+## Problems with eggs
+
+- At 4 hpf eggs are still intact and visible even if unfertilized (e.g. cross 2), however they MAY BE FERTILIZED and developing normally but just not yet cleaved. So we cannot assume that all eggs at 4 hpf are unfertilized.
+
+- At 9 and 14 hpf unfertilized eggs may have dissolved and no longer be visible.
+
+- So are eggs visible at 9 or 14 hpf fertilized but developmentally delayed? OR are they unfertilized and just lingering for an unknown reason?
+
+- Can you visually tell if an egg is fertilized prior to cellular division?
+Australian Intitute of Marine Science (AIMS) spawning research links:
+- https://www.facebook.com/australianmarinescience/posts/take-a-look-at-the-development-of-a-coral-embryo-through-the-lens-of-our-microsc/262783479224765/
+
+- Unfertilized eggs typically show no signs of cellular division. If they turn 'fuzzy', they are not viable and may be decomposing.
+
 ## Save dataframe
 
 ```{r}
@@ -255,6 +270,12 @@ This means malformed = dead, uncertain(torn) = viable.
 Ecologically, a malformed embryo isn't progressing.. but a torn embryo could continue to develop!
 
 So we're only counting the total number of embryos that are typical or uncertain. To do that let's make new columns called n_viable and prop_viable for the number of viable embryos and proportion of viable embryos.
+
+::: callout-important
+We say that eggs at 4 hpf are viable unless they are malformed.
+
+At 9 and 14 hpf we say that all eggs are non-viable (i.e. unfertilized) so we subtract those from the viable count as well.
+:::
 
 ```{r}
 tidy_vials <- tidy_vials %>%

@@ -37,15 +37,7 @@ knitr::opts_chunk$set(
  )        
 ```
 
-# Install packages & load libraries
-
-```{r, eval=FALSE, include=FALSE}
-#install.packages("remotes")
-#remotes::install_github("wilkelab/cowplot")
-#install.packages("colorspace", repos = "http://R-Forge.R-project.org")
-#remotes::install_github("clauswilke/colorblindr")
-#install.packages("ggbeeswarm")
-```
+# Load libraries
 
 ```{r}
 library(tidyverse)
@@ -59,6 +51,10 @@ library(ggbeeswarm)
 library(ggrepel)
 library(scales)
 library(ggtext)
+library(sjPlot)
+library(stargazer)
+library(broom)
+library(dplyr)
 ```
 
 # Load in data
@@ -90,27 +86,6 @@ str(survival)
 ```
 
 # Visualize
-
-```{r, fig.height=8, eval=FALSE, echo=FALSE}
-display.brewer.all()
-```
-
-```{r, eval=FALSE, echo=FALSE }
-display.brewer.pal(9, name = "PuRd")
-display.brewer.pal(9, name = "Blues")
-display.brewer.pal(9, name = "Oranges")
-```
-
-```{r}
-#| include: false
-# Get the three PuRd colors
-leachcolors <- brewer.pal(9, "PuRd")[c(1, 2, 4, 9)]
-leachcolors
-
-# Get the four Oranges colors
-hpfcolors <- brewer.pal(9, "Oranges")[c(2, 4, 6, 8)]
-hpfcolors
-```
 
 ```{r, include=FALSE}
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
@@ -286,10 +261,100 @@ ggplot(survival_summary, aes(x = hpf, y = mean_survival_rate, color = treatment,
   ) +
   theme_minimal()
 ```
-# Analyze
-## Run Two-way ANOVA
 
-Are the mean numbers of total surviving viable embryos in each treatment across time different from each other? This ANOVA ignores embryo stage (where the embryo is in terms of development) and only looks at embryos with a status that is typical or uncertain and does not model any random effects (ex. night of spawn)
+# Survival rates & embryo counts
+
+```{r}
+# Calculate mean and SD for each hpf group
+summary_data <- survival %>%
+  group_by(hpf, treatment) %>%
+  summarise(
+    mean_embryo = mean(n_viable),
+    sd_embryo = sd(n_viable),
+    .groups = "drop"
+  )
+
+summary_data
+survival_summary
+```
+
+## Table 1. Survival rates & counts
+```{r}
+survival_data_summary <- survival_summary %>%
+  left_join(summary_data) %>% 
+  dplyr::select(hpf, treatment, mean_survival_rate, sd_survival_rate, mean_embryo, sd_embryo)
+
+table_wide <- survival_data_summary %>%
+  mutate(
+    across(
+      c(mean_embryo, sd_embryo),
+      ~ round(.x, 1)
+    )
+  ) %>% 
+  mutate(
+    # keep factor for ordering
+    hpf = factor(hpf, levels = c(4, 9, 14)),
+    # create a LABEL column that is NOT a factor code
+    hpf_label = paste0(as.character(hpf), " hpf"),
+    treatment  = factor(treatment, levels = c("control", "low", "mid", "high")),
+    cell = sprintf(
+      "%.1f%% (%.1f ± %.1f)",
+      mean_survival_rate * 100,
+      mean_embryo,
+      sd_embryo
+    )
+  ) %>%
+  select(hpf, hpf_label, treatment, cell) %>%
+  pivot_wider(
+    names_from  = treatment,
+    values_from = cell
+  ) %>%
+  arrange(hpf)
+  
+
+# Rename and drop numeric hpf column
+table_wide_print <- table_wide %>%
+  rename(
+    `Hours post-fertilization` = hpf_label,  # character, not factor codes
+    `Control (FSW)`           = control,
+    `Low (0.01 mg/L)`         = low,
+    `Mid (0.1 mg/L)`          = mid,
+    `High (1 mg/L)`           = high
+  ) %>% 
+  dplyr::select(
+    `Hours post-fertilization`,
+    `Control (FSW)`,
+    `Low (0.01 mg/L)`,
+    `Mid (0.1 mg/L)`,
+    `High (1 mg/L)`
+  )
+
+table_wide_print
+```
+We can generate the table in .doc format for copy and pasting into Google Doc manuscript draft, or html format for viewing in browser.
+```{r, eval=FALSE}
+sjPlot::tab_df(
+  table_wide_print,
+  title         = "Survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
+  show.rownames = FALSE,          # rownames will be 4, 9, 14 (hpf)
+  digits        = 1,
+  file          = "../tables/table_survival_sjplot.doc"  # optional: save as HTML
+)
+
+stargazer::stargazer(
+  table_wide_print,
+  type        = "html",
+  digits      = 1,
+  summary = FALSE,
+  rownames = FALSE,
+  title       = "Relative survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
+  out         = "../tables/table_survival_stargazer.doc"
+)
+```
+
+# Two-way ANOVA
+
+Are the mean numbers of total surviving viable embryos in each treatment across time different from each other? This ignores only looks at embryos with a status that is typical or uncertain and does not model any random effects (ex. night of spawn)
 
 ```{r}
 anova_result <- aov(n_viable ~ treatment * hpf_factor, data = survival)
@@ -300,9 +365,33 @@ Summarize the ANOVA result
 ```{r}
 summary(anova_result)
 ```
+## Table 2. Two-way ANOVA results
+```{r}
+anova_tab <- broom::tidy(anova_result) %>%
+  mutate(
+    term = recode(
+      term,
+      "treatment"            = "PVC leachate treatment",
+      "hpf_factor"           = "Developmental stage (hpf)",
+      "treatment:hpf_factor" = "Treatment × stage",
+      "Residuals"            = "Residuals"
+    )
+  ) %>%
+  select(
+    Term      = term,
+    df        = df,
+    `Sum Sq`  = sumsq,
+    `Mean Sq` = meansq,
+    `F value` = statistic,
+    `Pr(>F)`  = p.value
+  )
+
+anova_tab
+```
 
 ## Normality
 For ANOVA, it’s **the residuals** (not the raw data) that should be approximately normal.
+
 ### Q-Q plot
 ```{r}
 plot(anova_result, which = 2)  # QQ plot
@@ -364,20 +453,6 @@ leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
 ```
 
 
-## What are the means and sd's?
-
-```{r}
-# Calculate mean and SD for each hpf group
-summary_data <- survival %>%
-  group_by(hpf, treatment) %>%
-  summarise(
-    mean_embryo = mean(n_viable),
-    sd_embryo = sd(n_viable),
-    .groups = "drop"
-  )
-
-print(summary_data)
-```
 
 
 # emmeans
@@ -397,8 +472,21 @@ emmeans(anova_result, pairwise ~ treatment | hpf_factor)
 > Across 4, 9, and 14 hpf: The treatment effect was consistently non-significant, even within each developmental stage window. .
 
 
+## Table 3. emmeans results
+
 # Summary
 
-> A two-way ANOVA found no significant effects of leachate treatment, developmental stage (hpf), or their interaction on the developmental index (all p \> 0.05). Pairwise Tukey comparisons within each hpf confirmed no differences among treatments (adjusted p \> 0.36). A two-way ANOVA found no significant interaction between treatment and developmental time (hpf) on embryo viability (p > 0.05). Estimated marginal means indicated similar numbers of viable embryos among treatments at 4 hpf (24–27 ± 2 SE), 9 hpf (11–13 ± 2 SE), and 14 hpf (10–14 ± 2 SE). Tukey-adjusted pairwise contrasts within each timepoint revealed no significant differences between treatments (all adjusted p > 0.36), indicating that leachate exposure did not measurably affect survival across embryonic stages.
+A two-way ANOVA revealed no significant effects of PVC leachate treatment on embryo survival across any developmental stage (treatment: F₍3,96₎ = 0.523, p = 0.668). As expected, developmental time (hpf) strongly influenced the number of viable embryos (F₍2,96₎ = 64.04, p < 0.0001), reflecting the typical decline in survival from 4 to 14 hours post fertilization. However, the interaction between treatment and developmental stage was not significant (F₍6,96₎ = 0.572, p = 0.752), indicating that survival trajectories over time were parallel across treatments.
 
+Estimated marginal means showed comparable survival among treatments at each hpf. At 4 hpf, mean viable counts ranged from 24–27 embryos ± 2 SE. At 9 hpf, all treatments clustered tightly (11–13 embryos ± 2 SE), and by 14 hpf, counts remained similar (10–14 embryos ± 2 SE). Tukey-adjusted pairwise contrasts confirmed no significant differences at any developmental stage (all adjusted p > 0.36). Assumptions of normality and equal variance were met (Shapiro–Wilk: p = 0.70 for residuals; Levene’s test: F₍11,96₎ = 1.25, p = 0.263).
+
+Overall, these findings indicate that acute exposure to PVC leachate (0–1 mg L⁻¹) did not significantly affect embryo survival across early developmental stages of Montipora capitata.
+
+These results suggest that embryo survival is highly stage-dependent (expected biologically), but PVC leachate concentrations up to 1 mg L⁻¹ did not depress viability within the first 14 hpf. This supports the interpretation that:
+
+Any potential effects of leachate may occur later, or emerge via sublethal developmental delays rather than outright mortality.
+
+```{r}
+sessionInfo()
+```
 

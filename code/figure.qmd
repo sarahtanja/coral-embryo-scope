@@ -118,7 +118,7 @@ theme_sleek_axe <- function() {
 
 ```
 
-## Set colorschemes
+## Set colors
 
 ```{r}
 #colorspace::hclwizard()
@@ -180,7 +180,7 @@ status.colors <- c(typical = "#75C165",
 
 ```{r, fig.height=6}
 # labels for legend
-labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
 
 survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatment, fill = treatment)) +
@@ -188,13 +188,13 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
   geom_beeswarm(aes(group = interaction(hpf_factor, treatment)),
                 dodge.width = 0.7, priority = "density", cex = 1.2) +
   scale_fill_manual(
-    name   = "PVC leachate concentration",
+    name   = "PVC leachate",
     values = leachate.colors,
     breaks = names(labs_map),
     labels = labs_map
   ) +
   scale_color_manual(
-    name   = "PVC leachate concentration",
+    name   = "PVC leachate",
     values = leachate.colors,
     breaks = names(labs_map),
     labels = labs_map
@@ -223,6 +223,11 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
 
 survival
 ```
+```{r}
+ggsave("../figs/embryo_survival_box.png", width = 8, height = 6, dpi = 600)
+```
+
+
 # Timing barplot
 
 # Stacked barplot
@@ -239,15 +244,28 @@ prop_summary <- prop_summary %>%
 
 ```{r}
 # Step 3: Plot
+tick_map <- c(control = "0 (control)", low = "0.01 (low)",
+              mid = "0.1 (mid)", high = "1 (high)")
+
 timing <- prop_summary %>% 
 ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = stage.5.colors) +
   ggtitle("Embryo stage composition")+
-  labs(y = "", x = "Treatment", fill = "Embryonic Stage") +
+  labs(y = "", x = "PVC Leachate (mg/L)", fill = "Embryonic Stage") +
+  scale_x_discrete(
+    breaks = names(tick_map),  # control, low, mid, high
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0)   # << bars start flush at y = 0
+  )+
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
-  theme(axis.text.x = element_text(
+  theme(
+    base_size = 20,
+    #legend.position = "top",
+    axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
       vjust = 1        # tweak if you want
@@ -257,7 +275,7 @@ timing
 ```
 
 ```{r}
-ggsave("../figs/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
+ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
 
 # Abnormalities barplot
@@ -265,11 +283,11 @@ ggsave("../figs/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 6
 
 ```{r}
 # labels for legend
-labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
+labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
 status_summary <- status_summary %>%
   mutate(
-    status    = factor(status, levels = c("typical", "uncertain", "malformed"), 
+    status    = factor(status, levels = c("malformed", "uncertain", "typical"), 
                        ordered = TRUE))
 
 abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = status))+
@@ -279,7 +297,8 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = s
   labs(y = "", x = "Treatment", fill = "Embryonic Status")+
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
-  theme(axis.text.x = element_text(
+  theme(legend.position = "top",
+        axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
       vjust = 1        # tweak if you want
@@ -287,7 +306,9 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop, fill = s
 
 abnormality
 ```
-
+```{r}
+ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
 # Patchwork 
 
 ## Add caption 

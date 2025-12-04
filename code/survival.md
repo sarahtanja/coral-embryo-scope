@@ -2,23 +2,28 @@
 
 2025-08-27
 
-- [<span class="toc-section-number">1</span> Install packages & load
-  libraries](#install-packages--load-libraries)
+- [<span class="toc-section-number">1</span> Load
+  libraries](#load-libraries)
 - [<span class="toc-section-number">2</span> Load in
   data](#load-in-data)
   - [<span class="toc-section-number">2.1</span> Data prep](#data-prep)
-- [<span class="toc-section-number">3</span> Data
-  preparation](#data-preparation)
-- [<span class="toc-section-number">4</span> Visualize](#visualize)
-  - [<span class="toc-section-number">4.1</span> Boxplot](#boxplot)
-  - [<span class="toc-section-number">4.2</span> Line plot](#line-plot)
-  - [<span class="toc-section-number">4.3</span> Relative
+- [<span class="toc-section-number">3</span> Visualize](#visualize)
+  - [<span class="toc-section-number">3.1</span> Boxplot](#boxplot)
+  - [<span class="toc-section-number">3.2</span> Line plot](#line-plot)
+  - [<span class="toc-section-number">3.3</span> Relative
     survival](#relative-survival)
-- [<span class="toc-section-number">5</span> Analyze](#analyze)
-  - [<span class="toc-section-number">5.1</span> Run Two-way
-    ANOVA](#run-two-way-anova)
+- [<span class="toc-section-number">4</span> Survival rates & embryo
+  counts](#survival-rates--embryo-counts)
+  - [<span class="toc-section-number">4.1</span> Table 1. Survival rates
+    & counts](#table-1-survival-rates--counts)
+- [<span class="toc-section-number">5</span> Two-way
+  ANOVA](#two-way-anova)
+  - [<span class="toc-section-number">5.1</span> Table 2. Two-way ANOVA
+    results](#table-2-two-way-anova-results)
   - [<span class="toc-section-number">5.2</span> Normality](#normality)
-    - [<span class="toc-section-number">5.2.1</span> Shapiro-Wilk
+    - [<span class="toc-section-number">5.2.1</span> Q-Q
+      plot](#q-q-plot)
+    - [<span class="toc-section-number">5.2.2</span> Shapiro-Wilk
       test](#shapiro-wilk-test)
   - [<span class="toc-section-number">5.3</span> Equal
     variance](#equal-variance)
@@ -26,12 +31,12 @@
       outliers](#inspect-outliers)
     - [<span class="toc-section-number">5.3.2</span> Levene’s
       test](#levenes-test)
-  - [<span class="toc-section-number">5.4</span> What are the means and
-    sd’s?](#what-are-the-means-and-sds)
 - [<span class="toc-section-number">6</span> emmeans](#emmeans)
+  - [<span class="toc-section-number">6.1</span> Table 3. emmeans
+    results](#table-3-emmeans-results)
 - [<span class="toc-section-number">7</span> Summary](#summary)
 
-# Install packages & load libraries
+# Load libraries
 
 ``` r
 library(tidyverse)
@@ -40,21 +45,24 @@ library(ggplot2)
 library(RColorBrewer)
 library(viridis)
 library(colorblindr)
+library(colorspace)
 library(ggbeeswarm)
 library(ggrepel)
 library(scales)
 library(ggtext)
+library(sjPlot)
+library(stargazer)
+library(broom)
+library(dplyr)
 ```
 
 # Load in data
 
 ``` r
-tidy_vials <- read.csv("../data/output/tidy_vials.csv")
+tidy_vials <- read.csv("../output/tidy_vials.csv")
 ```
 
 ## Data prep
-
-# Data preparation
 
 Set factor levels for treatment and hpf
 
@@ -135,7 +143,7 @@ box <- ggplot(survival, aes(x = hpf_factor, y = n_viable, color = treatment, fil
 box
 ```
 
-![](survival_files/figure-commonmark/unnamed-chunk-9-1.png)
+![](survival_files/figure-commonmark/unnamed-chunk-5-1.png)
 
 Colorblind..
 
@@ -143,7 +151,7 @@ Colorblind..
 cvd_grid(box)
 ```
 
-![](survival_files/figure-commonmark/unnamed-chunk-10-1.png)
+![](survival_files/figure-commonmark/unnamed-chunk-6-1.png)
 
 ``` r
 ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
@@ -182,7 +190,7 @@ line <- ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable,
 line
 ```
 
-![](survival_files/figure-commonmark/unnamed-chunk-12-1.png)
+![](survival_files/figure-commonmark/unnamed-chunk-8-1.png)
 
 Colorblind…
 
@@ -190,7 +198,7 @@ Colorblind…
 cvd_grid(line)
 ```
 
-![](survival_files/figure-commonmark/unnamed-chunk-13-1.png)
+![](survival_files/figure-commonmark/unnamed-chunk-9-1.png)
 
 ## Relative survival
 
@@ -298,17 +306,152 @@ ggplot(survival_summary, aes(x = hpf, y = mean_survival_rate, color = treatment,
   theme_minimal()
 ```
 
-![](survival_files/figure-commonmark/unnamed-chunk-16-1.png)
+![](survival_files/figure-commonmark/unnamed-chunk-12-1.png)
 
-# Analyze
+# Survival rates & embryo counts
 
-## Run Two-way ANOVA
+``` r
+# Calculate mean and SD for each hpf group
+summary_data <- survival %>%
+  group_by(hpf, treatment) %>%
+  summarise(
+    mean_embryo = mean(n_viable),
+    sd_embryo = sd(n_viable),
+    .groups = "drop"
+  )
+
+summary_data
+```
+
+    # A tibble: 12 × 4
+         hpf treatment mean_embryo sd_embryo
+       <int> <ord>           <dbl>     <dbl>
+     1     4 control         27         3.87
+     2     4 low             27.3       4.87
+     3     4 mid             24         5.36
+     4     4 high            26         3.24
+     5     9 control         12.4       7.47
+     6     9 low             12.6       8.85
+     7     9 mid             12.9       6.07
+     8     9 high            11.1       8.02
+     9    14 control         11.3       5.63
+    10    14 low             12.7       4.72
+    11    14 mid             14.2       7.19
+    12    14 high             9.56      4.59
+
+``` r
+survival_summary
+```
+
+    # A tibble: 12 × 6
+    # Groups:   treatment [4]
+       treatment   hpf mean_survival_rate sd_survival_rate     n se_survival_rate
+       <ord>     <int>              <dbl>            <dbl> <int>            <dbl>
+     1 control       4              0.9              0.129     9           0.0430
+     2 control       9              0.415            0.249     9           0.0830
+     3 control      14              0.378            0.188     9           0.0626
+     4 low           4              0.911            0.162     9           0.0541
+     5 low           9              0.419            0.295     9           0.0983
+     6 low          14              0.422            0.157     9           0.0524
+     7 mid           4              0.8              0.179     9           0.0596
+     8 mid           9              0.430            0.202     9           0.0675
+     9 mid          14              0.474            0.240     9           0.0799
+    10 high          4              0.867            0.108     9           0.0360
+    11 high          9              0.370            0.267     9           0.0891
+    12 high         14              0.319            0.153     9           0.0510
+
+## Table 1. Survival rates & counts
+
+``` r
+survival_data_summary <- survival_summary %>%
+  left_join(summary_data) %>% 
+  dplyr::select(hpf, treatment, mean_survival_rate, sd_survival_rate, mean_embryo, sd_embryo)
+
+table_wide <- survival_data_summary %>%
+  mutate(
+    across(
+      c(mean_embryo, sd_embryo),
+      ~ round(.x, 1)
+    )
+  ) %>% 
+  mutate(
+    # keep factor for ordering
+    hpf = factor(hpf, levels = c(4, 9, 14)),
+    # create a LABEL column that is NOT a factor code
+    hpf_label = paste0(as.character(hpf), " hpf"),
+    treatment  = factor(treatment, levels = c("control", "low", "mid", "high")),
+    cell = sprintf(
+      "%.1f%% (%.1f ± %.1f)",
+      mean_survival_rate * 100,
+      mean_embryo,
+      sd_embryo
+    )
+  ) %>%
+  select(hpf, hpf_label, treatment, cell) %>%
+  pivot_wider(
+    names_from  = treatment,
+    values_from = cell
+  ) %>%
+  arrange(hpf)
+  
+
+# Rename and drop numeric hpf column
+table_wide_print <- table_wide %>%
+  rename(
+    `Hours post-fertilization` = hpf_label,  # character, not factor codes
+    `Control (FSW)`           = control,
+    `Low (0.01 mg/L)`         = low,
+    `Mid (0.1 mg/L)`          = mid,
+    `High (1 mg/L)`           = high
+  ) %>% 
+  dplyr::select(
+    `Hours post-fertilization`,
+    `Control (FSW)`,
+    `Low (0.01 mg/L)`,
+    `Mid (0.1 mg/L)`,
+    `High (1 mg/L)`
+  )
+
+table_wide_print
+```
+
+    # A tibble: 3 × 5
+      `Hours post-fertilization` `Control (FSW)`  `Low (0.01 mg/L)` `Mid (0.1 mg/L)`
+      <chr>                      <chr>            <chr>             <chr>           
+    1 4 hpf                      90.0% (27.0 ± 3… 91.1% (27.3 ± 4.… 80.0% (24.0 ± 5…
+    2 9 hpf                      41.5% (12.4 ± 7… 41.9% (12.6 ± 8.… 43.0% (12.9 ± 6…
+    3 14 hpf                     37.8% (11.3 ± 5… 42.2% (12.7 ± 4.… 47.4% (14.2 ± 7…
+    # ℹ 1 more variable: `High (1 mg/L)` <chr>
+
+We can generate the table in .doc format for copy and pasting into
+Google Doc manuscript draft, or html format for viewing in browser.
+
+``` r
+sjPlot::tab_df(
+  table_wide_print,
+  title         = "Survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
+  show.rownames = FALSE,          # rownames will be 4, 9, 14 (hpf)
+  digits        = 1,
+  file          = "../tables/table_survival_sjplot.doc"  # optional: save as HTML
+)
+
+stargazer::stargazer(
+  table_wide_print,
+  type        = "html",
+  digits      = 1,
+  summary = FALSE,
+  rownames = FALSE,
+  title       = "Relative survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
+  out         = "../tables/table_survival_stargazer.doc"
+)
+```
+
+# Two-way ANOVA
 
 Are the mean numbers of total surviving viable embryos in each treatment
-across time different from each other? This ANOVA ignores embryo stage
-(where the embryo is in terms of development) and only looks at embryos
-with a status that is typical or uncertain and does not model any random
-effects (ex. night of spawn)
+across time different from each other? This ignores only looks at
+embryos with a status that is typical or uncertain and does not model
+any random effects (ex. night of spawn)
 
 ``` r
 anova_result <- aov(n_viable ~ treatment * hpf_factor, data = survival)
@@ -328,10 +471,45 @@ summary(anova_result)
     ---
     Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
+## Table 2. Two-way ANOVA results
+
+``` r
+anova_tab <- broom::tidy(anova_result) %>%
+  mutate(
+    term = recode(
+      term,
+      "treatment"            = "PVC leachate treatment",
+      "hpf_factor"           = "Developmental stage (hpf)",
+      "treatment:hpf_factor" = "Treatment × stage",
+      "Residuals"            = "Residuals"
+    )
+  ) %>%
+  select(
+    Term      = term,
+    df        = df,
+    `Sum Sq`  = sumsq,
+    `Mean Sq` = meansq,
+    `F value` = statistic,
+    `Pr(>F)`  = p.value
+  )
+
+anova_tab
+```
+
+    # A tibble: 4 × 6
+      Term                         df `Sum Sq` `Mean Sq` `F value`  `Pr(>F)`
+      <chr>                     <dbl>    <dbl>     <dbl>     <dbl>     <dbl>
+    1 PVC leachate treatment        3     57.5      19.2     0.523  6.68e- 1
+    2 Developmental stage (hpf)     2   4696.     2348.     64.0    2.14e-18
+    3 Treatment × stage             6    126.       21.0     0.572  7.52e- 1
+    4 Residuals                    96   3520        36.7    NA     NA       
+
 ## Normality
 
 For ANOVA, it’s **the residuals** (not the raw data) that should be
-approximately normal. \### Q-Q plot
+approximately normal.
+
+### Q-Q plot
 
 ``` r
 plot(anova_result, which = 2)  # QQ plot
@@ -429,37 +607,6 @@ leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
     group 11  1.2543  0.263
           96               
 
-## What are the means and sd’s?
-
-``` r
-# Calculate mean and SD for each hpf group
-summary_data <- survival %>%
-  group_by(hpf, treatment) %>%
-  summarise(
-    mean_embryo = mean(n_viable),
-    sd_embryo = sd(n_viable),
-    .groups = "drop"
-  )
-
-print(summary_data)
-```
-
-    # A tibble: 12 × 4
-         hpf treatment mean_embryo sd_embryo
-       <int> <ord>           <dbl>     <dbl>
-     1     4 control         27         3.87
-     2     4 low             27.3       4.87
-     3     4 mid             24         5.36
-     4     4 high            26         3.24
-     5     9 control         12.4       7.47
-     6     9 low             12.6       8.85
-     7     9 mid             12.9       6.07
-     8     9 high            11.1       8.02
-     9    14 control         11.3       5.63
-    10    14 low             12.7       4.72
-    11    14 mid             14.2       7.19
-    12    14 high             9.56      4.59
-
 # emmeans
 
 > Within each developmental timepoint (4, 9, 14 hpf), do mean
@@ -532,17 +679,89 @@ emmeans(anova_result, pairwise ~ treatment | hpf_factor)
 > Across 4, 9, and 14 hpf: The treatment effect was consistently
 > non-significant, even within each developmental stage window. .
 
+## Table 3. emmeans results
+
 # Summary
 
-> A two-way ANOVA found no significant effects of leachate treatment,
-> developmental stage (hpf), or their interaction on the developmental
-> index (all p \> 0.05). Pairwise Tukey comparisons within each hpf
-> confirmed no differences among treatments (adjusted p \> 0.36). A
-> two-way ANOVA found no significant interaction between treatment and
-> developmental time (hpf) on embryo viability (p \> 0.05). Estimated
-> marginal means indicated similar numbers of viable embryos among
-> treatments at 4 hpf (24–27 ± 2 SE), 9 hpf (11–13 ± 2 SE), and 14 hpf
-> (10–14 ± 2 SE). Tukey-adjusted pairwise contrasts within each
-> timepoint revealed no significant differences between treatments (all
-> adjusted p \> 0.36), indicating that leachate exposure did not
-> measurably affect survival across embryonic stages.
+A two-way ANOVA revealed no significant effects of PVC leachate
+treatment on embryo survival across any developmental stage (treatment:
+F₍3,96₎ = 0.523, p = 0.668). As expected, developmental time (hpf)
+strongly influenced the number of viable embryos (F₍2,96₎ = 64.04, p \<
+0.0001), reflecting the typical decline in survival from 4 to 14 hours
+post fertilization. However, the interaction between treatment and
+developmental stage was not significant (F₍6,96₎ = 0.572, p = 0.752),
+indicating that survival trajectories over time were parallel across
+treatments.
+
+Estimated marginal means showed comparable survival among treatments at
+each hpf. At 4 hpf, mean viable counts ranged from 24–27 embryos ± 2 SE.
+At 9 hpf, all treatments clustered tightly (11–13 embryos ± 2 SE), and
+by 14 hpf, counts remained similar (10–14 embryos ± 2 SE).
+Tukey-adjusted pairwise contrasts confirmed no significant differences
+at any developmental stage (all adjusted p \> 0.36). Assumptions of
+normality and equal variance were met (Shapiro–Wilk: p = 0.70 for
+residuals; Levene’s test: F₍11,96₎ = 1.25, p = 0.263).
+
+Overall, these findings indicate that acute exposure to PVC leachate
+(0–1 mg L⁻¹) did not significantly affect embryo survival across early
+developmental stages of Montipora capitata.
+
+These results suggest that embryo survival is highly stage-dependent
+(expected biologically), but PVC leachate concentrations up to 1 mg L⁻¹
+did not depress viability within the first 14 hpf. This supports the
+interpretation that:
+
+Any potential effects of leachate may occur later, or emerge via
+sublethal developmental delays rather than outright mortality.
+
+``` r
+sessionInfo()
+```
+
+    R version 4.5.1 (2025-06-13 ucrt)
+    Platform: x86_64-w64-mingw32/x64
+    Running under: Windows 11 x64 (build 26200)
+
+    Matrix products: default
+      LAPACK version 3.12.1
+
+    locale:
+    [1] LC_COLLATE=English_United States.utf8 
+    [2] LC_CTYPE=English_United States.utf8   
+    [3] LC_MONETARY=English_United States.utf8
+    [4] LC_NUMERIC=C                          
+    [5] LC_TIME=English_United States.utf8    
+
+    time zone: America/Los_Angeles
+    tzcode source: internal
+
+    attached base packages:
+    [1] stats     graphics  grDevices utils     datasets  methods   base     
+
+    other attached packages:
+     [1] car_3.1-3          carData_3.0-5      broom_1.0.10       stargazer_5.2.3   
+     [5] sjPlot_2.9.0       ggtext_0.1.2       scales_1.4.0       ggrepel_0.9.6     
+     [9] ggbeeswarm_0.7.2   colorblindr_0.1.0  colorspace_2.1-2   viridis_0.6.5     
+    [13] viridisLite_0.4.2  RColorBrewer_1.1-3 emmeans_2.0.0      lubridate_1.9.4   
+    [17] forcats_1.0.1      stringr_1.6.0      dplyr_1.1.4        purrr_1.2.0       
+    [21] readr_2.1.6        tidyr_1.3.1        tibble_3.3.0       ggplot2_4.0.1     
+    [25] tidyverse_2.0.0   
+
+    loaded via a namespace (and not attached):
+     [1] tidyselect_1.2.1   vipor_0.4.7        farver_2.1.2       S7_0.2.1          
+     [5] fastmap_1.2.0      TH.data_1.1-5      digest_0.6.38      timechange_0.3.0  
+     [9] estimability_1.5.1 lifecycle_1.0.4    survival_3.8-3     magrittr_2.0.4    
+    [13] compiler_4.5.1     rlang_1.1.6        tools_4.5.1        utf8_1.2.6        
+    [17] yaml_2.3.10        knitr_1.50         labeling_0.4.3     xml2_1.4.1        
+    [21] abind_1.4-8        multcomp_1.4-29    withr_3.0.2        grid_4.5.1        
+    [25] xtable_1.8-4       MASS_7.3-65        dichromat_2.0-0.1  cli_3.6.5         
+    [29] mvtnorm_1.3-3      rmarkdown_2.30     ragg_1.5.0         generics_0.1.4    
+    [33] rstudioapi_0.17.1  tzdb_0.5.0         commonmark_2.0.0   splines_4.5.1     
+    [37] vctrs_0.6.5        Matrix_1.7-4       sandwich_3.1-1     jsonlite_2.0.0    
+    [41] litedown_0.8       hms_1.1.4          Formula_1.2-5      beeswarm_0.4.0    
+    [45] systemfonts_1.3.1  glue_1.8.0         codetools_0.2-20   cowplot_1.2.0     
+    [49] stringi_1.8.7      gtable_0.3.6       pillar_1.11.1      htmltools_0.5.8.1 
+    [53] R6_2.6.1           textshaping_1.0.4  evaluate_1.0.5     lattice_0.22-7    
+    [57] markdown_2.0       backports_1.5.0    gridtext_0.1.5     Rcpp_1.1.0        
+    [61] coda_0.19-4.1      gridExtra_2.3      xfun_0.54          zoo_1.8-14        
+    [65] pkgconfig_2.0.3   

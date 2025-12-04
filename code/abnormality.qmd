@@ -1,6 +1,6 @@
 ---
-title: "Analyzing abnormality proportions"
-subtitle: "with Dirichlet regression"
+title: "Analyzing morphological status composition"
+subtitle: "with multivariate GLM"
 date: 11/02/2025
 date-modified: today
 format:
@@ -39,26 +39,23 @@ knitr::opts_chunk$set(
 
 # Background
 
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
-
 # Setup
 
 ## Install packages
 
 ```{r, eval=FALSE}
-install.packages("betareg")
-install.packages("gamlss")
-install.packages("DirichletReg")
-```
-
-## Load libraries
-
-```{r}
 library(tidyverse)
 library(ggplot2)
-library(scales) # for percentages in Table formatting
 library(kableExtra)
-library(DirichletReg)
+library(betareg)
+library(gamlss)
+library(MASS) # for multinomial or negative binomial GLM
+library(glmmTMB)
+library(performance)
+library(DHARMa)
+library(mvabund)
+library(scales)
+library(AER) # for dispersiontest
 ```
 
 ## Load data
@@ -67,15 +64,79 @@ library(DirichletReg)
 tidy_vials <- read_csv("../output/tidy_vials.csv")
 ```
 
-### Prep data
+```{r}
+tidy_status <- tidy_vials %>% 
+  dplyr::select(sample_id, treatment, hpf, date, n_typical, n_uncertain, n_malformed)
+```
+
+```{r, eval=FALSE}
+write_csv(tidy_status, "../output/tidy_status.csv")
+```
+
+## Set colors
+```{r}
+status.colors <- c(typical = "#75C165", 
+                   fragmented = "#E3FAA5", 
+                   malformed = "#8B0069")
+```
+
+# Explore the data
+Check out raw count data...
+
+```{r}
+# Pivot to long format
+long_tidy_status <- tidy_status %>%
+  pivot_longer(
+    cols = starts_with("n"),
+    names_to = c(".value", "status"),
+    names_pattern = "(n)_(.*)"
+  ) %>% 
+  mutate(hpf = factor(hpf, levels = c(4, 9, 14), 
+                      ordered = TRUE),
+         status = factor(status, levels = c("typical", "uncertain", "malformed"), 
+                      ordered = TRUE),
+         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
+                      ordered = TRUE))
+
+head(long_tidy_status)
+```
+
+```{r}
+summary(long_tidy_status$n)
+mean(long_tidy_status$n)
+var(long_tidy_status$n)
+
+hist(long_tidy_status$n, breaks = 30)
+```
+
+
+#### Overdispersion
+- The variance (45.0) is greater than the mean (3.5), indicating that our data has overdispersion. 
+```{r}
+mod_pois <- glm(n ~ treatment * hpf, data=long_tidy_status, family=poisson)
+dispersiontest(mod_pois)
+```
+
+
+#### Zero-inflation
+- Most of the values are 0! Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
+
+```{r}
+long_timing_counts %>%
+  group_by(stage) %>%
+  summarize(prop_zero = mean(n == 0))
+```
+
+More than 50% of the counts for each stage are zeros....That's a lot of zeros!... Our data is zero-inflated.
+
+
+
+
+# OLD Approach: Proportion means
 
 Set factor levels for treatment and hpf
 
 ```{r}
-treat_levels <- c("control", "low", "mid", "high")
-hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
-map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
-
 status <- tidy_vials %>%
   mutate(
     # ordered factors
@@ -134,39 +195,6 @@ write_csv(status_summary, "../output/status_summary.csv")
 
 # Visualize
 
-```{r, fig.height=8, eval=FALSE, echo=FALSE}
-display.brewer.all()
-```
-
-```{r brewer_hex}
-#| include: false
-display_brewer_hex <- function(pal){
-  stopifnot(pal %in% rownames(brewer.pal.info))
-  cols <- brewer.pal(brewer.pal.info[pal,"maxcolors"], pal)
-  df <- data.frame(i=seq_along(cols), hex=cols)
-  ggplot(df, aes(1, i, fill=hex, label=hex)) +
-    geom_tile(width=6, height=.9) + geom_text(size=5) +
-    scale_fill_identity() + theme_void() +
-    scale_x_continuous(breaks=NULL) + scale_y_reverse(breaks=NULL) +
-    coord_fixed() + labs(title=paste0(pal," (", length(cols), " colors)"))
-}
-```
-
-```{r}
-#| include: false
-display_brewer_hex("BuPu")
-```
-
-```{r}
-#| include: false
-display_brewer_hex("YlOrRd")
-```
-
-```{r}
-#| include: false
-display_brewer_hex("BuGn")
-```
-
 ```{r}
 #| include: false
 status_colors <- c("#810F7C", "#FED976", "#41AE76")
@@ -193,11 +221,7 @@ bar
 ```
 
 ```{r}
-cvd_grid(bar)
-```
-
-```{r}
-ggsave("../plots/percentage_status_stackedbar.png", width = 8, height = 6, dpi = 600)
+ggsave("../figs/percentage_status_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
 
 # Analyze

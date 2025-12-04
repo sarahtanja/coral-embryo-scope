@@ -1,6 +1,7 @@
 ---
-title: "Analyzing developmental proportions"
-subtitle: "with Dirichlet regression"
+title: "Analyzing developmental stage composition"
+subtitle: "with multivariate GLM (manyglm)"
+author: "Sarah Tanja"
 date: 08/27/2025
 date-modified: today
 format:
@@ -39,21 +40,8 @@ knitr::opts_chunk$set(
 
 # Background
 
-Additionally, we will use a beta regression model (using the betareg R package, (Cribari-Neto and Zeileis 2010) to analyze differences in the proportion of embryos reaching expected developmental stages across treatments(Cribari-Neto and Zeileis 2010). Differences in embryonic development among treatments will be evaluated using the joint_tests function from the emmeans R package (E. E. Chille et al. 2022; Searle, Speed, and Milliken 1980), which will run a beta regression model as a type III ANOVA (E. E. Chille et al. 2022; Searle, Speed, and Milliken 1980).
-
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
 
 # Setup
-
-## Install packages
-
-```{r, eval=FALSE}
-install.packages("betareg")
-install.packages("gamlss")
-install.packages("glmmTMB")
-
-pak::pak(c("glmmTMB", "performance", "DHARMa"))
-```
 
 ## Load libraries
 
@@ -67,6 +55,9 @@ library(MASS) # for multinomial or negative binomial GLM
 library(glmmTMB)
 library(performance)
 library(DHARMa)
+library(mvabund)
+library(scales)
+library(AER) # for dispersiontest
 ```
 
 ## Load data
@@ -77,95 +68,65 @@ tidy_vials <- read.csv("../output/tidy_vials.csv")
 
 ```{r}
 tidy_timing <- tidy_vials %>% 
-  dplyr::select(sample_id, treatment, hpf, n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula)
+  dplyr::select(sample_id, treatment, hpf, date, n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula)
 ```
 
-```{r}
+```{r, eval=FALSE}
 write_csv(tidy_timing, "../output/tidy_timing.csv")
 ```
 
-## Pivot longer
+## Set colors
+```{r}
+stage.5.colors <- c(egg = "#FFE362",
+                    cleavage = "#EBA600", 
+                    morula = "#E6AA83",
+                    prawnchip = "#D9685B", 
+                    earlygastrula = "#A2223C")
+```
 
-> You first need to convert your count data from wide format (with separate columns for each stage) to long format with three columns: - treatment (factor for treatment groups) - stage (one of the 5 embryo stages) - count (number of embryos in that stage) This long format allows ggplot2 to map stage to the fill aesthetic for stacking.
+# Explore the data
+Check out raw count data...
 
 ```{r}
 # Pivot to long format
-long_tidy_counts <- tidy_vials %>%
-  dplyr::select(-starts_with("prop")) %>% 
+long_tidy_counts <- tidy_timing %>%
   pivot_longer(
     cols = starts_with("n"),
     names_to = c(".value", "stage"),
     names_pattern = "(n)_(.*)"
   ) %>% 
-  mutate(hpf_factor = factor(hpf_factor, levels = c(4, 9, 14), ordered = TRUE))
-
-# Filter down to just the counts that describe how many embryos are in each stage 
-long_timing_counts <- long_tidy_counts %>% 
-  filter(stage == c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>% 
   mutate(
+    hpf = factor(hpf, 
+                 levels = c(4, 9, 14), ordered = TRUE),
     stage = factor(stage, 
                    levels = c("egg", "cleavage", "morula", 
-                              "prawnchip", "earlygastrula"), ordered = TRUE),
-    treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
+                  "prawnchip", "earlygastrula"), ordered = TRUE),
+    treatment = factor(treatment, 
+                       levels = c("control", "low", "mid", "high"), 
                        ordered = TRUE))
 
-str(long_timing_counts)
-```
-
-# Visualize
-
-```{r}
-ggplot(data=tidy_vials, aes(x = reorder(sample_id, hpf), y = n_embryos, group = treatment, fill=treatment))+
-  geom_area()+
-  theme_minimal()+
-  theme(
-    axis.ticks.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
-  )
+head(long_timing_counts)
 ```
 
 ```{r}
-# Create the stacked bar plot
-ggplot(long_timing_counts, aes(x = hpf_factor, y = n, fill = stage, group = stage)) +
-  geom_col(position = "stack", alpha = 0.8) +
-  facet_wrap(~ treatment, ncol = 1) +  # Optional: separate plots by treatment
-  labs(title = "Embryo counts by stage over time by treatment",
-       x = "Hours post-fertilization (hpf)",
-       y = "Embryo count") +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Set2") 
+summary(long_timing_counts$n)
+mean(long_timing_counts$n)
+var(long_timing_counts$n)
+
+hist(long_timing_counts$n, breaks = 30)
 ```
 
+
+#### Overdispersion
+- The variance (45.0) is greater than the mean (3.5), indicating that our data has overdispersion. 
 ```{r}
-# Create the stacked bar plot
-ggplot(long_timing_counts, aes(x = stage, y = n, fill = stage, group = treatment)) +
-  geom_col(position = "stack", alpha = 0.8) +
-  facet_wrap(~ hpf_factor, ncol = 1) +  # Optional: separate plots by treatment
-  labs(title = "Embryo counts by stage over time by treatment",
-       x = "Hours post-fertilization (hpf)",
-       y = "Embryo count") +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Set2") 
+mod_pois <- glm(n ~ treatment * hpf_factor, data=long_timing_counts, family=poisson)
+dispersiontest(mod_pois)
 ```
 
-> At 4 hpf, the majority of embryos are indeed in the egg or early cleavage stages, and very few or none are in advanced stages like prawnchip or early gastrula. As time progresses to 9 and then 14 hpf, the embryo counts in the earlier stages (egg, cleavage) decrease, reflecting development progression, while counts in the later stages (prawnchip, early gastrula) increase correspondingly.
 
-```{r}
-# Create the stacked bar plot
-ggplot(long_timing_counts, aes(x = hpf_factor, y = n, fill = stage, group = stage)) +
-  geom_area(alpha = 0.8) +
-  facet_wrap(~ treatment, ncol = 1) +  # Optional: separate plots by treatment
-  labs(title = "Embryo counts by stage over time by treatment",
-       x = "Hours post-fertilization (hpf)",
-       y = "Embryo count") +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Set2") 
-```
-
-# Analyze
-
-Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
+#### Zero-inflation
+- Most of the values are 0! Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
 
 ```{r}
 long_timing_counts %>%
@@ -173,178 +134,156 @@ long_timing_counts %>%
   summarize(prop_zero = mean(n == 0))
 ```
 
-That's a lot of zeros!... We should use a zero-inflated model
+More than 50% of the counts for each stage are zeros....That's a lot of zeros!... Our data is zero-inflated.
 
-> Zero-inflated models are applicable when zeros occur from two distinct mechanisms (e.g., embryos haven't reached the stage yet, or random absence due to treatment or timing)
 
-## Counts
+# Statistical approach
+How do we run a statistical test to answer: "Does the distribution of embryos across stages differ by treatment at each time point?" 
 
-> Counts: Analyzing raw counts per stage as outcome assumes that the number of embryos could, in principle, vary across samples (due to loss, differential fertilization, or experimental handling). It is suitable if embryo-to-embryo variation, losses, or cell death differ by group, or if there are systematic differences in sample size. Negative Binomial or Poisson GLM: For counts, if total embryo numbers vary non-trivially among vials, or **loss is biologically important**. If there is **systematic loss** or if absolute numbers (not only fractions) are meaningful, consider count-based models.
+Our data is as follows:
+One categorical response per embryo  
+5 categories: egg, cleavage, morula, prawnchip, early gastrula
+Exactly one category per embryo (categories are mutually exclusive)
+Counted per vial, grouped by treatment & hpf
+So per vial we have a composition of counts:
+n_egg, n_cleavage, n_morula, n_prawnchip, n_early_gastrula
+Counts represent developmental stage composition 
+Counts do not sum to a total per vial (since embryos can die, etc.)
 
-n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula
+We can either model **counts** with a `Multinomial negative binomial`, or **proportions** of stage composition with a `Dirichlet regression`.
 
-### Zero-Inflated Poisson (ZIP)
+#### Should we use Dirichlet? 
+A Dirichlet or beta-multinomial regression on proportions asks “Does PVC shift developmental stage composition?” HOWEVER, the Dirichlet distribution requires strictly positive proportions (all > 0 and summing to 1). Zero counts violate that assumption because proportions of zero imply complete absence of a category — and Dirichlet cannot model that. We would need to subset our data by timepoint and run a Dirichlet for each, only including the non-zero stages at each timepoint (ex. at 4 hpf there are 0 embryos in the early gastrula stage, so we would need to exclude that category from the model). We also considered Dirichlet regression for stage composition analysis; however, several stage categories were biologically absent at early time points (e.g., no gastrula at 4 hpf), violating the requirement for strictly positive proportions. Therefore, manyglm with a negative binomial distribution was selected as a more appropriate method that accommodates structural zeros and overdispersion while analyzing all time points concurrently. 
+
+#### Should we use Multinomial NB?
+A Multinomial negative binomial on counts asks “Does PVC leachate shift developmental stage counts, accounting for overdispersion and excess zeros?” HOWEVER, Multinomial models (including beta-multinomial and multinomial negative binomial) assume:
+- One response column,
+- Each trial falls into one of several categories,
+- Total number of trials is fixed or modeled separately,
+- Categories must sum to 1 (or N),
+- Variance is usually fixed or only weakly overdispersed unless modeled Bayes/anova style.
+
+But your embryos do not meet those assumptions:
+
+| Violation                                             | Why                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| Counts do **not sum to a fixed total**                | Viable embryos vary across vials                             |
+| Some stages **do not exist at certain timepoints**    | Multinomial cannot handle biologically impossible categories |
+| Counts are **strongly overdispersed & zero-inflated** | Requires negative binomial + mvabund handling                |
+| We need **joint + stage-specific tests**              | Multinomial only gives global odds ratios                    |
+🌿 Biological implications
+Multinomial regression answers:
+> “What is the probability of each category relative to others?”
+
+But our question is different:
+> “Do counts in each developmental stage change with treatment and time — and does PVC shift the overall composition of development?”
+
+Since development is sequential, not competitive (like elections or consumer choice),
+multinomial structure is biologically misleading.
+
+> We considered multinomial negative binomial models but rejected them because our data represent separate count variables rather than a single categorical response, and because developmental stages do not form a fixed-sum composition at all timepoints. Instead, we used a multivariate generalized linear model (manyglm, negative binomial), which accommodates overdispersion, structural zeros, and allows testing both overall shifts in developmental composition and stage-specific responses.
+
+#### Should we use Multivariate GLM?
+✔ Handles overdispersed count data
+✔ Allows structural zeros
+✔ Models all stages simultaneously
+✔ Provides multivariate AND univariate tests
+✔ Allows interaction (treatment × hpf) without splitting data
+✔ Allows rich residual diagnostics (e.g., via DHARMa)
+
+
+
+
+# Visualize counts 
 
 ```{r}
-# Zero-inflated Poisson
-zip <- glmmTMB(n ~ treatment + hpf,
-                   ziformula = ~1,
-               # model for zero inflation (intercept only)
-                   family = poisson,
-                   data = long_timing_counts)
+# Create the faceted bar plot
+ggplot(long_timing_counts, aes(x = stage, y = n, fill = stage, group = treatment)) +
+  geom_col(position = "stack", alpha = 0.8) +
+  facet_wrap(~ hpf_factor, ncol = 1) +  # Optional: separate plots by treatment
+  labs(title = "Embryo counts by stage over time by treatment",
+       x = "Hours post-fertilization (hpf)",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_manual(values = stage.5.colors) 
 ```
-
-### Zero-inflated Negative Binomial (ZINB)
-
 ```{r}
-# Zero-inflated Negative Binomial
-zinb <- glmmTMB(n ~ treatment + hpf,
-                   ziformula = ~1,
-                    family = nbinom2,    # or nbinom1
-                    data = long_timing_counts)
-```
-
-### ZIP vs ZINB
-
-```{r}
-# Likelihood ratio test
-anova(zip, zinb)
-```
-
-```{r}
-# Pseudo-R² and fit stats
-model_performance(zip)
-model_performance(zinb)
-```
-
-| Metric | ZIP | ZINB | Interpretation |
-|:------------|:------------|:------------|:----------------------------------|
-| **AIC** | 2551.1 | **1946.0** | The ZINB has a much lower AIC — a difference \> 100 points is extremely strong evidence in its favor. |
-| **BIC** | 2576.8 | **1976.1** | BIC also clearly supports the ZINB. |
-| **R² (marginal)** | 0.051 | **0.164** | The ZINB explains roughly three times more variance in the response. |
-| **RMSE** | 6.669 | **6.655** | Slight improvement (lower = better), but the main gains are in model likelihood, not prediction error. |
-| **Sigma (dispersion)** | 1.000 | **1.307** | The negative binomial explicitly models overdispersion (σ \> 1), which your data likely have. |
-
-> Your **zero-inflated negative binomial (ZINB)** fits the data *much* better than the **zero-inflated Poisson (ZIP)**:
->
-> -   The **AIC drop of ≈ 600** indicates that accounting for **overdispersion** (via the NB distribution) substantially improves fit
->
-> -   The **increase in R²** suggests that the mean–variance relationship in your data is far from Poisson.
->
-> -   The ZIP assumes Var(Y) = E(Y), while the ZINB allows Var(Y) \> E(Y), which is typical for biological count data (e.g., embryo counts, microbial abundances, etc.).
->
-> -   ZINB is the preferred model: It captures both the **excess zeros** and **overdispersion** present in your data. You can safely interpret or visualize predictions from the ZINB as your main result.
-
-```{r}
-# Simulated residuals (DHARMa)
-res_zinb <- simulateResiduals(zinb)
-
-plot(res_zinb)
-
-# Check for zero-inflation
-testZeroInflation(res_zinb)
-
-```
-
-## ZINB
-
-```{r}
-# Add predictions to your original data
-zinb_predictions <- long_timing_counts %>%
-  mutate(
-    pred_mean = predict(zinb, type = "response"      # E[Y|x]
-                        # , re.form = NA                # <- uncomment for population-level
-                        ),
-    pred_zprob = predict(zinb, type = "zprob"        # Pr(structural zero | x)
-                         # , re.form = NA
-                         ),
-    resid = n - pred_mean
-  )
-```
-
-```{r}
-p_obs_pred <- ggplot(zinb_predictions, aes(x = pred_mean, y = n)) +
-  geom_point(alpha = 0.35, size = 2) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  geom_smooth(method = "loess", se = FALSE) +
-  labs(
-    title = "Observed vs Predicted Counts (ZINB)",
-    x = "Predicted mean count (E[Y|x])",
-    y = "Observed count"
-  ) +
-  theme_minimal()
-
-p_obs_pred
-
-```
-
-```{r}
-# Bin by predicted mean (deciles by default)
-calib_df <- zinb_predictions %>%
-  mutate(bin = ntile(pred_mean, 10)) %>%
-  group_by(bin) %>%
-  summarise(
-    bin_pred_mean = mean(pred_mean),
-    obs_zero_rate = mean(n == 0),
-    pred_zero_prob = mean(pred_zprob),
-    n = n(),
-    .groups = "drop"
-  )
-
-p_zi_calib <- ggplot(calib_df, aes(x = bin_pred_mean)) +
-  geom_line(aes(y = obs_zero_rate), linewidth = 1) +
-  geom_point(aes(y = obs_zero_rate), size = 2) +
-  geom_point(aes(y = pred_zero_prob), shape = 1, size = 3) +
-  labs(
-    title = "Zero-Inflation Calibration (Observed vs Predicted)",
-    subtitle = "Solid points/line: observed zero rate; open circles: model-predicted structural-zero probability",
-    x = "Mean predicted count within bin",
-    y = "Probability of zero"
-  ) +
-  theme_minimal()
-
-p_zi_calib
-
-```
-
-```{r}
-# Example: facet observed vs predicted by stage
-ggplot(zinb_predictions, aes(pred_mean, n)) +
-  geom_point(alpha = 0.3, size = 1.8) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  geom_smooth(method = "loess", se = FALSE) +
+ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
+  geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~ hpf_factor) +
-  labs(title = "Observed vs Predicted by Stage (ZINB)",
-       x = "Predicted mean count", y = "Observed count") +
-  theme_minimal()
+  labs(title = "Embryo stage counts by treatment over time",
+       x = "Treatment",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_manual(values = stage.5.colors)
+```
+> At 4 hpf, the majority of embryos are indeed in the egg or early cleavage stages, and very few or none are in advanced stages like prawnchip or early gastrula. As time progresses to 9 and then 14 hpf, the embryo counts in the earlier stages (egg, cleavage) decrease, reflecting development progression, while counts in the later stages (prawnchip, early gastrula) increase correspondingly. You can see that total counts across treatments appear similar, as well as the stage breakdown within each treatment. 
 
-# Example: zero-inflation calibration by leachate
-calib_by <- zinb_predictions %>%
-  mutate(bin = ntile(pred_mean, 10)) %>%
-  group_by(treatment, bin) %>%
-  summarise(
-    bin_pred_mean = mean(pred_mean),
-    obs_zero_rate = mean(n == 0),
-    pred_zero_prob = mean(pred_zprob),
-    .groups = "drop"
-  )
+## Mean stage composition counts table
+```{r}
+stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels   <- c(4, 9, 14)
 
-ggplot(calib_by, aes(bin_pred_mean)) +
-  geom_line(aes(y = obs_zero_rate)) +
-  geom_point(aes(y = obs_zero_rate)) +
-  geom_point(aes(y = pred_zero_prob), shape = 1) +
-  facet_wrap(~ treatment) +
-  labs(title = "Zero-Inflation Calibration by Leachate",
-       x = "Mean predicted count within bin",
-       y = "Probability of zero") +
-  theme_minimal()
+table_stage_count <- counts_summary %>%
+  filter(stage %in% stage_levels) %>%
+  mutate(
+    stage     = factor(stage,     levels = stage_levels),
+    treatment = factor(treatment, levels = treat_levels),
+    hpf       = factor(hpf,       levels = hpf_levels)
+  ) %>%
+  dplyr::select(stage, hpf, treatment, mean_counts) %>%
+  pivot_wider(
+    names_from  = c(treatment, hpf),
+    values_from = mean_counts,
+    values_fill = 0,
+    # column names like "4 hpf - control"
+    names_glue  = "{hpf} hpf - {treatment}"
+  ) %>%
+  dplyr::select(stage, 
+                `4 hpf - control`, `4 hpf - low`, `4 hpf - mid`, `4 hpf - high`,
+                `9 hpf - control`, `9 hpf - low`, `9 hpf - mid`, `9 hpf - high`,
+                `14 hpf - control`, `14 hpf - low`, `14 hpf - mid`, `14 hpf - high`) %>%
+  arrange(stage) %>%
+  # turn to % (numeric) for nice formatting
+  mutate(across(-stage, ~ round(.x, 1))) %>%
+  rename(Stage = stage) 
+
+
+table_stage_count
+```
+
+```{r}
+library(sjPlot)
+
+sjPlot::tab_df(
+  table_stage_count,
+  title         = "Mean stage composition (counts of embryos) by treatment and developmental time (hpf)",
+  show.rownames = FALSE,
+  digits        = 1
+)
+```
+
+```{r, eval=FALSE}
+library(stargazer)
+
+stargazer::stargazer(
+  table_stage_count,
+  type      = "html",  # or "latex" if knitting to PDF
+  summary   = FALSE,
+  rownames  = FALSE,
+  digits    = 1,
+  title     = "Mean stage composition (counts of embryos) by treatment and developmental time (hpf)",
+  out       = "../tables/table_stage_composition_counts.doc"  # optional
+)
 
 ```
 
-# Proportions
+
+
+# Visualize proportions
 
 Drop the samples with zero embryos (drop zeros)
-
 ```{r}
 tidy_vials_dropz <- tidy_vials %>% 
   filter(sample_id != c("3L9", "7H9"))%>% 
@@ -357,8 +296,7 @@ tidy_vials_dropz <- tidy_vials %>%
                                       "14")))
 ```
 
-# Calculate proportion means
-
+Calculate proportion means
 ```{r}
 # Step 1: Pivot to long format
 long_tidy_vials <- tidy_vials_dropz %>%
@@ -384,7 +322,7 @@ prop_summary <- long_tidy_vials %>%
   mutate(treatment = factor(treatment, 
                         levels = c("control", "low", "mid", "high")))
 
-str(prop_summary)
+head(prop_summary)
 ```
 
 Save proportion summary as a csv
@@ -392,488 +330,150 @@ Save proportion summary as a csv
 write_csv(prop_summary, "../output/prop_summary.csv")
 ```
 
-
-# Stacked barplot
-
 ```{r}
-# Step 3: Plot
 prop_summary %>% 
 ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
   geom_bar(stat = "identity") +
-  ggtitle("Mean proportion of embryos at each embryonic stage")+
+  scale_fill_manual(values = stage.5.colors) +
+  ggtitle("Embryo stage composition")+
   labs(y = "", x = "Treatment", fill = "Embryonic Stage") +
   facet_wrap(~ hpf)+
-  theme_minimal()
-
-ggsave("../plots/proportion_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
+  theme_minimal()+
+  theme(axis.text.x = element_text(
+      angle = 45,      # rotate 45°
+      hjust = 1,       # horizontal justification
+      vjust = 1        # tweak if you want
+    ))
 ```
-
 ::: callout-note
 Visually we can see there is little/no difference in proportion of embryos at each stage across treatments at each end-point (4,9,14 hpf).
 :::
 
-# Table
-
+## Mean stage proportions table
 ```{r}
-str(prop_summary)
-```
+stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
+treat_levels <- c("control", "low", "mid", "high")
+hpf_levels   <- c(4, 9, 14)
 
-```{r}
-table_stage <- prop_summary %>%
-  filter(stage %in% c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>%
-  mutate(stage = factor(stage, 
-                        levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"))) %>%
-  select(treatment, hpf, stage, mean_prop) %>%
-  tidyr::pivot_wider(
-    names_from = stage,
-    values_from = mean_prop
-  ) %>% 
-  group_by(hpf) %>% 
-  select(hpf, treatment, egg, cleavage, morula, prawnchip, earlygastrula)
-
-table_stage
-```
-
-```{r}
-table_stage <-
-  prop_summary %>%
-  # keep only the 5 stages, set clear order
-  filter(stage %in% c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")) %>%
+table_stage_pct <- prop_summary %>%
+  filter(stage %in% stage_levels) %>%
   mutate(
-    stage     = factor(stage, levels = c("egg","cleavage","morula","prawnchip","earlygastrula")),
-    treatment = factor(treatment, levels = c("control","low","mid","high")),
-    hpf       = factor(hpf, levels = c(4, 9, 14))
+    stage     = factor(stage,     levels = stage_levels),
+    treatment = factor(treatment, levels = treat_levels),
+    hpf       = factor(hpf,       levels = hpf_levels)
   ) %>%
-  select(treatment, hpf, stage, mean_prop) %>%
+  dplyr::select(stage, hpf, treatment, mean_prop) %>%
   pivot_wider(
-    names_from  = stage,
+    names_from  = c(treatment, hpf),
     values_from = mean_prop,
-    values_fill = 0
+    values_fill = 0,
+    # column names like "4 hpf - control"
+    names_glue  = "{hpf} hpf - {treatment}"
   ) %>%
-  arrange(hpf, treatment) %>%
-  relocate(hpf, treatment) %>% 
-  # this orders egg>cleavage>morula>prawnchip>earlygastrula across table top
-  select(hpf, treatment, egg, cleavage, morula, prawnchip, earlygastrula) %>%
-  # optional: nicer column labels for manuscript
-  rename(
-  `PVC leachate` = treatment, Egg = egg, Cleavage = cleavage, Morula = morula,
-    `Prawn chip` = prawnchip, `Early gastrula` = earlygastrula
-  ) 
+  dplyr::select(stage, 
+                `4 hpf - control`, `4 hpf - low`, `4 hpf - mid`, `4 hpf - high`,
+                `9 hpf - control`, `9 hpf - low`, `9 hpf - mid`, `9 hpf - high`,
+                `14 hpf - control`, `14 hpf - low`, `14 hpf - mid`, `14 hpf - high`) %>%
+  arrange(stage) %>%
+  # turn to % (numeric) for nice formatting
+  mutate(across(-stage, ~ round(.x * 100, 1))) %>%
+  rename(Stage = stage) 
 
-# ----- percents (if mean_prop is a proportion 0–1) -----
-table_stage_pct <-
-   table_stage %>%
-   mutate(across(c(Egg, Cleavage, Morula, `Prawn chip`, `Early gastrula`),
-                 ~ percent(.x, accuracy = 0.1)))
 
-```
-
-```{r}
 table_stage_pct
 ```
 
 ```{r}
-table_stage_pct %>%
-  kable(
-    format = "latex",               # use "latex" if knitting to PDF
-    digits = 3,                    # number of decimals
-    caption = "Proportion of embryos at each stage by treatment and hpf",
-    align = "c"                    # center align all columns
-  ) %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-    full_width = FALSE,
-    position = "center",
-    font_size = 12
-  ) %>%
-  column_spec(1, bold = TRUE) %>%  # bold hpf column
-  collapse_rows(columns = 1, valign = "top")  # group rows by hpf
+library(sjPlot)
 
-table_stage_pct
+sjPlot::tab_df(
+  table_stage_pct,
+  title         = "Mean stage composition (% of embryos) by treatment and developmental time (hpf)",
+  show.rownames = FALSE,
+  digits        = 1
+)
 ```
 
-# Multinomial logistic regression
+```{r, eval=FALSE}
+library(stargazer)
 
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
+stargazer::stargazer(
+  table_stage_pct,
+  type      = "html",  # or "latex" if knitting to PDF
+  summary   = FALSE,
+  rownames  = FALSE,
+  digits    = 1,
+  title     = "Mean stage composition (% of embryos) by treatment and developmental time (hpf)",
+  out       = "../tables/table_stage_composition_prop.doc"  # optional
+)
 
+```
+
+# MVABUD/ MANYGLM
 ```{r}
-# make sure treatment and hpf are factors 
-str(tidy_vials_dropz) 
+Y <- mvabund(tidy_timing[, c("n_egg", 
+                           "n_cleavage", 
+                           "n_morula", 
+                           "n_prawnchip", 
+                           "n_earlygastrula")])
+
+mod_all <- manyglm(
+  Y ~ treatment * hpf,
+  family = "negative.binomial",
+  data = tidy_timing
+)
+
+anova(mod_all, p.uni = "adjusted")
+plot(mod_all)
 ```
 
-## 4
+#### Method
+Developmental Stage Composition Analysis
 
-Subset to 4 hpf to simplify model At a given hpf, if some stages are not observed (e.g. no prawnchip or early gastrula at 4 hpf), drop those columns before modeling.
+To test whether PVC leachate altered early embryonic developmental trajectories, we quantified the number of embryos in each of five mutually exclusive developmental stages—egg, cleavage, morula, prawnchip, and early gastrula—for each vial at each time point (4, 9, and 14 hpf). Because these responses represent count-based multivariate outcomes that are likely to be overdispersed and zero-inflated, we used a multivariate generalized linear model (GLM) implemented in the mvabund package (function manyglm; Wang et al. 2012). Counts of developmental stages were modeled simultaneously as a multivariate response:
 
-```{r}
-tidy_4 <- tidy_vials_dropz %>% 
-  filter(hpf == "4") %>% 
-  select(treatment, n_egg, n_cleavage, n_morula, prop_egg, prop_cleavage, prop_morula)
-```
+𝑌
+∼
+treatment
+×
+hpf
+Y∼treatment×hpf
 
-```{r}
-# Make a response matrix of counts:
-Y4c <- as.matrix(tidy_4[, c("n_egg",
-                            "n_cleavage",
-                            "n_morula")])
+with a negative binomial error distribution, which provided a better fit than Poisson based on dispersion statistics. The full dataset (all stages × all treatments × hpf) was analyzed as a single multivariate response matrix, allowing us to detect both overall shifts in developmental composition and stage-specific responses. Model significance was assessed using PIT-trap resampling with 999 iterations, which robustly estimates p-values in the presence of non-normal residual structure.
 
-# Multinomial logistic regression of count matrix
-fit4 <- vglm(Y4c ~ treatment, family = multinomial, data = tidy_4)
+We report both multivariate test statistics (testing whether overall developmental stage composition changed across treatments and/or time) and univariate tests for each individual stage. Significance of main effects and interaction terms was assessed using Analysis of Deviance (Type I tests). All analyses were performed in R (R version 4.5.1 (2025-06-13 ucrt); R Core Team) using the mvabund package (mvabund_4.2.1), with alpha set at 0.05.
 
-summary(fit4)
-```
+#### Result
+Multivariate Test (overall composition of all stages)
+Term	Significance	Interpretation
+- treatment	❌ not sig	PVC does not alter overall stage composition
+- hpf	⭐ Highly significant	Stage composition strongly depends on developmental time
+- treatment × hpf	❌ not sig	No evidence PVC modifies the trajectory of development
 
-## Test for overdispersion
+Therefore:
+➡️ Embryos progress through stages as expected over time (hpf is significant),
+➡️ But PVC leachate does not alter that developmental sequence.
 
-Multinomial assumes that variance = mean × (1 – mean) × n. In practice, biological count data are often overdispersed (extra variability).
+Univariate Tests (per stage)
 
-```{r}
-deviance(fit4) / df.residual(fit4)
-```
+Across all stages, we see the same pattern:
+Stage	hpf effect	treatment effect
+egg	YES	NO
+cleavage	YES	NO
+morula	YES	NO
+prawnchip	Weak / marginal	NO
+gastrula	YES	NO
 
-Value ≈ 1 → dispersion OK Value \>\> 1 → overdispersion present
+Interpretation:
 
-# Dirichlet-multinomial regression
+Developmental progression from egg → gastrula follows a time-dependent trajectory, but PVC does not shift embryos into or out of any specific stage at the sample size tested.
 
-This is essentially a multinomial with an extra dispersion parameter. Each row of counts is assumed to follow a Dirichlet-multinomial distribution.
+🧾 Manuscript-Ready Summary
 
-```{r}
-install.packages("MGLM")
-library(MGLM)
-```
+We used a multivariate generalized linear model (manyglm, negative binomial) to test whether PVC leachate altered the distribution of developmental stages across time (egg, cleavage, morula, prawnchip, early gastrula).
 
-```{r}
-# Fit Dirichlet-multinomial regression to count matrix
-fit_dm4 <- MGLMreg(Y4c ~ treatment, data = tidy_4, dist = "DM")
+The multivariate test showed a strong effect of time (hpf) on developmental stage composition (Deviance = 441.7, p = 0.001), indicating that embryos progress through stages as expected. However, neither treatment (p > 0.99) nor treatment × hpf interaction (p > 0.18) were significant.
 
-summary(fit_dm4)
-```
+Univariate tests confirmed that all stages were significantly affected by time, but none were significantly affected by PVC treatment.
 
-### Dirichlet regression to model proportions
-
-```{r}
-# Make response matrix of proportions:
-Y4 <- as.matrix(tidy_4[, c("prop_egg",
-                            "prop_cleavage",
-                            "prop_morula")])
-```
-
-Check that all proportions sum to 1
-
-```{r}
-abs(rowSums(Y4) - 1) < 1e-8
-```
-
-```{r}
-# Convert to DR_data object
-Y4 <- DR_data(Y4)
-
-# Fit model
-fit_4dr <- DirichReg(Y4 ~ treatment, data = tidy_4, model = "alternative")
-summary(fit_4dr)
-```
-
-::: callout-note
-🔹 Model structure
-
-Reference category: prop_egg (since model = "alternative", one stage is omitted and all coefficients are log-ratios of other stages vs egg).
-
-Response categories modeled: cleavage and morula.
-
-Predictors: treatment (factor with levels control, low, mid, high).
-
-🔹 Interpreting the results Standardized residuals
-
-Roughly between -2 and +2 for each stage → model fit looks fine (no extreme outliers).
-
-Mean models
-
-For cleavage vs egg:
-
-Intercept = -1.36 → under control, average log(cleavage/egg) is negative (egg more likely than cleavage).
-
-Treatment effects:
-
-Low, mid, high vs control: coefficients are small, p-values \>\> 0.05.
-
-→ No significant treatment effect on cleavage proportions relative to egg.
-
-For morula vs egg:
-
-Intercept = -1.19 → under control, egg is more likely than morula (log-ratio negative).
-
-Treatment effects: again, none significant.
-
-Precision model
-
-Intercept = 1.22 → describes how concentrated the distributions are (a measure of dispersion around the mean proportions).
-
-Significant (p \< 0.001), which is typical — but you usually don’t interpret this biologically; it just controls variability.
-
-🔹 What this tells you (at 4 hpf)
-
-The distribution of stages (egg, cleavage, morula) is dominated by eggs (reference).
-
-The odds of being in cleavage or morula (vs egg) do not differ significantly across treatments (all treatment coefficients non-significant).
-
-In other words: no treatment effect detected at 4 hpf. *generated via ChatGPT5 on 05SEPT2025*
-:::
-
-#### Results
-
-> At 4 hours post-fertilization (hpf), embryos were distributed primarily in the egg stage, with smaller proportions observed in cleavage and morula. We used Dirichlet regression to test whether the relative stage distribution differed by treatment. In this model, egg was specified as the reference category, such that coefficients describe log-ratios of cleavage or morula relative to egg. The intercept terms were significantly negative for both cleavage (estimate = –1.36, SE = 0.36, z = –3.79, p \< 0.001) and morula (estimate = –1.19, SE = 0.35, z = –3.40, p \< 0.001), indicating that the odds of being in cleavage or morula were substantially lower than being in the egg stage under control conditions. Treatment effects were not statistically significant for either comparison. For example, relative to control, the odds of cleavage versus egg under low treatment increased modestly (estimate = 0.33, SE = 0.49, p = 0.50), but this effect was not significant; similar non-significant results were obtained for mid and high treatments (all p \> 0.5). Together, these results indicate that at 4 hpf, stage distributions were dominated by eggs, and treatment did not significantly alter the relative proportions of cleavage or morula when compared with the control.
-
-Subset `tidy_vials` to focus on proportions of developmental stages to get at developmental timing `devt`
-
-```{r}
-devt <- tidy_vials %>% select(treatment, 
-                              hpf, 
-                              prop_egg, 
-                              prop_cleavage,
-                              prop_morula,
-                              prop_prawnchip,
-                              prop_earlygastrula
-                          ) %>% 
-  mutate(treatment = factor(treatment, levels = c("control",
-                                                  "low",
-                                                  "mid",
-                                                  "high"))) %>% 
-  mutate(hpf = factor(hpf, levels = c("4",
-                                      "9",
-                                      "14")))
-
-str(devt)
-```
-
-```{r}
-install.packages("DirichletReg")
-library(DirichletReg)
-
-
-# Response must be a matrix/data.frame of proportions
-Y_dir <- devt[, c("prop_egg", "prop_cleavage", 
-                "prop_morula", "prop_prawnchip", 
-                "prop_earlygastrula")]
-
-fit <- DirichReg(Y_dir ~ treatment + hpf, data = devt)
-summary(fit)
-
-```
-
-### Zero-Inflated beta regression
-
-Subset data to just 4 hpf
-
-```{r}
-long_vials_4 <-  long_tidy_vials %>% 
-  filter(hpf == 4) %>% 
-  filter(stage %in% 
-         c("egg", 
-         "cleavage", 
-         "morula", 
-         "prawnchip", 
-         "earlygastrula")) %>% 
-  select(sample_id, treatment, hpf, stage, prop, n)
-```
-
-```{r}
-table(long_vials_4$stage, long_vials_4$treatment)
-```
-
-```{r}
-ggplot(long_vials_4, aes(x = prop, fill = treatment)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Proportions of embryos", y = "Density") +
-  theme_minimal()
-```
-
-```{r}
-# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
-mod4 <- gamlss(prop ~ stage * treatment, 
-              family = BEINF, 
-              weights = n,
-              data = long_vials_4)
-summary(mod4)
-
-```
-
-```{r}
-plot(mod4)
-```
-
-::: column-margin
-Results interpretation - The global deviance is like a model "fit" statistic (lower = better). - Convergence happened in 4 steps — ✅ good.
-
-The BEINF distribution models three components: \| Component \| What it models \| Link function \| \| --------- \| ------------------------------------------------ \| ------------- \| \| **Mu** \| The mean of the beta-distributed values in (0,1) \| `logit` \| \| **Sigma** \| The precision (variance) of those values \| `logit` \| \| **Nu** \| The probability of zero or one inflation \| `log` \|
-
-Mu coefficients: What affects proportions in (0,1)? - Coefficients are on the logit scale (like logistic regression). - A positive estimate = higher proportion (on logit scale). - Main effects + interactions show how prop is affected by stage and treatment.
-
-(Intercept) -0.80435 \# baseline: cleavage stage, control treatment stageegg 0.79958 \*\* \# egg has higher prop than cleavage stagemorula 0.26401 . \# morula slightly higher than cleavage treatmenthigh -0.14514 \# no clear difference vs control ... stageegg:treatmenthigh 0.94601 \*\* \# high treatment increases prop in egg stage stageegg:treatmentmid 0.55047 \*\* \# mid treatment also increases prop in egg stage stagemorula:treatmentlow -0.36862 . \# low treatment may reduce prop in morula
-
-The egg stage has a significantly higher proportion of embryos compared to cleavage (main effect), and this effect is amplified under high and mid treatments. stageegg:treatmenthigh = strong positive interaction → higher-than-expected proportion of embryos in egg stage under high treatment.
-
-Sigma coefficient - Sigma (Intercept): -0.62709 \*\*\* - Interprets the precision (inverse of variance) of the beta distribution. - Since only the intercept is modeled, it means variance is assumed the same across groups. - This value is on the logit scale — not typically of primary biological interest unless you're modeling heteroskedasticity.
-
-Nu coefficient: Zero/one inflation Nu (Intercept): -18.54 (not significant) - This is the log of the odds of an observation being exactly 0 or 1. - A large negative number implies low probability of inflation — so most values are in (0,1), and zero-inflation didn’t dominate. - Not significant → zeros may not be strongly patterned.
-
-Summary: - You're testing whether the proportion of embryos in each stage changes by treatment. - You found significant interactions, especially in the egg stage under high and mid treatments → more embryos remain in egg stage than expected under these treatments. - The model handled your 0s appropriately. - The overall fit converged well.
-:::
-
-## 9
-
-Subset to 9 hpf to simplify model At a given hpf, if some stages are biologically impossible (e.g. no prawnchip or early gastrula at 4 hpf), drop those columns before modeling:
-
-```{r}
-tidy_9 <- tidy_vials_dropz %>% 
-  filter(hpf == "9") %>% 
-  select(treatment, prop_egg, prop_cleavage, prop_morula, prop_prawnchip)
-```
-
-Which columns contain all zeros at 9hpf? Just `earlygastrula`
-
-### Dirichlet regression
-
-```{r}
-# Make response matrix of proportions:
-Y9 <- as.matrix(tidy_9[, c("prop_prawnchip",
-                           "prop_cleavage",
-                           "prop_morula",
-                           "prop_egg")])
-```
-
-Check that all proportions sum to 1
-
-```{r}
-abs(rowSums(Y9) - 1) < 1e-8
-```
-
-```{r}
-# Convert to DR_data object
-Y9 <- DR_data(Y9)
-
-# Fit model
-fit_9dr <- DirichReg(Y9 ~ treatment, data = tidy_9, model = "alternative")
-summary(fit_9dr)
-```
-
-::: callout-note
-Dirichlet regression cannot handle exact 0 or 1 proportions.
-
-The function automatically added a tiny adjustment (usually \~1e-10) to those cells and rescaled the row.
-
-This is normal when you have many all-egg or all-prawnchip observations.
-
-✅ Safe to ignore as long as you’re aware — it’s essentially a built-in pseudocount.
-:::
-
-#### Results
-
-> At 9 hpf, embryos were overwhelmingly in the prawn chip stage, with only small proportions in egg, cleavage, or morula (Table X). Dirichlet regression with prawn chip as the reference category confirmed that the odds of being in egg (estimate = –2.75, SE = 0.32, p \< 0.001), cleavage (estimate = –2.98, SE = 0.34, p \< 0.001), or morula (estimate = –2.37, SE = 0.30, p \< 0.001) were significantly lower than prawn chip under control conditions. Treatment effects were not significant for any stage comparison (all p \> 0.3), although a modest trend toward fewer morulae under high treatment was noted (estimate = –0.79, SE = 0.45, p = 0.08).
-
-Subset data to just 9 hpf \### Zero-infalted beta regression
-
-```{r}
-long_vials_9 <-  long_tidy_vials %>% 
-  filter(hpf == 9) %>% 
-  filter(stage %in% 
-         c("egg", 
-         "cleavage", 
-         "morula", 
-         "prawnchip", 
-         "earlygastrula")) %>% 
-  select(sample_id, treatment, hpf, stage, prop, n)
-```
-
-```{r}
-table(long_vials_9$stage, long_vials_9$treatment)
-```
-
-```{r}
-ggplot(long_vials_9, aes(x = prop, fill = treatment)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Proportions of embryos", y = "Density") +
-  theme_minimal()
-```
-
-```{r}
-# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
-mod9 <- gamlss(prop ~ stage * treatment, 
-              family = BEINF, 
-              weights = n,
-              data = long_vials_9)
-summary(mod9)
-
-```
-
-## 14
-
-Subset to 14 hpf to simplify model At a given hpf, if some stages are biologically impossible drop those columns before modeling:
-
-```{r}
-tidy_14 <- tidy_vials_dropz %>% 
-  filter(hpf == "14") %>% 
-  select(treatment, prop_egg, prop_morula, prop_prawnchip, prop_earlygastrula)
-```
-
-Which columns contain all zeros at 14hpf? Just `cleavage`. There are `egg` stages observed in the low and high treatments, which is strange. They are not fertilized but did not dissolve.
-
-### Dirichlet regression
-
-```{r}
-# Make response matrix of proportions:
-Y14 <- as.matrix(tidy_14[, c("prop_earlygastrula",
-                             "prop_prawnchip",
-                             "prop_morula",
-                             "prop_egg")])
-```
-
-Check that all proportions sum to 1
-
-```{r}
-abs(rowSums(Y14) - 1) < 1e-8
-```
-
-```{r}
-# Convert to DR_data object
-Y14 <- DR_data(Y14)
-```
-
-```{r}
-# Fit model
-fit_14dr <- DirichReg(Y14 ~ treatment, data = tidy_14, model = "alternative")
-summary(fit_14dr)
-```
-
-#### Results
-
-> At 14 hpf, embryos were overwhelmingly in the early gastrula stage, with smaller proportions in prawn chip, morula, and egg (Table X). Dirichlet regression with early gastrula as the reference category confirmed that, under control conditions, the odds of being in prawn chip (estimate = –3.08, SE = 0.31, z = –10.04, p \< 0.001), morula (estimate = –3.32, SE = 0.32, z = –10.34, p \< 0.001), or egg (estimate = –3.46, SE = 0.33, z = –10.53, p \< 0.001) were all significantly lower than early gastrula. Treatment effects were not significant for any stage comparison (all p \> 0.19). For example, relative to control, the odds of prawn chip versus early gastrula were slightly higher under high treatment (estimate = 0.51, SE = 0.40, p = 0.20), but this effect did not reach significance. These results indicate that by 14 hpf, most embryos had progressed to early gastrula, and treatment did not significantly alter the relative stage distribution.
-
-### Zero-inflated beta regression
-
-Subset data to just 14 hpf
-
-```{r}
-long_vials_14 <-  long_tidy_vials %>% 
-  filter(hpf == 14) %>% 
-  filter(stage %in% 
-         c("egg", 
-         "cleavage", 
-         "morula", 
-         "prawnchip", 
-         "earlygastrula")) %>% 
-  select(sample_id, treatment, hpf, stage, prop, n)
-```
-
-```{r}
-table(long_vials_14$stage, long_vials_14$treatment)
-```
-
-```{r}
-# Fit a zero-inflated beta model (BEINF handles 0s and 1s)
-mod14 <- gamlss(prop ~ stage * treatment, 
-              family = BEINF, 
-              weights = n,
-              data = long_vials_14)
-summary(mod14)
-
-```
+Thus, PVC leachate did not alter developmental progression across early embryonic stages, at the concentrations tested.
