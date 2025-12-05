@@ -36,9 +36,10 @@ Final patched figure: Embryo survival, timing, and morphology
     class="toc-section-number">7.1</span> Add caption</a>
   - <a href="#patch-it-together" id="toc-patch-it-together"><span
     class="toc-section-number">7.2</span> Patch it together</a>
-  - <a href="#add-pretty-embryo-icons"
-    id="toc-add-pretty-embryo-icons"><span
-    class="toc-section-number">7.3</span> Add pretty embryo icons</a>
+  - <a href="#add-pretty-embryo-icons-with-ggdraw"
+    id="toc-add-pretty-embryo-icons-with-ggdraw"><span
+    class="toc-section-number">7.3</span> Add pretty embryo icons with
+    <code>ggdraw()</code></a>
 - <a href="#save-figure" id="toc-save-figure"><span
   class="toc-section-number">8</span> Save figure</a>
 
@@ -344,11 +345,11 @@ ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
 
 ``` r
 cap_text <- paste(
-  "A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure."
+  "Figure 1. A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure."
 )
 
 # wrap to, say, 100 characters per line (tweak as needed)
-cap_wrapped <- str_wrap(cap_text, width = 130)
+cap_wrapped <- str_wrap(cap_text, width = 140)
 ```
 
 ## Patch it together
@@ -381,18 +382,23 @@ patch
 
 ![](figure_files/figure-commonmark/unnamed-chunk-19-1.png)
 
-## Add pretty embryo icons
+## Add pretty embryo icons with `ggdraw()`
 
-Add in embryos on top of the patchwork
+Add in embryos on top of the patchwork figure with ggdraw and
+draw_image. Do this step last! When I tried to ggdraw on the Timing
+subplot and then patch it together the aspect ration got very wonky.
+Once you ggdraw a plot it becomes a raster image and patchwork can’t
+handle that well. Definately add the fiddly little ggdraw icons at the
+end!
 
 ``` r
 patch_pretty <- ggdraw() +
   draw_plot(patch, 0, 0, 1, 1) +   # base plot fills the whole panel
-  draw_image('svg/egg.png',         x = 0.05,  y = 0.43, width = 0.07, height = 0.07) +
-  draw_image('svg/cleavage.png',    x = 0.11, y = 0.43, width = 0.07, height = 0.07) +
-  draw_image('svg/morula.png',      x = 0.17,  y = 0.43, width = 0.07, height = 0.07) +
-  draw_image('svg/prawnchip.png',   x = 0.23, y = 0.43, width = 0.07, height = 0.07) +
-  draw_image('svg/earlygastrula.png', x = 0.29,  y = 0.43, width = 0.07, height = 0.07)
+  draw_image('svg/egg.png',         x = 0.05,  y = 0.44, width = 0.06, height = 0.06) +
+  draw_image('svg/cleavage.png',    x = 0.11, y = 0.44, width = 0.06, height = 0.06) +
+  draw_image('svg/morula.png',      x = 0.17,  y = 0.44, width = 0.06, height = 0.06) +
+  draw_image('svg/prawnchip.png',   x = 0.23, y = 0.44, width = 0.06, height = 0.06) +
+  draw_image('svg/earlygastrula.png', x = 0.29,  y = 0.44, width = 0.06, height = 0.06)
 
 patch_pretty
 ```
