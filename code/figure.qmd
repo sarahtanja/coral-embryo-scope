@@ -171,7 +171,7 @@ status.colors <- c(typical = "#75C165",
 
 # Survival boxplot
 
-```{r, fig.height=6}
+```{r}
 # labels for legend
 labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
@@ -257,7 +257,7 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
   theme(
-    plot.title = element_text(margin = margin(b = 30)),
+    plot.title = element_text(margin = margin(b = 40)),
     text = element_text(size = 10),
     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
   )
@@ -265,7 +265,7 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
 timing
 ```
 ## Add pretty stage icons
-```{r, fig.height=6}
+```{r}
 timing_pretty <- ggdraw(timing) + draw_image(image='svg/egg.png',
                         x=0.08, y=0.78, width=0.15, height=0.15)+
   draw_image(image='svg/cleavage.png',
@@ -287,12 +287,12 @@ library(patchwork)
 
 timing_pretty <- ggdraw() +
   draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
-  draw_image('svg/egg.png',         x = 0.08,  y = 0.78, width = 0.15, height = 0.15) +
-  draw_image('svg/cleavage.png',    x = 0.205, y = 0.78, width = 0.15, height = 0.15) +
-  draw_image('svg/morula.png',      x = 0.33,  y = 0.78, width = 0.15, height = 0.15) +
-  draw_image('svg/prawnchip.png',   x = 0.455, y = 0.78, width = 0.15, height = 0.15) +
+  draw_image('svg/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('svg/cleavage.png',    x = 0.205, y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('svg/morula.png',      x = 0.33,  y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('svg/prawnchip.png',   x = 0.455, y = 0.79, width = 0.15, height = 0.15) +
   draw_image('svg/earlygastrula.png',
-                                   x = 0.58,  y = 0.78, width = 0.15, height = 0.15)
+                                   x = 0.58,  y = 0.79, width = 0.15, height = 0.15)
 timing_pretty
 ```
 
@@ -325,7 +325,7 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
   theme(
-    #plot.title = element_text(margin = margin(b = 30)),
+    #plot.title = element_text(margin = margin(b = 40)),
       axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
@@ -356,18 +356,53 @@ cap_wrapped <- str_wrap(cap_text, width = 170)
 ## Patch it together
 
 ```{r}
-timing_pretty <- timing_pretty + theme(aspect.ratio = 1.6)
-abnormality <- abnormality + theme(aspect.ratio = 1.6)
+timingpretty <- timing_pretty + theme(aspect.ratio = 1)
 
-combined <- timing_pretty | abnormality +
-  plot_layout(widths = c(1, 1))
+timingpretty
+```
 
-combined
+```{r}
+abnormality <- abnormality + theme(aspect.ratio = 3.6)
+abnormality
+```
+
+
+```{r, fig.width = 12}
+timingpretty + abnormality 
+```
+```{r}
+# 1) Align B and C so their panels & outer sizes match
+plots_bc <- align_plots(
+  timingpretty,
+  abnormality,
+  align = "hv",   # align horizontally & vertically
+  axis  = "tblr"  # align all axes
+)
+
+bc_row <- plot_grid(
+  plots_bc[[1]],
+  plots_bc[[2]],
+  nrow = 1,
+  rel_widths = c(1, 1)
+)
+
+plots_bc
+bc_row
+
+# 2) Put A on top, B+C row below with patchwork
+final_fig <- survival_plot / wrap_elements(bc_row) +
+  plot_layout(heights = c(2, 1)) +
+  plot_annotation(
+    title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
+    tag_levels = "A"
+  )
+
+final_fig
 ```
 
 
 ```{r, fig.height=12, fig.width=10}
-survival / (timing_pretty | abnormality)+
+survival / (timingpretty | abnormality)+
   plot_annotation(
     title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
     tag_levels = "A",
