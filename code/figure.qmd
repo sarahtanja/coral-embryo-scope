@@ -1,7 +1,7 @@
 ---
-title: "Survival rates"
-subtitle: "How many survived?"
-date: 08/27/2025
+title: "Final patched figure: Embryo survival, timing, and morphology"
+subtitle: "Using cowplot, ggdraw and patchwork? Is it possible?"
+date: 11/24/2025
 date-modified: today
 format:
   gfm: 
@@ -41,11 +41,7 @@ knitr::opts_chunk$set(
 
 ```{r}
 library(tidyverse)
-library(emmeans)
 library(ggplot2)
-library(RColorBrewer)
-library(viridis)
-library(colorblindr)
 library(colorspace)
 library(ggbeeswarm)
 library(ggrepel)
@@ -258,33 +254,14 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
   theme_sleek_axe()+
   theme(
     plot.title = element_text(margin = margin(b = 40)),
-    text = element_text(size = 10),
     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
   )
 
 timing
 ```
 ## Add pretty stage icons
-```{r}
-timing_pretty <- ggdraw(timing) + draw_image(image='svg/egg.png',
-                        x=0.08, y=0.78, width=0.15, height=0.15)+
-  draw_image(image='svg/cleavage.png',
-                        x=0.205, y=0.78, width=0.15, height=0.15)+
-  draw_image(image='svg/morula.png',
-                        x=0.33, y=0.78, width=0.15, height=0.15)+
-  draw_image(image='svg/prawnchip.png',
-                        x=0.455, y=0.78, width=0.15, height=0.15)+
-  draw_image(image='svg/earlygastrula.png',
-                        x=0.58, y=0.78, width=0.15, height=0.15)
-
-timing_pretty
-```
-
 
 ```{r}
-library(cowplot)
-library(patchwork)
-
 timing_pretty <- ggdraw() +
   draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
   draw_image('svg/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
@@ -313,7 +290,7 @@ status_summary <- status_summary %>%
 abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill = status))+
   geom_bar(stat = "identity")+
   scale_fill_manual(values = status.colors)+
-  ggtitle("Abnormality (status composition)")+
+  ggtitle("Morphology (status composition)")+
   labs(y = "", x = "PVC Leachate", fill = "Embryonic status")+
   scale_x_discrete(
     labels = tick_map          # pretty labels you defined
@@ -325,7 +302,7 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
   facet_wrap(~ hpf)+
   theme_sleek_axe()+
   theme(
-    #plot.title = element_text(margin = margin(b = 40)),
+    plot.title = element_text(margin = margin(b = 40)),
       axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
@@ -343,77 +320,17 @@ ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
 ## Add caption 
 ```{r}
 cap_text <- paste(
-  "A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate.",
-  "B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint.",
-  "C. Stacked barplot indicating the status composition of samples at each treatment and timepoint.",
-  sep = " "
+  "A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure."
 )
 
 # wrap to, say, 100 characters per line (tweak as needed)
-cap_wrapped <- str_wrap(cap_text, width = 170)
+cap_wrapped <- str_wrap(cap_text, width = 130)
 ```
 
 ## Patch it together
 
 ```{r, fig.height=12, fig.width=10}
-# Wrap the cowplot/ggdraw object so patchwork can handle it properly
-timing_wrapped <- wrap_elements(full = timing_pretty)
-
-# Combine the three plots with survival on top and timing/abnormality on bottom
-survival / (timing_wrapped | abnormality) +
-  plot_layout(heights = c(1, 1)) 
-  
-```
-
-```{r}
-timingpretty <- timing_pretty + theme(aspect.ratio = 1)
-
-timingpretty
-```
-
-```{r}
-abnormality <- abnormality + theme(aspect.ratio = 3.6)
-abnormality
-```
-
-
-```{r, fig.width = 12}
-timingpretty + abnormality 
-```
-
-```{r}
-# 1) Align B and C so their panels & outer sizes match
-plots_bc <- align_plots(
-  timingpretty,
-  abnormality,
-  align = "hv",   # align horizontally & vertically
-  axis  = "tblr"  # align all axes
-)
-
-bc_row <- plot_grid(
-  plots_bc[[1]],
-  plots_bc[[2]],
-  nrow = 1,
-  rel_widths = c(1, 1)
-)
-
-plots_bc
-bc_row
-
-# 2) Put A on top, B+C row below with patchwork
-final_fig <- survival_plot / wrap_elements(bc_row) +
-  plot_layout(heights = c(2, 1)) +
-  plot_annotation(
-    title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
-    tag_levels = "A"
-  )
-
-final_fig
-```
-
-
-```{r, fig.height=12, fig.width=10}
-survival / (timingpretty | abnormality)+
+patch <- survival / (timing | abnormality)+
   plot_annotation(
     title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
     tag_levels = "A",
@@ -434,8 +351,27 @@ survival / (timingpretty | abnormality)+
         )
       )
   )
+
+patch
 ```
-save figure
+
+## Add pretty embryo icons
+Add in embryos on top of the patchwork
+
+```{r, fig.height=12, fig.width=10}
+patch_pretty <- ggdraw() +
+  draw_plot(patch, 0, 0, 1, 1) +   # base plot fills the whole panel
+  draw_image('svg/egg.png',         x = 0.05,  y = 0.43, width = 0.07, height = 0.07) +
+  draw_image('svg/cleavage.png',    x = 0.11, y = 0.43, width = 0.07, height = 0.07) +
+  draw_image('svg/morula.png',      x = 0.17,  y = 0.43, width = 0.07, height = 0.07) +
+  draw_image('svg/prawnchip.png',   x = 0.23, y = 0.43, width = 0.07, height = 0.07) +
+  draw_image('svg/earlygastrula.png', x = 0.29,  y = 0.43, width = 0.07, height = 0.07)
+
+patch_pretty
+```
+
+
+# Save figure
 ```{r}
 ggsave("../figs/figure_survival_timing_morphology.png", width = 10, height = 12, dpi = 600)
 ```
