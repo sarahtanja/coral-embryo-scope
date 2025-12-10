@@ -1,16 +1,37 @@
+
+
 # Code Directory
 
-This directory contains all R Quarto (`.qmd`) documents for data processing, statistical analysis, and visualization of *Montipora capitata* coral embryo survival data.
+This directory contains all R Quarto (`.qmd`) documents for data processing, statistical analysis, and visualization of *Montipora capitata* coral embryo survival/timing/abnormality based on annotations from scope images.
 
-## Analysis Workflow Overview
+## Data Structure
 
-The analysis pipeline follows a structured approach where data is imported, tidied, and then analyzed through multiple complementary statistical methods. The workflow is designed to assess the impact of PVC leachate exposure on embryo survival, development, and abnormality rates.
+### Sample Naming Convention
+Samples follow the format: `{cross}{treatment}{hpf}`
+- **Cross**: 1-10 (parent colony crosses)
+- **Treatment**: C (control), L (low), M (mid), H (high) PVC leachate exposure
+- **HPF**: 4, 9, 14 (hours post-fertilization)
+- Example: `1C4`, `2L9`, `10H14`
 
-### Data Processing Pipeline
+### Embryo Classification
+Each embryo is classified by:
+- **Stage**: egg, cleavage, morula, prawnchip, earlygastrula
+- **Status**: typical, uncertain, malformed
 
-1. **`pull_data.qmd`**: Import annotation data from Google Sheets and copy microscopy images
-2. **`tidy.qmd`**: Create tidy dataframes from raw annotations
-   - Outputs: `tidy_bros.csv` (each row = individual embryo), `tidy_vials.csv` (each row = sample)
+
+## File Descriptions
+
+- **`01_pull_data.qmd`**: Imports annotation data from Google Sheets 
+- **`02_tidy_data.qmd`**: Creates tidy dataframes from raw annotation data
+  - makes: 
+  `tidy_bros.csv` (each row = individual embryo)
+  `tidy_vials.csv` (each row = sample from a single experimental unit - 20mL scintillation vial)
+- **`03_survival.qmd`**: Survival rate analysis using negative binomial GLM, and ANOVA
+- **`04_timing.qmd`**: Analyzes developmental stage counts using negative binomial GLM
+- **`05_abnormality.qmd`**: Analyzes abnormality counts using using negative binomial GLM
+- **`06_figure.qmd`**: Creates a figure with `patchwork` and `cowplot` showing survival timing and abnormality simultaneously
+
+   
 
 ### Statistical Analysis Methods
 
@@ -31,8 +52,6 @@ The analysis employs two main statistical approaches depending on the type of da
 
 #### Proportional Data Analysis (Dirichlet Regression)
 
-**Files**: `timing.qmd`, `abnormality.qmd`
-
 **Method**: These analyses use **proportional data** and apply **Dirichlet regression** and **beta regression** to model continuous proportions that sum to 1.
 
 - **`timing.qmd`**: Analyzes developmental stage proportions (egg, cleavage, morula, prawnchip, gastrula) using Dirichlet regression and beta regression
@@ -44,45 +63,13 @@ The analysis employs two main statistical approaches depending on the type of da
 
 **Reference**: Douma, J. C., & Weedon, J. T. (2019). Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression. *Methods in Ecology and Evolution*, 10(9), 1412-1430. ([see `douma_weedon_2019_fig1.jpg`](douma_weedon_2019_fig1.jpg))
 
-## File Descriptions
 
-- **`pull_data.qmd`**: Imports annotation data from Google Sheets and copies microscopy images
-- **`tidy.qmd`**: Creates tidy dataframes from raw annotation data
-- **`anova.qmd`**: One-way ANOVA on embryo counts with normality and variance tests
-- **`survival.qmd`**: Survival rate analysis using count data, boxplots, GLM, and ANOVA
-- **`abnormality.qmd`**: Analyzes abnormality proportions using Dirichlet regression
-- **`timing.qmd`**: Analyzes developmental stage proportions using Dirichlet and beta regression
+
+### trial_n_error
 - **`count_viz.qmd`**: Visualizes embryo count data
-- **`kaplan_meier.qmd`**: Kaplan-Meier survival analysis
-- **`douma_weedon_2019_fig1.jpg`**: Reference figure for regression analysis methods
+- **`kaplan_meier.qmd`**: Kaplan-Meier like survival analysis
+- **`douma_weedon_2019_fig1.jpg`**: Reference figure for analysis methods
 
-## Data Structure
 
-### Sample Naming Convention
-Samples follow the format: `{cross}{treatment}{hpf}`
-- **Cross**: 1-10 (parent colony crosses)
-- **Treatment**: C (control), L (low), M (mid), H (high) PVC leachate exposure
-- **HPF**: 4, 9, 14 (hours post-fertilization)
-- Example: `1C4`, `2L9`, `10H14`
 
-### Embryo Classification
-Each embryo is classified by:
-- **Stage**: egg, cleavage, morula, prawnchip, earlygastrula
-- **Status**: typical, uncertain, malformed
 
-## Running the Analysis
-
-All `.qmd` files can be rendered using Quarto:
-
-```bash
-# From the /code directory
-quarto render filename.qmd
-```
-
-Or in RStudio by clicking "Render" or using Ctrl+Shift+K (Cmd+Shift+K on Mac).
-
-**Note**: Run `pull_data.qmd` and `tidy.qmd` first to generate the required tidy datasets before running the analysis scripts.
-
----
-
-> The egg–sperm bundles released by M. capitata measured approximately 1 mm and contained around 15 ± 5.1 oocytes (mean ± SD, n = 214, from 26 colonies), surrounding a central mass of spermatozoa (Fig. 4). — Padilla-Gamino et al., 2011
