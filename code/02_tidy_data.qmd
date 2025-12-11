@@ -33,7 +33,7 @@ knitr::opts_chunk$set(
   eval = TRUE, # Evaluate code chunks
   warning = FALSE, # Hide warnings
   message = FALSE, # Hide messages
-  comment = "", # Prevents appending '##' to beginning of lines in code output)
+  comment = "" # Prevents appending '##' to beginning of lines in code output)
  )        
 ```
 
@@ -207,7 +207,7 @@ Australian Intitute of Marine Science (AIMS) spawning research links:
 ## Save dataframe
 
 ```{r}
-write_csv(tidy_bros, "../data/output/tidy_bros.csv")
+write_csv(tidy_bros, "../output/dataframes/tidy_bros.csv")
 ```
 
 # tidy_vials : each row is a sample
@@ -333,7 +333,7 @@ tidy_vials <- tidy_vials %>%
 
 ## Save dataframe
 ```{r}
-write_csv(tidy_vials, "../data/output/tidy_vials.csv")
+write_csv(tidy_vials, "../output/dataframes/tidy_vials.csv")
 ```
 
 # Summary & Next Steps
@@ -360,3 +360,8 @@ embryos_summary <- tidy_bros %>%
 stage_totals <- tidy_bros %>%
   count(sample_id, stage, name = "total_n")
 ```
+
+```{r}
+sessionInfo()
+```
+

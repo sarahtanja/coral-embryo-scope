@@ -1,0 +1,1059 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  letterpaper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else  
+    % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+% Make \paragraph and \subparagraph free-standing
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{241,243,245}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.40,0.45,0.13}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.07,0.07,0.07}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\@ifpackageloaded{tcolorbox}{}{\usepackage[skins,breakable]{tcolorbox}}
+\@ifpackageloaded{fontawesome5}{}{\usepackage{fontawesome5}}
+\definecolor{quarto-callout-color}{HTML}{909090}
+\definecolor{quarto-callout-note-color}{HTML}{0758E5}
+\definecolor{quarto-callout-important-color}{HTML}{CC1914}
+\definecolor{quarto-callout-warning-color}{HTML}{EB9113}
+\definecolor{quarto-callout-tip-color}{HTML}{00A047}
+\definecolor{quarto-callout-caution-color}{HTML}{FC5300}
+\definecolor{quarto-callout-color-frame}{HTML}{acacac}
+\definecolor{quarto-callout-note-color-frame}{HTML}{4582ec}
+\definecolor{quarto-callout-important-color-frame}{HTML}{d9534f}
+\definecolor{quarto-callout-warning-color-frame}{HTML}{f0ad4e}
+\definecolor{quarto-callout-tip-color-frame}{HTML}{02b875}
+\definecolor{quarto-callout-caution-color-frame}{HTML}{fd7e14}
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={Survival rates},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Survival rates}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{How many survived across treatments? Tested using a Two-Way
+ANOVA, emmeans, and pairwise Tukey post-hoc comparisons}
+\author{}
+\date{2025-08-27}
+
+\begin{document}
+\maketitle
+
+\section{Load libraries}\label{load-libraries}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(tidyverse)}
+\FunctionTok{library}\NormalTok{(emmeans)}
+\FunctionTok{library}\NormalTok{(ggplot2)}
+\FunctionTok{library}\NormalTok{(ggbeeswarm)}
+\FunctionTok{library}\NormalTok{(ggrepel)}
+\FunctionTok{library}\NormalTok{(scales)}
+\FunctionTok{library}\NormalTok{(ggtext)}
+\FunctionTok{library}\NormalTok{(sjPlot)}
+\FunctionTok{library}\NormalTok{(stargazer)}
+\FunctionTok{library}\NormalTok{(broom)}
+\FunctionTok{library}\NormalTok{(dplyr)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Load in data}\label{load-in-data}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{tidy\_vials }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"../output/dataframes/tidy\_vials.csv"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Data prep}\label{data-prep}
+
+Set factor levels for treatment and hpf
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{treat\_levels }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"control"}\NormalTok{, }\StringTok{"low"}\NormalTok{, }\StringTok{"mid"}\NormalTok{, }\StringTok{"high"}\NormalTok{)}
+\NormalTok{hpf\_levels   }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{4}\NormalTok{, }\DecValTok{9}\NormalTok{, }\DecValTok{14}\NormalTok{)          }\CommentTok{\# use numeric to match numeric hpf}
+\NormalTok{map\_leachate }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\AttributeTok{control =} \DecValTok{0}\NormalTok{, }\AttributeTok{low =} \FloatTok{0.01}\NormalTok{, }\AttributeTok{mid =} \FloatTok{0.1}\NormalTok{, }\AttributeTok{high =} \DecValTok{1}\NormalTok{)}
+
+\NormalTok{survival }\OtherTok{\textless{}{-}}\NormalTok{ tidy\_vials }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \CommentTok{\# ordered factors}
+    \AttributeTok{treatment  =} \FunctionTok{factor}\NormalTok{(treatment, }\AttributeTok{levels =}\NormalTok{ treat\_levels, }\AttributeTok{ordered =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{hpf\_factor =} \FunctionTok{factor}\NormalTok{(hpf, }\AttributeTok{levels =}\NormalTok{ hpf\_levels, }\AttributeTok{ordered =} \ConstantTok{TRUE}\NormalTok{),}
+
+    \CommentTok{\# numeric concentration mapped from treatment (safe + explicit)}
+    \AttributeTok{leachate\_mgL =} \FunctionTok{unname}\NormalTok{(map\_leachate[}\FunctionTok{as.character}\NormalTok{(treatment)])}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  dplyr}\SpecialCharTok{::}\FunctionTok{select}\NormalTok{(sample\_id, treatment, hpf, hpf\_factor, leachate\_mgL, n\_viable)}
+
+\FunctionTok{str}\NormalTok{(survival)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+'data.frame':   108 obs. of  6 variables:
+ $ sample_id   : chr  "10C14" "10C4" "10C9" "10H14" ...
+ $ treatment   : Ord.factor w/ 4 levels "control"<"low"<..: 1 1 1 4 4 4 2 2 2 3 ...
+ $ hpf         : int  14 4 9 14 4 9 14 4 9 14 ...
+ $ hpf_factor  : Ord.factor w/ 3 levels "4"<"9"<"14": 3 1 2 3 1 2 3 1 2 3 ...
+ $ leachate_mgL: num  0 0 0 1 1 1 0.01 0.01 0.01 0.1 ...
+ $ n_viable    : int  21 29 16 11 20 19 12 26 25 19 ...
+\end{verbatim}
+
+\section{Visualize}\label{visualize}
+
+\subsection{Set colors}\label{set-colors}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{leachate\_colors }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"\#ABCFE2"}\NormalTok{, }\StringTok{"\#8B7EC8"}\NormalTok{, }\StringTok{"\#5E409D"}\NormalTok{, }\StringTok{"\#31234E"}\NormalTok{)}
+\NormalTok{stage\_colors }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"\#FEE6CE"}\NormalTok{, }\StringTok{"\#FDAE6B"}\NormalTok{, }\StringTok{"\#F16913"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Boxplot}\label{boxplot}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# labels for legend}
+\NormalTok{labs\_map }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\AttributeTok{control =} \StringTok{"0 (control)"}\NormalTok{, }\AttributeTok{low =} \StringTok{"0.01 mg/L (low)"}\NormalTok{,}
+              \AttributeTok{mid =} \StringTok{"0.1 mg/L (mid)"}\NormalTok{, }\AttributeTok{high =} \StringTok{"1 mg/L (high)"}\NormalTok{)}
+
+\NormalTok{box }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(survival, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ hpf\_factor, }\AttributeTok{y =}\NormalTok{ n\_viable, }\AttributeTok{color =}\NormalTok{ treatment, }\AttributeTok{fill =}\NormalTok{ treatment)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_boxplot}\NormalTok{(}\AttributeTok{alpha =} \FloatTok{0.65}\NormalTok{, }\AttributeTok{outlier.shape =} \ConstantTok{NA}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_beeswarm}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{group =} \FunctionTok{interaction}\NormalTok{(hpf\_factor, treatment)),}
+                \AttributeTok{dodge.width =} \FloatTok{0.7}\NormalTok{, }\AttributeTok{priority =} \StringTok{"density"}\NormalTok{, }\AttributeTok{cex =} \FloatTok{1.2}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_manual}\NormalTok{(}
+    \AttributeTok{name   =} \StringTok{"PVC leachate concentration"}\NormalTok{,}
+    \AttributeTok{values =}\NormalTok{ leachate\_colors,}
+    \AttributeTok{breaks =} \FunctionTok{names}\NormalTok{(labs\_map),}
+    \AttributeTok{labels =}\NormalTok{ labs\_map}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{scale\_color\_manual}\NormalTok{(}
+    \AttributeTok{name   =} \StringTok{"PVC leachate concentration"}\NormalTok{,}
+    \AttributeTok{values =}\NormalTok{ leachate\_colors,}
+    \AttributeTok{breaks =} \FunctionTok{names}\NormalTok{(labs\_map),}
+    \AttributeTok{labels =}\NormalTok{ labs\_map}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{x =} \StringTok{"Hours post{-}fertilization"}\NormalTok{, }\AttributeTok{y =} \StringTok{"Viable embryo counts"}\NormalTok{,}
+    \AttributeTok{title =} \StringTok{"**Survival** of embryos"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_hline}\NormalTok{(}\AttributeTok{yintercept =} \DecValTok{30}\NormalTok{, }\AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_y\_continuous}\NormalTok{(}
+    \AttributeTok{limits =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{34}\NormalTok{), }\AttributeTok{breaks =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{20}\NormalTok{, }\DecValTok{30}\NormalTok{),}
+    \AttributeTok{sec.axis =} \FunctionTok{sec\_axis}\NormalTok{(}\SpecialCharTok{\textasciitilde{}}\NormalTok{ . }\SpecialCharTok{/} \DecValTok{30} \SpecialCharTok{*} \DecValTok{100}\NormalTok{, }\AttributeTok{name =} \StringTok{"Percent relative survival"}\NormalTok{,}
+                        \AttributeTok{breaks =} \FunctionTok{seq}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{10}\NormalTok{),}
+                        \AttributeTok{labels =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{label\_number}\NormalTok{(}\AttributeTok{accuracy =} \DecValTok{1}\NormalTok{, }\AttributeTok{suffix =} \StringTok{"\%"}\NormalTok{))}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{axis.ticks.x =} \FunctionTok{element\_blank}\NormalTok{(),}
+    \AttributeTok{panel.grid.minor =} \FunctionTok{element\_blank}\NormalTok{(),}
+    \AttributeTok{panel.grid.major =} \FunctionTok{element\_blank}\NormalTok{(),}
+    \AttributeTok{legend.position =} \StringTok{"top"}\NormalTok{,}
+    \AttributeTok{legend.title =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{face =} \StringTok{"bold"}\NormalTok{),}
+    \AttributeTok{legend.title.position =} \StringTok{"top"}\NormalTok{,}
+    \AttributeTok{plot.title =} \FunctionTok{element\_markdown}\NormalTok{(}\AttributeTok{size =} \DecValTok{18}\NormalTok{, }\AttributeTok{face =} \StringTok{"plain"}\NormalTok{)}
+\NormalTok{  )}
+
+\NormalTok{box}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-5-1.pdf}
+
+\subsection{Line plot}\label{line-plot}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mean\_trajectories }\OtherTok{\textless{}{-}}\NormalTok{ survival }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(treatment, hpf\_factor) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{mean\_viable =} \FunctionTok{mean}\NormalTok{(n\_viable, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{se\_viable =} \FunctionTok{sd}\NormalTok{(n\_viable, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{/} \FunctionTok{sqrt}\NormalTok{(}\FunctionTok{n}\NormalTok{()),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\NormalTok{line }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(mean\_trajectories, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ hpf\_factor, }\AttributeTok{y =}\NormalTok{ mean\_viable, }
+                               \AttributeTok{color =}\NormalTok{ treatment, }\AttributeTok{group =}\NormalTok{ treatment)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_line}\NormalTok{(}\AttributeTok{linewidth =} \FloatTok{1.2}\NormalTok{, }\AttributeTok{alpha =} \FloatTok{0.6}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_errorbar}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{ymin =}\NormalTok{ mean\_viable }\SpecialCharTok{{-}}\NormalTok{ se\_viable, }
+                    \AttributeTok{ymax =}\NormalTok{ mean\_viable }\SpecialCharTok{+}\NormalTok{ se\_viable),}
+                \AttributeTok{width =} \FloatTok{0.2}\NormalTok{, }\AttributeTok{linewidth =} \FloatTok{0.8}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_color\_manual}\NormalTok{(}\AttributeTok{values =}\NormalTok{ leachate\_colors) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Mean viable embryo trajectories over time"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Hours post{-}fertilization"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Mean number of viable embryos (± SE)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{legend.position =} \StringTok{"right"}\NormalTok{,}
+    \AttributeTok{plot.title =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{hjust =} \FloatTok{0.5}\NormalTok{, }\AttributeTok{face =} \StringTok{"bold"}\NormalTok{)}
+\NormalTok{  )}
+
+\NormalTok{line}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-6-1.pdf}
+
+\subsection{Relative survival}\label{relative-survival}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Cross-sectional design}:\\
+  At each timepoint (4, 9, 14 hpf) you \emph{sample a different subset}
+  of embryos --- i.e., you don't track the same individuals over time.
+  You have \textbf{counts of viable (surviving) embryos} per treatment ×
+  timepoint combination. So, at each timepoint, you can measure
+  \emph{proportion surviving} relative to the \textbf{starting number of
+  embryos}
+\end{itemize}
+
+Calculate the proportionate change from one time point to the next:
+
+Relative survival to time hpf4 = (mean embryo count at hpf4)/(mean
+\_eggs\_per\_vial) Relative survival to time hpf9 = (mean embryo count
+at hpf9)/(mean \_eggs\_per\_vial). Relative survival to time hpf14 =
+(mean embryo count at hpf14)/(mean \_eggs\_per\_vial).
+
+We take our theoretical `starting point' from the knowledge that a
+\emph{M. cap} bundle has 15+/- 5.1 eggs. In each vial we placed 2
+bundles.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{123}\NormalTok{)  }\CommentTok{\# for reproducibility}
+
+\CommentTok{\# Simulate eggs per bundle: 2 bundles per vial, 120 vials}
+\NormalTok{n\_vials }\OtherTok{\textless{}{-}} \DecValTok{120}
+\NormalTok{n\_bundles }\OtherTok{\textless{}{-}} \DecValTok{2} \SpecialCharTok{*}\NormalTok{ n\_vials}
+
+\CommentTok{\# Simulate egg counts per bundle}
+\NormalTok{eggs\_per\_bundle }\OtherTok{\textless{}{-}} \FunctionTok{rnorm}\NormalTok{(n\_bundles, }\AttributeTok{mean =} \DecValTok{15}\NormalTok{, }\AttributeTok{sd =} \FloatTok{5.1}\NormalTok{)}
+
+\CommentTok{\# Optional: enforce only positive egg counts (truncated normal)}
+\NormalTok{eggs\_per\_bundle }\OtherTok{\textless{}{-}} \FunctionTok{pmax}\NormalTok{(}\FunctionTok{round}\NormalTok{(eggs\_per\_bundle), }\DecValTok{1}\NormalTok{)}
+
+\CommentTok{\# Group into vials: every two bundles go into one vial}
+\NormalTok{eggs\_per\_vial }\OtherTok{\textless{}{-}} \FunctionTok{rowSums}\NormalTok{(}\FunctionTok{matrix}\NormalTok{(eggs\_per\_bundle, }\AttributeTok{ncol =} \DecValTok{2}\NormalTok{, }\AttributeTok{byrow =} \ConstantTok{TRUE}\NormalTok{))}
+
+\CommentTok{\# Summarize}
+\NormalTok{mean\_eggs\_per\_vial }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(eggs\_per\_vial)}
+\NormalTok{sd\_eggs\_per\_vial }\OtherTok{\textless{}{-}} \FunctionTok{sd}\NormalTok{(eggs\_per\_vial)}
+
+\CommentTok{\# Output}
+\NormalTok{mean\_eggs\_per\_vial}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 30
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sd\_eggs\_per\_vial}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 6.446939
+\end{verbatim}
+
+\begin{tcolorbox}[enhanced jigsaw, bottomrule=.15mm, coltitle=black, title=\textcolor{quarto-callout-note-color}{\faInfo}\hspace{0.5em}{Note}, arc=.35mm, colframe=quarto-callout-note-color-frame, toptitle=1mm, toprule=.15mm, opacityback=0, colback=white, breakable, left=2mm, bottomtitle=1mm, rightrule=.15mm, titlerule=0mm, leftrule=.75mm, colbacktitle=quarto-callout-note-color!10!white, opacitybacktitle=0.6]
+
+Here we use mean total embryos = 30, SD = 6.4 as a starting point, our
+100\%, that we used to compare all our counts to for relative survival
+
+\end{tcolorbox}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{survival }\OtherTok{\textless{}{-}}\NormalTok{ survival }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{relative\_survival =}\NormalTok{ n\_viable }\SpecialCharTok{/} \DecValTok{30}\NormalTok{)}
+
+\NormalTok{survival\_summary }\OtherTok{\textless{}{-}}\NormalTok{ survival }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(treatment, hpf) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{mean\_survival\_rate =} \FunctionTok{mean}\NormalTok{(relative\_survival, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{sd\_survival\_rate   =} \FunctionTok{sd}\NormalTok{(relative\_survival, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{n             =} \FunctionTok{n}\NormalTok{(),}
+    \AttributeTok{se\_survival\_rate   =}\NormalTok{ sd\_survival\_rate }\SpecialCharTok{/} \FunctionTok{sqrt}\NormalTok{(n)  }\CommentTok{\# optional: standard error}
+\NormalTok{  )}
+
+\NormalTok{survival\_summary}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 12 x 6
+# Groups:   treatment [4]
+   treatment   hpf mean_survival_rate sd_survival_rate     n se_survival_rate
+   <ord>     <int>              <dbl>            <dbl> <int>            <dbl>
+ 1 control       4              0.9              0.129     9           0.0430
+ 2 control       9              0.415            0.249     9           0.0830
+ 3 control      14              0.378            0.188     9           0.0626
+ 4 low           4              0.911            0.162     9           0.0541
+ 5 low           9              0.419            0.295     9           0.0983
+ 6 low          14              0.422            0.157     9           0.0524
+ 7 mid           4              0.8              0.179     9           0.0596
+ 8 mid           9              0.430            0.202     9           0.0675
+ 9 mid          14              0.474            0.240     9           0.0799
+10 high          4              0.867            0.108     9           0.0360
+11 high          9              0.370            0.267     9           0.0891
+12 high         14              0.319            0.153     9           0.0510
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(survival\_summary, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ hpf, }\AttributeTok{y =}\NormalTok{ mean\_survival\_rate, }\AttributeTok{color =}\NormalTok{ treatment, }\AttributeTok{group =}\NormalTok{ treatment)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_line}\NormalTok{(}\AttributeTok{linewidth =} \DecValTok{1}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_errorbar}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{ymin =}\NormalTok{ mean\_survival\_rate }\SpecialCharTok{{-}}\NormalTok{ se\_survival\_rate,}
+                    \AttributeTok{ymax =}\NormalTok{ mean\_survival\_rate }\SpecialCharTok{+}\NormalTok{ se\_survival\_rate),}
+                \AttributeTok{width =} \FloatTok{0.3}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_y\_continuous}\NormalTok{(}\AttributeTok{labels =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{percent\_format}\NormalTok{(}\AttributeTok{accuracy =} \DecValTok{1}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{scale\_color\_manual}\NormalTok{(}\AttributeTok{values =}\NormalTok{ leachate\_colors)}\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{x =} \StringTok{"Hours post{-}fertilization (hpf)"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Mean relative survival (±SE)"}\NormalTok{,}
+    \AttributeTok{color =} \StringTok{"Treatment"}\NormalTok{,}
+    \AttributeTok{title =} \StringTok{"Cumulative relative survival by treatment and time"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-9-1.pdf}
+
+\section{Survival rates \& embryo
+counts}\label{survival-rates-embryo-counts}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Calculate mean and SD for each hpf group}
+\NormalTok{summary\_data }\OtherTok{\textless{}{-}}\NormalTok{ survival }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(hpf, treatment) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{mean\_embryo =} \FunctionTok{mean}\NormalTok{(n\_viable),}
+    \AttributeTok{sd\_embryo =} \FunctionTok{sd}\NormalTok{(n\_viable),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\NormalTok{summary\_data}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 12 x 4
+     hpf treatment mean_embryo sd_embryo
+   <int> <ord>           <dbl>     <dbl>
+ 1     4 control         27         3.87
+ 2     4 low             27.3       4.87
+ 3     4 mid             24         5.36
+ 4     4 high            26         3.24
+ 5     9 control         12.4       7.47
+ 6     9 low             12.6       8.85
+ 7     9 mid             12.9       6.07
+ 8     9 high            11.1       8.02
+ 9    14 control         11.3       5.63
+10    14 low             12.7       4.72
+11    14 mid             14.2       7.19
+12    14 high             9.56      4.59
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{survival\_summary}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 12 x 6
+# Groups:   treatment [4]
+   treatment   hpf mean_survival_rate sd_survival_rate     n se_survival_rate
+   <ord>     <int>              <dbl>            <dbl> <int>            <dbl>
+ 1 control       4              0.9              0.129     9           0.0430
+ 2 control       9              0.415            0.249     9           0.0830
+ 3 control      14              0.378            0.188     9           0.0626
+ 4 low           4              0.911            0.162     9           0.0541
+ 5 low           9              0.419            0.295     9           0.0983
+ 6 low          14              0.422            0.157     9           0.0524
+ 7 mid           4              0.8              0.179     9           0.0596
+ 8 mid           9              0.430            0.202     9           0.0675
+ 9 mid          14              0.474            0.240     9           0.0799
+10 high          4              0.867            0.108     9           0.0360
+11 high          9              0.370            0.267     9           0.0891
+12 high         14              0.319            0.153     9           0.0510
+\end{verbatim}
+
+\subsection{Table 1. Survival rates \&
+counts}\label{table-1.-survival-rates-counts}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{survival\_data\_summary }\OtherTok{\textless{}{-}}\NormalTok{ survival\_summary }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(summary\_data) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{  dplyr}\SpecialCharTok{::}\FunctionTok{select}\NormalTok{(hpf, treatment, mean\_survival\_rate, sd\_survival\_rate, mean\_embryo, sd\_embryo)}
+
+\NormalTok{table\_wide }\OtherTok{\textless{}{-}}\NormalTok{ survival\_data\_summary }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \FunctionTok{across}\NormalTok{(}
+      \FunctionTok{c}\NormalTok{(mean\_embryo, sd\_embryo),}
+      \SpecialCharTok{\textasciitilde{}} \FunctionTok{round}\NormalTok{(.x, }\DecValTok{1}\NormalTok{)}
+\NormalTok{    )}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%} 
+  \FunctionTok{mutate}\NormalTok{(}
+    \CommentTok{\# keep factor for ordering}
+    \AttributeTok{hpf =} \FunctionTok{factor}\NormalTok{(hpf, }\AttributeTok{levels =} \FunctionTok{c}\NormalTok{(}\DecValTok{4}\NormalTok{, }\DecValTok{9}\NormalTok{, }\DecValTok{14}\NormalTok{)),}
+    \CommentTok{\# create a LABEL column that is NOT a factor code}
+    \AttributeTok{hpf\_label =} \FunctionTok{paste0}\NormalTok{(}\FunctionTok{as.character}\NormalTok{(hpf), }\StringTok{" hpf"}\NormalTok{),}
+    \AttributeTok{treatment  =} \FunctionTok{factor}\NormalTok{(treatment, }\AttributeTok{levels =} \FunctionTok{c}\NormalTok{(}\StringTok{"control"}\NormalTok{, }\StringTok{"low"}\NormalTok{, }\StringTok{"mid"}\NormalTok{, }\StringTok{"high"}\NormalTok{)),}
+    \AttributeTok{cell =} \FunctionTok{sprintf}\NormalTok{(}
+      \StringTok{"\%.1f\%\% (\%.1f ± \%.1f)"}\NormalTok{,}
+\NormalTok{      mean\_survival\_rate }\SpecialCharTok{*} \DecValTok{100}\NormalTok{,}
+\NormalTok{      mean\_embryo,}
+\NormalTok{      sd\_embryo}
+\NormalTok{    )}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(hpf, hpf\_label, treatment, cell) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_wider}\NormalTok{(}
+    \AttributeTok{names\_from  =}\NormalTok{ treatment,}
+    \AttributeTok{values\_from =}\NormalTok{ cell}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{arrange}\NormalTok{(hpf)}
+  
+
+\CommentTok{\# Rename and drop numeric hpf column}
+\NormalTok{table\_wide\_print }\OtherTok{\textless{}{-}}\NormalTok{ table\_wide }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{rename}\NormalTok{(}
+    \StringTok{\textasciigrave{}}\AttributeTok{Hours post{-}fertilization}\StringTok{\textasciigrave{}} \OtherTok{=}\NormalTok{ hpf\_label,  }\CommentTok{\# character, not factor codes}
+    \StringTok{\textasciigrave{}}\AttributeTok{Control (FSW)}\StringTok{\textasciigrave{}}           \OtherTok{=}\NormalTok{ control,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Low (0.01 mg/L)}\StringTok{\textasciigrave{}}         \OtherTok{=}\NormalTok{ low,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Mid (0.1 mg/L)}\StringTok{\textasciigrave{}}          \OtherTok{=}\NormalTok{ mid,}
+    \StringTok{\textasciigrave{}}\AttributeTok{High (1 mg/L)}\StringTok{\textasciigrave{}}           \OtherTok{=}\NormalTok{ high}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{  dplyr}\SpecialCharTok{::}\FunctionTok{select}\NormalTok{(}
+    \StringTok{\textasciigrave{}}\AttributeTok{Hours post{-}fertilization}\StringTok{\textasciigrave{}}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Control (FSW)}\StringTok{\textasciigrave{}}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Low (0.01 mg/L)}\StringTok{\textasciigrave{}}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Mid (0.1 mg/L)}\StringTok{\textasciigrave{}}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{High (1 mg/L)}\StringTok{\textasciigrave{}}
+\NormalTok{  )}
+
+\NormalTok{table\_wide\_print}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 3 x 5
+  `Hours post-fertilization` `Control (FSW)`  `Low (0.01 mg/L)` `Mid (0.1 mg/L)`
+  <chr>                      <chr>            <chr>             <chr>           
+1 4 hpf                      90.0% (27.0 ± 3~ 91.1% (27.3 ± 4.~ 80.0% (24.0 ± 5~
+2 9 hpf                      41.5% (12.4 ± 7~ 41.9% (12.6 ± 8.~ 43.0% (12.9 ± 6~
+3 14 hpf                     37.8% (11.3 ± 5~ 42.2% (12.7 ± 4.~ 47.4% (14.2 ± 7~
+# i 1 more variable: `High (1 mg/L)` <chr>
+\end{verbatim}
+
+We can generate the table in .doc format for copy and pasting into
+Google Doc manuscript draft, or html format for viewing in browser.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sjPlot}\SpecialCharTok{::}\FunctionTok{tab\_df}\NormalTok{(}
+\NormalTok{  table\_wide\_print,}
+  \AttributeTok{title         =} \StringTok{"Survival rate (\%) and viable embryo counts (±sd) by treatment and developmental time"}\NormalTok{,}
+  \AttributeTok{show.rownames =} \ConstantTok{FALSE}\NormalTok{,          }\CommentTok{\# rownames will be 4, 9, 14 (hpf)}
+  \AttributeTok{digits        =} \DecValTok{1}\NormalTok{,}
+  \AttributeTok{file          =} \StringTok{"../output/tables/table\_survival\_sjplot.doc"}  \CommentTok{\# optional: save as HTML}
+\NormalTok{)}
+
+\NormalTok{stargazer}\SpecialCharTok{::}\FunctionTok{stargazer}\NormalTok{(}
+\NormalTok{  table\_wide\_print,}
+  \AttributeTok{type        =} \StringTok{"html"}\NormalTok{,}
+  \AttributeTok{digits      =} \DecValTok{1}\NormalTok{,}
+  \AttributeTok{summary =} \ConstantTok{FALSE}\NormalTok{,}
+  \AttributeTok{rownames =} \ConstantTok{FALSE}\NormalTok{,}
+  \AttributeTok{title       =} \StringTok{"Relative survival rate (\%) and viable embryo counts (±sd) by treatment and developmental time"}\NormalTok{,}
+  \AttributeTok{out         =} \StringTok{"../output/tables/table\_survival\_stargazer.doc"}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Two-way ANOVA}\label{two-way-anova}
+
+Are the mean numbers of total surviving viable embryos in each treatment
+across time different from each other? This ignores only looks at
+embryos with a status that is typical or uncertain and does not model
+any random effects (ex. night of spawn)
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{anova\_result }\OtherTok{\textless{}{-}} \FunctionTok{aov}\NormalTok{(n\_viable }\SpecialCharTok{\textasciitilde{}}\NormalTok{ treatment }\SpecialCharTok{*}\NormalTok{ hpf\_factor, }\AttributeTok{data =}\NormalTok{ survival)}
+\end{Highlighting}
+\end{Shaded}
+
+Summarize the ANOVA result
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(anova\_result)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+                     Df Sum Sq Mean Sq F value Pr(>F)    
+treatment             3     58    19.2   0.523  0.668    
+hpf_factor            2   4696  2348.2  64.041 <2e-16 ***
+treatment:hpf_factor  6    126    21.0   0.572  0.752    
+Residuals            96   3520    36.7                   
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+\end{verbatim}
+
+\subsection{Table 2. Two-way ANOVA
+results}\label{table-2.-two-way-anova-results}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{anova\_tab }\OtherTok{\textless{}{-}}\NormalTok{ broom}\SpecialCharTok{::}\FunctionTok{tidy}\NormalTok{(anova\_result) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{term =} \FunctionTok{recode}\NormalTok{(}
+\NormalTok{      term,}
+      \StringTok{"treatment"}            \OtherTok{=} \StringTok{"PVC leachate treatment"}\NormalTok{,}
+      \StringTok{"hpf\_factor"}           \OtherTok{=} \StringTok{"Developmental stage (hpf)"}\NormalTok{,}
+      \StringTok{"treatment:hpf\_factor"} \OtherTok{=} \StringTok{"Treatment × stage"}\NormalTok{,}
+      \StringTok{"Residuals"}            \OtherTok{=} \StringTok{"Residuals"}
+\NormalTok{    )}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(}
+    \AttributeTok{Term      =}\NormalTok{ term,}
+    \AttributeTok{df        =}\NormalTok{ df,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Sum Sq}\StringTok{\textasciigrave{}}  \OtherTok{=}\NormalTok{ sumsq,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Mean Sq}\StringTok{\textasciigrave{}} \OtherTok{=}\NormalTok{ meansq,}
+    \StringTok{\textasciigrave{}}\AttributeTok{F value}\StringTok{\textasciigrave{}} \OtherTok{=}\NormalTok{ statistic,}
+    \StringTok{\textasciigrave{}}\AttributeTok{Pr(\textgreater{}F)}\StringTok{\textasciigrave{}}  \OtherTok{=}\NormalTok{ p.value}
+\NormalTok{  )}
+
+\NormalTok{anova\_tab}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 4 x 6
+  Term                         df `Sum Sq` `Mean Sq` `F value`  `Pr(>F)`
+  <chr>                     <dbl>    <dbl>     <dbl>     <dbl>     <dbl>
+1 PVC leachate treatment        3     57.5      19.2     0.523  6.68e- 1
+2 Developmental stage (hpf)     2   4696.     2348.     64.0    2.14e-18
+3 Treatment × stage             6    126.       21.0     0.572  7.52e- 1
+4 Residuals                    96   3520        36.7    NA     NA       
+\end{verbatim}
+
+\subsection{Normality}\label{normality}
+
+For ANOVA, it's \textbf{the residuals} (not the raw data) that should be
+approximately normal.
+
+\subsubsection{Q-Q plot}\label{q-q-plot}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(anova\_result, }\AttributeTok{which =} \DecValTok{2}\NormalTok{)  }\CommentTok{\# QQ plot}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-16-1.pdf}
+
+\subsubsection{Shapiro-Wilk test}\label{shapiro-wilk-test}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{shapiro.test}\NormalTok{(}\FunctionTok{residuals}\NormalTok{(anova\_result))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+
+    Shapiro-Wilk normality test
+
+data:  residuals(anova_result)
+W = 0.99098, p-value = 0.6959
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{survival }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(hpf) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}\AttributeTok{shapiro\_p =} \FunctionTok{shapiro.test}\NormalTok{(n\_viable)}\SpecialCharTok{$}\NormalTok{p.value)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 3 x 2
+    hpf shapiro_p
+  <int>     <dbl>
+1     4     0.466
+2     9     0.322
+3    14     0.732
+\end{verbatim}
+
+\begin{tcolorbox}[enhanced jigsaw, bottomrule=.15mm, coltitle=black, title=\textcolor{quarto-callout-note-color}{\faInfo}\hspace{0.5em}{Note}, arc=.35mm, colframe=quarto-callout-note-color-frame, toptitle=1mm, toprule=.15mm, opacityback=0, colback=white, breakable, left=2mm, bottomtitle=1mm, rightrule=.15mm, titlerule=0mm, leftrule=.75mm, colbacktitle=quarto-callout-note-color!10!white, opacitybacktitle=0.6]
+
+Shapiro Wilk Test : If p \textless{} 0.05 the sample does not come from
+a normal distribution. If p \textgreater{} 0.05 the sample comes from a
+normal distribution. Here we see our count data for each hpf come from
+an approximately normal distribution.
+
+\end{tcolorbox}
+
+All data density plot
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(survival, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ n\_viable)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_density}\NormalTok{(}\AttributeTok{alpha =} \FloatTok{0.4}\NormalTok{, }\AttributeTok{fill =} \StringTok{"\#FDAE6B"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x =} \StringTok{"Counts of viable embryos"}\NormalTok{, }\AttributeTok{y =} \StringTok{"Density"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-19-1.pdf}
+
+Slightly bimodal distribution because counts at 4hpf are showing a mound
+around 25 and counts at 9hpf and 14hpf are 10-15
+
+Overlapping density plots
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(survival, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ n\_viable, }\AttributeTok{fill =}\NormalTok{ hpf\_factor, }\AttributeTok{group =}\NormalTok{ hpf\_factor)) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_manual}\NormalTok{(}\AttributeTok{values =}\NormalTok{ stage\_colors)}\SpecialCharTok{+}
+  \FunctionTok{geom\_density}\NormalTok{(}\AttributeTok{alpha =} \FloatTok{0.4}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x =} \StringTok{"Counts of viable embryos"}\NormalTok{, }\AttributeTok{y =} \StringTok{"Density"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-20-1.pdf}
+
+\subsection{Equal variance}\label{equal-variance}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(anova\_result, }\AttributeTok{which =} \DecValTok{1}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{03_survival_files/figure-pdf/unnamed-chunk-21-1.pdf}
+
+✅ What looks good here The red line is nearly horizontal and centered
+around 0. There's no obvious curve or systematic trend. Variance within
+each cluster of fitted values (≈ 8--15 and ≈ 25--27) looks roughly
+similar --- no funnel shape. Residuals are fairly symmetrically
+distributed above/below zero. That means our data show no strong
+evidence of heteroscedasticity (variance inequality). The ANOVA's
+equal-variance assumption looks reasonably met.
+
+⚠️ Things to keep an eye on We have two main clusters of fitted values
+(≈ 10--15 vs 25--27). That's expected with our distinct mean embryo
+counts at early (4hpf) vs later (9 \& 14 hpf) development. Variances
+look somewhat smaller in the higher-mean cluster, but not alarmingly so.
+A few labeled points (33, 87, 9) are outliers
+
+\subsubsection{Inspect outliers}\label{inspect-outliers}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{survival[}\FunctionTok{c}\NormalTok{(}\DecValTok{9}\NormalTok{, }\DecValTok{33}\NormalTok{, }\DecValTok{87}\NormalTok{), ]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+   sample_id treatment hpf hpf_factor leachate_mgL n_viable relative_survival
+9       10L9       low   9          9         0.01       25         0.8333333
+33       3L9       low   9          9         0.01        0         0.0000000
+87       8C9   control   9          9         0.00       27         0.9000000
+\end{verbatim}
+
+\subsubsection{Levene's test}\label{levenes-test}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Levene’s test (more robust)}
+\FunctionTok{library}\NormalTok{(car)}
+\FunctionTok{leveneTest}\NormalTok{(n\_viable }\SpecialCharTok{\textasciitilde{}}\NormalTok{ treatment }\SpecialCharTok{*}\NormalTok{ hpf\_factor, }\AttributeTok{data =}\NormalTok{ survival)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Levene's Test for Homogeneity of Variance (center = median)
+      Df F value Pr(>F)
+group 11  1.2543  0.263
+      96               
+\end{verbatim}
+
+\section{emmeans}\label{emmeans}
+
+\begin{quote}
+Within each developmental timepoint (4, 9, 14 hpf), do mean
+viable-embryo counts differ among treatments?
+\end{quote}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{emmeans}\NormalTok{(anova\_result, pairwise }\SpecialCharTok{\textasciitilde{}}\NormalTok{ treatment }\SpecialCharTok{|}\NormalTok{ hpf\_factor)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+$emmeans
+hpf_factor = 4:
+ treatment emmean   SE df lower.CL upper.CL
+ control    27.00 2.02 96    22.99     31.0
+ low        27.33 2.02 96    23.33     31.3
+ mid        24.00 2.02 96    19.99     28.0
+ high       26.00 2.02 96    21.99     30.0
+
+hpf_factor = 9:
+ treatment emmean   SE df lower.CL upper.CL
+ control    12.44 2.02 96     8.44     16.5
+ low        12.56 2.02 96     8.55     16.6
+ mid        12.89 2.02 96     8.88     16.9
+ high       11.11 2.02 96     7.10     15.1
+
+hpf_factor = 14:
+ treatment emmean   SE df lower.CL upper.CL
+ control    11.33 2.02 96     7.33     15.3
+ low        12.67 2.02 96     8.66     16.7
+ mid        14.22 2.02 96    10.22     18.2
+ high        9.56 2.02 96     5.55     13.6
+
+Confidence level used: 0.95 
+
+$contrasts
+hpf_factor = 4:
+ contrast       estimate   SE df t.ratio p.value
+ control - low    -0.333 2.85 96  -0.117  0.9994
+ control - mid     3.000 2.85 96   1.051  0.7199
+ control - high    1.000 2.85 96   0.350  0.9852
+ low - mid         3.333 2.85 96   1.168  0.6486
+ low - high        1.333 2.85 96   0.467  0.9661
+ mid - high       -2.000 2.85 96  -0.701  0.8966
+
+hpf_factor = 9:
+ contrast       estimate   SE df t.ratio p.value
+ control - low    -0.111 2.85 96  -0.039  1.0000
+ control - mid    -0.444 2.85 96  -0.156  0.9986
+ control - high    1.333 2.85 96   0.467  0.9661
+ low - mid        -0.333 2.85 96  -0.117  0.9994
+ low - high        1.444 2.85 96   0.506  0.9575
+ mid - high        1.778 2.85 96   0.623  0.9245
+
+hpf_factor = 14:
+ contrast       estimate   SE df t.ratio p.value
+ control - low    -1.333 2.85 96  -0.467  0.9661
+ control - mid    -2.889 2.85 96  -1.012  0.7428
+ control - high    1.778 2.85 96   0.623  0.9245
+ low - mid        -1.556 2.85 96  -0.545  0.9477
+ low - high        3.111 2.85 96   1.090  0.6965
+ mid - high        4.667 2.85 96   1.635  0.3642
+
+P value adjustment: tukey method for comparing a family of 4 estimates 
+\end{verbatim}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1806}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1806}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.4583}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1806}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+hpf
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Treatment means (±SE)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Pattern
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Tukey post-hoc contrasts
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{4 hpf} & Means ≈ 24--27 & All treatments roughly equal; p
+\textgreater{} 0.6 for every pair & → no difference \\
+\textbf{9 hpf} & Means ≈ 11--13 & All treatments tightly clustered; p
+\textgreater{} 0.9 & → no difference \\
+\textbf{14 hpf} & Means ≈ 9.5--14 & Slight trend: mid \textgreater{} low
+\textgreater{} control \textgreater{} high, but SE = 2 and all p
+\textgreater{} 0.36 & → no significant difference \\
+\end{longtable}
+
+\begin{quote}
+Across 4, 9, and 14 hpf: The treatment effect was consistently
+non-significant, even within each developmental stage window. .
+\end{quote}
+
+\subsection{Table 3. emmeans results}\label{table-3.-emmeans-results}
+
+\section{Summary}\label{summary}
+
+A two-way ANOVA revealed no significant effects of PVC leachate
+treatment on embryo survival across any developmental stage (treatment:
+F₍3,96₎ = 0.523, p = 0.668). As expected, developmental time (hpf)
+strongly influenced the number of viable embryos (F₍2,96₎ = 64.04, p
+\textless{} 0.0001), reflecting the typical decline in survival from 4
+to 14 hours post fertilization. However, the interaction between
+treatment and developmental stage was not significant (F₍6,96₎ = 0.572,
+p = 0.752), indicating that survival trajectories over time were
+parallel across treatments.
+
+Estimated marginal means showed comparable survival among treatments at
+each hpf. At 4 hpf, mean viable counts ranged from 24--27 embryos ± 2
+SE. At 9 hpf, all treatments clustered tightly (11--13 embryos ± 2 SE),
+and by 14 hpf, counts remained similar (10--14 embryos ± 2 SE).
+Tukey-adjusted pairwise contrasts confirmed no significant differences
+at any developmental stage (all adjusted p \textgreater{} 0.36).
+Assumptions of normality and equal variance were met (Shapiro--Wilk: p =
+0.70 for residuals; Levene's test: F₍11,96₎ = 1.25, p = 0.263).
+
+Overall, these findings indicate that acute exposure to PVC leachate
+(0--1 mg L⁻¹) did not significantly affect embryo survival across early
+developmental stages of Montipora capitata.
+
+These results suggest that embryo survival is highly stage-dependent
+(expected biologically), but PVC leachate concentrations up to 1 mg L⁻¹
+did not depress viability within the first 14 hpf. This supports the
+interpretation that:
+
+Any potential effects of leachate may occur later, or emerge via
+sublethal developmental delays rather than outright mortality.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{sessionInfo}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+R version 4.2.3 (2023-03-15)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] car_3.1-3        carData_3.0-5    broom_1.0.9      stargazer_5.2.3 
+ [5] sjPlot_2.9.0     ggtext_0.1.2     scales_1.4.0     ggrepel_0.9.6   
+ [9] ggbeeswarm_0.7.2 emmeans_2.0.0    lubridate_1.9.4  forcats_1.0.0   
+[13] stringr_1.6.0    dplyr_1.1.4      purrr_1.2.0      readr_2.1.5     
+[17] tidyr_1.3.1      tibble_3.3.0     ggplot2_4.0.1    tidyverse_2.0.0 
+
+loaded via a namespace (and not attached):
+ [1] jsonlite_2.0.0     splines_4.2.3      Formula_1.2-5      S7_0.2.1          
+ [5] litedown_0.8       vipor_0.4.7        yaml_2.3.10        pillar_1.11.1     
+ [9] backports_1.5.0    lattice_0.22-7     glue_1.8.0         digest_0.6.37     
+[13] RColorBrewer_1.1-3 gridtext_0.1.5     sandwich_3.1-1     htmltools_0.5.8.1 
+[17] Matrix_1.6-1       pkgconfig_2.0.3    xtable_1.8-4       mvtnorm_1.3-3     
+[21] tzdb_0.5.0         timechange_0.3.0   generics_0.1.4     farver_2.1.2      
+[25] TH.data_1.1-5      withr_3.0.2        cli_3.6.5          survival_3.8-3    
+[29] magrittr_2.0.4     estimability_1.5.1 evaluate_1.0.5     MASS_7.3-60       
+[33] xml2_1.4.0         beeswarm_0.4.0     tools_4.2.3        hms_1.1.3         
+[37] lifecycle_1.0.4    multcomp_1.4-29    compiler_4.2.3     tinytex_0.57      
+[41] rlang_1.1.6        grid_4.2.3         rstudioapi_0.17.1  labeling_0.4.3    
+[45] rmarkdown_2.29     gtable_0.3.6       codetools_0.2-20   abind_1.4-8       
+[49] markdown_2.0       R6_2.6.1           zoo_1.8-14         knitr_1.50        
+[53] fastmap_1.2.0      utf8_1.2.6         commonmark_2.0.0   stringi_1.8.7     
+[57] Rcpp_1.1.0         vctrs_0.6.5        tidyselect_1.2.1   xfun_0.54         
+[61] coda_0.19-4.1     
+\end{verbatim}
+
+
+
+\end{document}

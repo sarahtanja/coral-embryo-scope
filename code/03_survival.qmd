@@ -1,6 +1,6 @@
 ---
 title: "Survival rates"
-subtitle: "How many survived?"
+subtitle: "How many survived across treatments? Tested using a Two-Way ANOVA, emmeans, and pairwise Tukey post-hoc comparisons"
 date: 08/27/2025
 date-modified: today
 format:
@@ -43,10 +43,6 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(emmeans)
 library(ggplot2)
-library(RColorBrewer)
-library(viridis)
-library(colorblindr)
-library(colorspace)
 library(ggbeeswarm)
 library(ggrepel)
 library(scales)
@@ -60,7 +56,7 @@ library(dplyr)
 # Load in data
 
 ```{r}
-tidy_vials <- read.csv("../output/tidy_vials.csv")
+tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
 ```
 
 ## Data prep
@@ -87,9 +83,9 @@ str(survival)
 
 # Visualize
 
-```{r, include=FALSE}
+## Set colors
+```{r}
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
-leachate_colors <- c("grey60", "#C994C7", "#980043", "#67001F")
 stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
 ```
 
@@ -141,20 +137,11 @@ box <- ggplot(survival, aes(x = hpf_factor, y = n_viable, color = treatment, fil
 box
 ```
 
-Colorblind..
-
-```{r}
-cvd_grid(box)
-```
-
-```{r}
-ggsave("../plots/viablecounts_survival_boxplot.png", width = 8, height = 6, dpi = 600)
-```
 
 ## Line plot
 
 ```{r}
-mean_trajectories <- tidy_vials %>%
+mean_trajectories <- survival %>%
   group_by(treatment, hpf_factor) %>%
   summarise(
     mean_viable = mean(n_viable, na.rm = TRUE),
@@ -184,11 +171,6 @@ line <- ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable,
 line
 ```
 
-Colorblind...
-
-```{r}
-cvd_grid(line)
-```
 ## Relative survival
 
 -   **Cross-sectional design**:\
@@ -253,6 +235,7 @@ ggplot(survival_summary, aes(x = hpf, y = mean_survival_rate, color = treatment,
                     ymax = mean_survival_rate + se_survival_rate),
                 width = 0.3) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = leachate_colors)+
   labs(
     x = "Hours post-fertilization (hpf)",
     y = "Mean relative survival (±SE)",
@@ -331,6 +314,7 @@ table_wide_print <- table_wide %>%
 
 table_wide_print
 ```
+
 We can generate the table in .doc format for copy and pasting into Google Doc manuscript draft, or html format for viewing in browser.
 ```{r, eval=FALSE}
 sjPlot::tab_df(
@@ -338,7 +322,7 @@ sjPlot::tab_df(
   title         = "Survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
   show.rownames = FALSE,          # rownames will be 4, 9, 14 (hpf)
   digits        = 1,
-  file          = "../tables/table_survival_sjplot.doc"  # optional: save as HTML
+  file          = "../output/tables/table_survival_sjplot.doc"  # optional: save as HTML
 )
 
 stargazer::stargazer(
@@ -348,7 +332,7 @@ stargazer::stargazer(
   summary = FALSE,
   rownames = FALSE,
   title       = "Relative survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
-  out         = "../tables/table_survival_stargazer.doc"
+  out         = "../output/tables/table_survival_stargazer.doc"
 )
 ```
 
@@ -411,13 +395,22 @@ survival %>%
 Shapiro Wilk Test : If p \< 0.05 the sample does not come from a normal distribution. If p \> 0.05 the sample comes from a normal distribution. Here we see our count data for each hpf come from an approximately normal distribution.
 :::
 
+All data density plot
+```{r}
+ggplot(survival, aes(x = n_viable)) +
+  geom_density(alpha = 0.4, fill = "#FDAE6B") +
+  labs(x = "Counts of viable embryos", y = "Density") +
+  theme_minimal()
+```
+Slightly bimodal distribution because counts at 4hpf are showing a mound around 25 and counts at 9hpf and 14hpf are 10-15
+
 Overlapping density plots
 
 ```{r}
 ggplot(survival, aes(x = n_viable, fill = hpf_factor, group = hpf_factor)) +
+  scale_fill_manual(values = stage_colors)+
   geom_density(alpha = 0.4) +
   labs(x = "Counts of viable embryos", y = "Density") +
-  scale_fill_brewer(palette = "Set2") +
   theme_minimal()
 ```
 
@@ -451,9 +444,6 @@ survival[c(9, 33, 87), ]
 library(car)
 leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
 ```
-
-
-
 
 # emmeans
 
