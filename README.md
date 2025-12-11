@@ -13,8 +13,10 @@ This repository contains code and output for a **survival** analysis of coral em
 graph TD
     A[coral-embryo-scope] --> B[code/]
     A --> C[data/]
-    A --> D[images/]
-    A --> E[plots/]
+    A --> D[scope-images/]
+    A --> E[output/]
+    A --> F[annotation-guide/]
+    A --> G[svg/]
     
     B --> B1[pull_data.qmd]
     B --> B2[tidy.qmd]
@@ -27,19 +29,25 @@ graph TD
     B --> B9[douma_weedon_2019_fig1.jpg]
     
     C --> C1[metadata/]
-    C --> C2[output/]
-    C --> C3[scope_annotation_data/]
+    C --> C2[scope_annotation_data/]
     
     C1 --> C1A[scope-metadata.csv]
-    C2 --> C2A[tidy_bros.csv]
-    C2 --> C2B[tidy_vials.csv]
-    C2 --> C2C[supertidy_bros.csv]
-    C3 --> C3A[120 sample CSV files]
+    C2 --> C2A[120 sample CSV files]
     
     D --> D1[Sample folders<br/>e.g., 1C4, 1C9, 1C14, etc.]
     D1 --> D1A[Annotated microscopy images]
     
-    E --> E1[Generated plot images]
+    E --> E1[dataframes/]
+    E --> E2[figs/]
+    E --> E3[tables/]
+    
+    E1 --> E1A[tidy_bros.csv<br/>tidy_vials.csv<br/>supertidy_bros.csv]
+    E2 --> E2A[Generated plot images]
+    E3 --> E3A[Generated tables]
+    
+    F --> F1[Image annotation examples<br/>by developmental stage]
+    
+    G --> G1[SVG/PNG graphics<br/>of developmental stages]
 ```
 
 ## Analysis Workflow
@@ -62,12 +70,12 @@ flowchart TB
     
     TidyBros --> KaplanMeier[kaplan_meier.qmd<br/>Survival analysis]
     
-    Anova --> Plots1[Plots: ANOVA results]
-    Survival --> Plots2[Plots: Survival boxplots]
-    Abnormality --> Plots3[Plots: Status proportions]
-    Timing --> Plots4[Plots: Stage proportions]
-    CountViz --> Plots5[Plots: Count visualizations]
-    KaplanMeier --> Plots6[Plots: Survival curves]
+    Anova --> Plots1[output/figs/<br/>ANOVA results]
+    Survival --> Plots2[output/figs/<br/>Survival boxplots]
+    Abnormality --> Plots3[output/figs/<br/>Status proportions]
+    Timing --> Plots4[output/figs/<br/>Stage proportions]
+    CountViz --> Plots5[output/figs/<br/>Count visualizations]
+    KaplanMeier --> Plots6[output/figs/<br/>Survival curves]
     
     style PullData fill:#e1f5ff
     style Tidy fill:#e1f5ff
@@ -97,16 +105,10 @@ Contains all R Quarto (`.qmd`) documents for data processing, analysis, and visu
 - **`douma_weedon_2019_fig1.jpg`**: Reference figure for regression analysis methods
 
 ### `/data`
-Contains all data files organized into three subdirectories:
+Contains raw data files organized into two subdirectories:
 
 #### `/data/metadata`
 - **`scope-metadata.csv`**: Metadata for microscopy samples including cross IDs, parent information, treatments, and time points
-
-#### `/data/output`
-Processed tidy datasets ready for analysis:
-- **`tidy_bros.csv`**: Tidy dataframe where each row represents an individual embryo with its stage and status classifications
-- **`tidy_vials.csv`**: Tidy dataframe where each row represents a sample (microscopy slide) with counts and proportions of embryos by stage and status
-- **`supertidy_bros.csv`**: Additional processed embryo-level data
 
 #### `/data/scope_annotation_data`
 Contains 120 CSV files (one per sample) with individual embryo annotations. Each file is named using the convention:
@@ -115,15 +117,42 @@ Contains 120 CSV files (one per sample) with individual embryo annotations. Each
 - Hours post-fertilization (4, 9, 14)
 - Example: `1C4.csv`, `2L9.csv`, `10H14.csv`
 
-### `/images`
+### `/scope-images`
 Contains 120 subdirectories (one per sample), each holding annotated microscopy images captured on a Nikon DS-Fi 3 camera and annotated using Nikon NIS Elements BR 4.6.00 64-bit software. Subdirectories follow the same naming convention as the data files (e.g., `1C4/`, `2L9/`, `10H14/`).
 
-### `/plots`
+### `/output`
+Contains all processed data and analysis outputs organized into three subdirectories:
+
+#### `/output/dataframes`
+Processed tidy datasets ready for analysis:
+- **`tidy_bros.csv`**: Tidy dataframe where each row represents an individual embryo with its stage and status classifications
+- **`tidy_vials.csv`**: Tidy dataframe where each row represents a sample (microscopy slide) with counts and proportions of embryos by stage and status
+- **`supertidy_bros.csv`**: Additional processed embryo-level data
+- **`tidy_status.csv`**: Status-level summary data
+- **`tidy_timing.csv`**: Timing/stage-level summary data
+- **`prop_summary.csv`**: Proportion summary statistics
+- **`status_summary.csv`**: Status summary statistics
+
+#### `/output/figs`
 Contains generated visualization outputs from the analysis scripts:
-- **`counts_survival_boxplot.png`**: Boxplot of embryo survival counts
-- **`counts_viable_boxplot.png`**: Boxplot of viable embryo counts
-- **`density_viable.png`**: Density plot of viable embryos
-- **`proportion_stage_stackedbar.png`**: Stacked bar chart of developmental stage proportions
-- **`proportion_stagexstatus_stackedbar.png`**: Stacked bar chart showing stage by status proportions
-- **`proportion_status_stackedbar.png`**: Stacked bar chart of embryo status proportions
-- **`viablecounts_survival_boxplot.png`**: Boxplot of viable embryo survival counts
+- **`embryo_survival_box.png`**: Boxplot of embryo survival counts
+- **`embryo_stage_stackedbar.png`**: Stacked bar chart of developmental stage proportions
+- **`embryo_status_stackedbar.png`**: Stacked bar chart of embryo status proportions
+- **`figure_survival_timing_morphology.png`**: Combined figure showing survival, timing, and morphology
+
+#### `/output/tables`
+Contains generated tables and statistical outputs:
+- **`table_stage_composition.html`**: HTML table of stage composition
+- **`table_survival_stargazer.html`**: HTML survival analysis table
+- **`.doc`** files: Word-compatible table outputs
+
+### `/annotation-guide`
+Contains reference images and guides for annotating embryo microscopy images. Includes example images organized by developmental stage (egg, cleavage, morula, prawnchip, early gastrula) and status (typical, malformed). Also contains Quarto documents for annotation protocols and scope statistics.
+
+### `/svg`
+Contains graphical representations (SVG/PNG format) of coral embryo developmental stages:
+- **`egg.png`**: Egg stage illustration
+- **`cleavage.png`**: Cleavage stage illustration
+- **`morula.png`**: Morula stage illustration
+- **`prawnchip.png`**: Prawnchip stage illustration
+- **`earlygastrula.png`**: Early gastrula stage illustration
