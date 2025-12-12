@@ -1,45 +1,28 @@
----
-title: "Analyzing developmental stage composition (Timing)"
-subtitle: "with multivariate GLM `manyglm`"
-author: "Sarah Tanja"
-date: 08/27/2025
-date-modified: today
-format:
-  gfm: 
-    toc: true
-    number-sections: true
-  html:
-    theme: journal
-    highlight-style: github
-    page-layout: article
-    code-background: true
-    code-tools: 
-      source: true
-      toggle: true
-    toc: true
-    toc-depth: 2
-    toc-location: left
-    number-sections: true
-    df-print: kable
-    smooth-scroll: true
-    link-external-icon: true
-    link-external-newwindow: true
-    reference-location: margin
-    citation-location: margin
-editor: 
-  markdown: 
-    wrap: 72
----
+# Analyzing developmental stage composition (Timing)
+Sarah Tanja
+2025-08-27
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  echo = TRUE, # Display code chunks
-  eval = TRUE, # Evaluate code chunks
-  warning = FALSE, # Hide warnings
-  message = FALSE, # Hide messages
-  comment = "" # Prevents appending '##' to beginning of lines in code output)
- )        
-```
+- [<span class="toc-section-number">1</span> Background](#background)
+- [<span class="toc-section-number">2</span> Setup](#setup)
+  - [<span class="toc-section-number">2.1</span> Load
+    libraries](#load-libraries)
+  - [<span class="toc-section-number">2.2</span> Load data](#load-data)
+  - [<span class="toc-section-number">2.3</span> Set
+    colors](#set-colors)
+- [<span class="toc-section-number">3</span> Explore the
+  data](#explore-the-data)
+- [<span class="toc-section-number">4</span> Visualize
+  counts](#visualize-counts)
+  - [<span class="toc-section-number">4.1</span> Mean stage composition
+    counts table](#mean-stage-composition-counts-table)
+- [<span class="toc-section-number">5</span> Visualize
+  proportions](#visualize-proportions)
+  - [<span class="toc-section-number">5.1</span> Mean stage proportions
+    table](#mean-stage-proportions-table)
+- [<span class="toc-section-number">6</span> Statistical
+  approach](#statistical-approach)
+- [<span class="toc-section-number">7</span> MVABUD/
+  MANYGLM](#mvabud-manyglm)
 
 # Background
 
@@ -47,9 +30,7 @@ knitr::opts_chunk$set(
 
 ## Load libraries
 
-```{r}
-#| label: load-libraries
-
+``` r
 library(tidyverse)
 library(ggplot2)
 #library(kableExtra)
@@ -66,56 +47,47 @@ library(scales)
 
 ## Load data
 
-```{r}
-#| label: load-data
-#| include: false
-
-tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
-
-tidy_vials <- tidy_vials %>%
-  mutate(
-    treatment = factor(treatment, 
-                       levels = c("control", "low", "mid", "high"), 
-                       ordered = TRUE),
-    hpf = factor(hpf, 
-                 levels = c(4, 9, 14), ordered = TRUE))
-
-summary(tidy_vials)
-```
-
-```{r}
-#| label: no-NAs
+``` r
 anyNA(tidy_vials)
 ```
 
-::: callout-important
-The `NA`s from samples 3L9 and 7H9 represent vials where no embryos were
-present at the time of counting (all embryos died or were not
-fertilized). These samples NA values were replaced with `0`.
-:::
+    [1] FALSE
 
-```{r}
-#| label: subset-stage-counts
+> [!IMPORTANT]
+>
+> The `NA`s from samples 3L9 and 7H9 represent vials where no embryos
+> were present at the time of counting (all embryos died or were not
+> fertilized). These samples NA values were replaced with `0`.
 
-
+``` r
 tidy_vials_stage_counts <- tidy_vials %>% 
   dplyr::select(sample_id, treatment, hpf, date, n_egg, n_cleavage, n_morula, n_prawnchip, n_earlygastrula) 
 
 summary(tidy_vials_stage_counts) 
 ```
 
-```{r}
-#| label: write-stage-counts
-#| eval: FALSE
+      sample_id           treatment  hpf         date               n_egg       
+     Length:108         control:27   4 :36   Length:108         Min.   : 0.000  
+     Class :character   low    :27   9 :36   Class :character   1st Qu.: 0.000  
+     Mode  :character   mid    :27   14:36   Mode  :character   Median : 0.000  
+                        high   :27                              Mean   : 5.981  
+                                                                3rd Qu.:10.000  
+                                                                Max.   :34.000  
+       n_cleavage        n_morula       n_prawnchip     n_earlygastrula 
+     Min.   : 0.000   Min.   : 0.000   Min.   : 0.000   Min.   : 0.000  
+     1st Qu.: 0.000   1st Qu.: 0.000   1st Qu.: 0.000   1st Qu.: 0.000  
+     Median : 0.000   Median : 0.000   Median : 0.000   Median : 0.000  
+     Mean   : 1.463   Mean   : 1.972   Mean   : 4.389   Mean   : 4.102  
+     3rd Qu.: 0.000   3rd Qu.: 2.000   3rd Qu.: 6.000   3rd Qu.: 7.250  
+     Max.   :15.000   Max.   :17.000   Max.   :28.000   Max.   :26.000  
 
+``` r
 write_csv(tidy_vials_stage_counts, "../output/dataframes/tidy_vials_stage_counts.csv")
 ```
 
 ## Set colors
 
-```{r}
-#| label: set-colors
-
+``` r
 stage.5.colors <- c(egg = "#FFE362",
                     cleavage = "#EBA600", 
                     morula = "#E6AA83",
@@ -127,8 +99,7 @@ stage.5.colors <- c(egg = "#FFE362",
 
 Pivot to long format
 
-```{r}
-#| label: long-timing-counts
+``` r
 # Pivot to long format
 long_timing_counts <- tidy_vials_stage_counts %>%
   pivot_longer(
@@ -145,47 +116,76 @@ long_timing_counts <- tidy_vials_stage_counts %>%
 str(long_timing_counts)
 ```
 
-```{r}
+    tibble [540 × 6] (S3: tbl_df/tbl/data.frame)
+     $ sample_id: chr [1:540] "10C14" "10C14" "10C14" "10C14" ...
+     $ treatment: Ord.factor w/ 4 levels "control"<"low"<..: 1 1 1 1 1 1 1 1 1 1 ...
+     $ hpf      : Ord.factor w/ 3 levels "4"<"9"<"14": 3 3 3 3 3 1 1 1 1 1 ...
+     $ date     : chr [1:540] "2024-06-07" "2024-06-07" "2024-06-07" "2024-06-07" ...
+     $ stage    : Ord.factor w/ 5 levels "egg"<"cleavage"<..: 1 2 3 4 5 1 2 3 4 5 ...
+     $ n        : int [1:540] 0 0 0 0 23 9 12 8 0 0 ...
+
+``` r
 summary(long_timing_counts$n)
 ```
 
-```{r, eval=FALSE}
+       Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      0.000   0.000   0.000   3.581   4.000  34.000 
+
+``` r
 write_csv(long_timing_counts, "../output/dataframes/long_timing_counts.csv")
 ```
 
 #### Overdispersion
 
-```{r}
+``` r
 mean(long_timing_counts$n)
+```
+
+    [1] 3.581481
+
+``` r
 var(long_timing_counts$n)
 ```
 
--   The variance (45.0) is greater than the mean (3.5), indicating that
-    our data has overdispersion.
+    [1] 45.05272
+
+- The variance (45.0) is greater than the mean (3.5), indicating that
+  our data has overdispersion.
 
 #### Zero-inflation
 
-```{r}
+``` r
 hist(long_timing_counts$n, breaks = 30)
 ```
 
--   Most of the values are 0! Visually, we can see there are lots of
-    zeros in our data due to our experimental structure. The following
-    code displays the proportion of total zeros for each stage (across
-    treatment and hpf):
+![](04_timing_files/figure-commonmark/unnamed-chunk-4-1.png)
 
-```{r}
+- Most of the values are 0! Visually, we can see there are lots of zeros
+  in our data due to our experimental structure. The following code
+  displays the proportion of total zeros for each stage (across
+  treatment and hpf):
+
+``` r
 long_timing_counts %>%
   group_by(stage) %>%
   summarize(prop_zero = mean(n == 0))
 ```
 
-More than 50% of the counts for each stage are zeros....That's a lot of
-zeros!... Our data is zero-inflated.
+    # A tibble: 5 × 2
+      stage         prop_zero
+      <ord>             <dbl>
+    1 egg               0.593
+    2 cleavage          0.759
+    3 morula            0.630
+    4 prawnchip         0.602
+    5 earlygastrula     0.667
+
+More than 50% of the counts for each stage are zeros….That’s a lot of
+zeros!… Our data is zero-inflated.
 
 # Visualize counts
 
-```{r}
+``` r
 ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~ hpf) +
@@ -195,6 +195,8 @@ ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
   theme_minimal() +
   scale_fill_manual(values = stage.5.colors)
 ```
+
+![](04_timing_files/figure-commonmark/unnamed-chunk-6-1.png)
 
 > At 4 hpf, the majority of embryos are indeed in the egg or early
 > cleavage stages, and very few or none are in advanced stages like
@@ -207,7 +209,7 @@ ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
 
 Calculate count means
 
-```{r}
+``` r
 # Step 2: Calculate mean proportions for each stage within each treatment
 counts_summary <- long_timing_counts %>%
   group_by(treatment, stage, hpf) %>%
@@ -227,9 +229,19 @@ counts_summary <- long_timing_counts %>%
 head(counts_summary)
 ```
 
+    # A tibble: 6 × 4
+      treatment stage    hpf   mean_counts
+      <ord>     <ord>    <ord>       <dbl>
+    1 control   egg      4           17.8 
+    2 control   egg      9            0.89
+    3 control   egg      14           0   
+    4 control   cleavage 4            3.89
+    5 control   cleavage 9            0.11
+    6 control   cleavage 14           0   
+
 ## Mean stage composition counts table
 
-```{r}
+``` r
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
 treat_levels <- c("control", "low", "mid", "high")
 hpf_levels   <- c(4, 9, 14)
@@ -262,7 +274,19 @@ table_stage_count <- counts_summary %>%
 table_stage_count
 ```
 
-```{r}
+    # A tibble: 5 × 13
+      Stage         `4 hpf - control` `4 hpf - low` `4 hpf - mid` `4 hpf - high`
+      <ord>                     <dbl>         <dbl>         <dbl>          <dbl>
+    1 egg                        17.8          17.2          14.9           18.2
+    2 cleavage                    3.9           5.9           4.4            3.2
+    3 morula                      5.8           5.1           5.6            4.8
+    4 prawnchip                   0             0             0              0  
+    5 earlygastrula               0             0             0              0  
+    # ℹ 8 more variables: `9 hpf - control` <dbl>, `9 hpf - low` <dbl>,
+    #   `9 hpf - mid` <dbl>, `9 hpf - high` <dbl>, `14 hpf - control` <dbl>,
+    #   `14 hpf - low` <dbl>, `14 hpf - mid` <dbl>, `14 hpf - high` <dbl>
+
+``` r
 library(sjPlot)
 
 sjPlot::tab_df(
@@ -273,7 +297,19 @@ sjPlot::tab_df(
 )
 ```
 
-```{r}
+|  |  |  |  |  |  |  |  |  |  |  |  |  |
+|:--:|:--:|:--:|:--:|:--:|:--:|----|----|----|----|----|----|----|
+| Stage | X4.hpf...control | X4.hpf...low | X4.hpf...mid | X4.hpf...high | X9.hpf...control | X9.hpf...low | X9.hpf...mid | X9.hpf...high | X14.hpf...control | X14.hpf...low | X14.hpf...mid | X14.hpf...high |
+| egg | 17.8 | 17.2 | 14.9 | 18.2 | 0.9 | 0.0 | 0.8 | 1.8 | 0.0 | 0.1 | 0.0 | 0.1 |
+| cleavage | 3.9 | 5.9 | 4.4 | 3.2 | 0.1 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| morula | 5.8 | 5.1 | 5.6 | 4.8 | 1.1 | 0.7 | 0.6 | 0.0 | 0.1 | 0.0 | 0.0 | 0.0 |
+| prawnchip | 0.0 | 0.0 | 0.0 | 0.0 | 12.1 | 13.1 | 13.9 | 11.7 | 0.9 | 0.2 | 0.0 | 0.8 |
+| earlygastrula | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 11.1 | 13.1 | 15.6 | 9.4 |
+
+Mean stage composition (counts of embryos) by treatment and
+developmental time (hpf)
+
+``` r
 library(stargazer)
 
 stargazer::stargazer(
@@ -285,21 +321,30 @@ stargazer::stargazer(
   title     = "Mean stage composition (counts of embryos) by treatment and developmental time (hpf)",
   out       = "../output/tables/table_stage_composition_counts.doc"  # optional
 )
-
 ```
+
+
+    <table style="text-align:center"><caption><strong>Mean stage composition (counts of embryos) by treatment and developmental time (hpf)</strong></caption>
+    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Stage</td><td>4 hpf - control</td><td>4 hpf - low</td><td>4 hpf - mid</td><td>4 hpf - high</td><td>9 hpf - control</td><td>9 hpf - low</td><td>9 hpf - mid</td><td>9 hpf - high</td><td>14 hpf - control</td><td>14 hpf - low</td><td>14 hpf - mid</td><td>14 hpf - high</td></tr>
+    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">1</td><td>17.8</td><td>17.2</td><td>14.9</td><td>18.2</td><td>0.9</td><td>0</td><td>0.8</td><td>1.8</td><td>0</td><td>0.1</td><td>0</td><td>0.1</td></tr>
+    <tr><td style="text-align:left">2</td><td>3.9</td><td>5.9</td><td>4.4</td><td>3.2</td><td>0.1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+    <tr><td style="text-align:left">3</td><td>5.8</td><td>5.1</td><td>5.6</td><td>4.8</td><td>1.1</td><td>0.7</td><td>0.6</td><td>0</td><td>0.1</td><td>0</td><td>0</td><td>0</td></tr>
+    <tr><td style="text-align:left">4</td><td>0</td><td>0</td><td>0</td><td>0</td><td>12.1</td><td>13.1</td><td>13.9</td><td>11.7</td><td>0.9</td><td>0.2</td><td>0</td><td>0.8</td></tr>
+    <tr><td style="text-align:left">5</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>11.1</td><td>13.1</td><td>15.6</td><td>9.4</td></tr>
+    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr></table>
 
 # Visualize proportions
 
 Drop the samples with zero embryos (drop zeros)
 
-```{r}
+``` r
 tidy_vials_dropz <- tidy_vials %>% 
   filter(sample_id != c("3L9", "7H9"))
 ```
 
 Calculate proportion means
 
-```{r}
+``` r
 # Step 1: Pivot to long format
 long_timing_proportions <- tidy_vials_dropz %>%
   pivot_longer(
@@ -312,7 +357,9 @@ long_timing_proportions <- tidy_vials_dropz %>%
 anyNA(long_timing_proportions)
 ```
 
-```{r}
+    [1] FALSE
+
+``` r
 # Step 2: Calculate mean proportions for each stage within each treatment
 prop_summary <- long_timing_proportions %>%
   group_by(treatment, stage, hpf) %>%
@@ -331,13 +378,23 @@ prop_summary <- long_timing_proportions %>%
 head(prop_summary)
 ```
 
+    # A tibble: 6 × 4
+      treatment stage         hpf   mean_prop
+      <ord>     <fct>         <ord>     <dbl>
+    1 control   cleavage      4       0.143  
+    2 control   cleavage      9       0.00585
+    3 control   cleavage      14      0      
+    4 control   earlygastrula 4       0      
+    5 control   earlygastrula 9       0      
+    6 control   earlygastrula 14      0.895  
+
 Save proportion summary as a csv
 
-```{r}
+``` r
 write_csv(prop_summary, "../output/dataframes/prop_summary.csv")
 ```
 
-```{r}
+``` r
 prop_summary %>% 
 ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
   geom_bar(stat = "identity") +
@@ -353,19 +410,21 @@ ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
     ))
 ```
 
-::: callout-note
-Visually we can see there is little/no difference in proportion of
-embryos at each stage across treatments at each end-point (4,9,14 hpf)
-when looking at counts OR proportions... since we do our stats on counts
-and since to calculate proportions we had to drop our samples with zero
-embryos, this counts data is a better more accurate representation of
-the underlying data we used for the analysis so that is what we will use
-for our manuscript.
-:::
+![](04_timing_files/figure-commonmark/unnamed-chunk-15-1.png)
+
+> [!NOTE]
+>
+> Visually we can see there is little/no difference in proportion of
+> embryos at each stage across treatments at each end-point (4,9,14 hpf)
+> when looking at counts OR proportions… since we do our stats on counts
+> and since to calculate proportions we had to drop our samples with
+> zero embryos, this counts data is a better more accurate
+> representation of the underlying data we used for the analysis so that
+> is what we will use for our manuscript.
 
 ## Mean stage proportions table
 
-```{r}
+``` r
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
 treat_levels <- c("control", "low", "mid", "high")
 hpf_levels   <- c(4, 9, 14)
@@ -398,7 +457,19 @@ table_stage_pct <- prop_summary %>%
 table_stage_pct
 ```
 
-```{r}
+    # A tibble: 5 × 13
+      Stage         `4 hpf - control` `4 hpf - low` `4 hpf - mid` `4 hpf - high`
+      <fct>                     <dbl>         <dbl>         <dbl>          <dbl>
+    1 egg                        65.3          60.8          59.8           68.1
+    2 cleavage                   14.3          20.2          18             13.3
+    3 morula                     20.3          19            22.2           18.6
+    4 prawnchip                   0             0             0              0  
+    5 earlygastrula               0             0             0              0  
+    # ℹ 8 more variables: `9 hpf - control` <dbl>, `9 hpf - low` <dbl>,
+    #   `9 hpf - mid` <dbl>, `9 hpf - high` <dbl>, `14 hpf - control` <dbl>,
+    #   `14 hpf - low` <dbl>, `14 hpf - mid` <dbl>, `14 hpf - high` <dbl>
+
+``` r
 library(sjPlot)
 
 sjPlot::tab_df(
@@ -409,7 +480,19 @@ sjPlot::tab_df(
 )
 ```
 
-```{r, eval=FALSE}
+|  |  |  |  |  |  |  |  |  |  |  |  |  |
+|:--:|:--:|:--:|:--:|:--:|:--:|----|----|----|----|----|----|----|
+| Stage | X4.hpf...control | X4.hpf...low | X4.hpf...mid | X4.hpf...high | X9.hpf...control | X9.hpf...low | X9.hpf...mid | X9.hpf...high | X14.hpf...control | X14.hpf...low | X14.hpf...mid | X14.hpf...high |
+| egg | 65.3 | 60.8 | 59.8 | 68.1 | 6.7 | 0.0 | 3.1 | 8.7 | 0.0 | 0.7 | 0 | 1.1 |
+| cleavage | 14.3 | 20.2 | 18.0 | 13.3 | 0.6 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0 | 0.0 |
+| morula | 20.3 | 19.0 | 22.2 | 18.6 | 9.9 | 7.1 | 3.4 | 0.0 | 1.6 | 0.0 | 0 | 0.0 |
+| prawnchip | 0.0 | 0.0 | 0.0 | 0.0 | 82.9 | 92.9 | 93.5 | 91.3 | 8.9 | 2.1 | 0 | 12.1 |
+| earlygastrula | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 89.5 | 97.1 | 100 | 86.8 |
+
+Mean stage composition (% of embryos) by treatment and developmental
+time (hpf)
+
+``` r
 library(stargazer)
 
 stargazer::stargazer(
@@ -421,22 +504,21 @@ stargazer::stargazer(
   title     = "Mean stage composition (% of embryos) by treatment and developmental time (hpf)",
   out       = "../output/tables/table_stage_composition_prop.doc"  # optional
 )
-
 ```
 
 # Statistical approach
 
-> ::: callout-important
-> "Does the distribution of embryos across stages differ by treatment at
-> each developmental time point?"
-> :::
+> > [!IMPORTANT]
+> >
+> > “Does the distribution of embryos across stages differ by treatment
+> > at each developmental time point?”
 
 Our data is one categorical response per embryo with 5 mutually
 exclusive categories: egg, cleavage, morula, prawnchip, early gastrula.
 
 Exactly one category per embryo (categories are mutually exclusive)
 
-Counted per vial, grouped by treatment & hpf ... So per vial we have a
+Counted per vial, grouped by treatment & hpf … So per vial we have a
 composition of counts: n_egg, n_cleavage, n_morula, n_prawnchip,
 n_early_gastrula
 
@@ -479,7 +561,7 @@ Bayes/anova style.
 But our embryos do not meet those assumptions:
 
 | Violation | Why |
-|----------------------------------|--------------------------------------|
+|----|----|
 | Counts do **not sum to a fixed total** | Viable embryos vary across vials |
 | Some stages **do not exist at certain timepoints** | Multinomial cannot handle biologically impossible categories |
 | Counts are **strongly overdispersed & zero-inflated** | Requires negative binomial + mvabund handling |
@@ -506,7 +588,7 @@ consumer choice), multinomial structure is biologically misleading.
 
 #### Should we use zero-inflated negative binomial (ZINB)?
 
-...
+…
 
 #### Should we use Multivariate GLM?
 
@@ -527,7 +609,7 @@ consumer choice), multinomial structure is biologically misleading.
 This tests whether the whole multivariate response vector `Y` is
 affected by treatment, hpf, or their interaction.
 
-```{r}
+``` r
 Y <- mvabund(tidy_vials_stage_counts[, 
                                      c("n_egg", 
                                        "n_cleavage", 
@@ -542,10 +624,47 @@ mod_all <- manyglm(
 )
 
 anova(mod_all, p.uni = "adjusted")
+```
+
+    Time elapsed: 0 hr 0 min 29 sec
+
+    Analysis of Deviance Table
+
+    Model: Y ~ treatment * hpf
+
+    Multivariate test:
+                  Res.Df Df.diff   Dev Pr(>Dev)    
+    (Intercept)      107                           
+    treatment        104       3   1.5    0.998    
+    hpf              102       2 568.0    0.001 ***
+    treatment:hpf     96       6  40.3    0.001 ***
+    ---
+    Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+    Univariate Tests:
+                    n_egg          n_cleavage          n_morula         
+                      Dev Pr(>Dev)        Dev Pr(>Dev)      Dev Pr(>Dev)
+    (Intercept)                                                         
+    treatment       0.141    0.999      0.518    0.999    0.365    0.999
+    hpf           111.982    0.001     76.461    0.001   71.986    0.001
+    treatment:hpf  16.532    0.104      2.763    0.138     9.42    0.104
+                  n_prawnchip          n_earlygastrula         
+                          Dev Pr(>Dev)             Dev Pr(>Dev)
+    (Intercept)                                                
+    treatment           0.027    0.999           0.461    0.999
+    hpf               126.171    0.001         181.394    0.001
+    treatment:hpf       11.59    0.104               0    0.805
+    Arguments:
+     Test statistics calculated assuming uncorrelated response (for faster computation) 
+    P-value calculated using 999 iterations via PIT-trap resampling.
+
+``` r
 plot(mod_all)
 ```
 
-```{r}
+![](04_timing_files/figure-commonmark/unnamed-chunk-19-1.png)
+
+``` r
 # Get fitted values
 fitted_vals <- as.data.frame(fitted(mod_all))
 fitted_vals$sample_id <- tidy_vials_stage_counts$sample_id
@@ -574,12 +693,14 @@ ggplot(fitted_long,
   )
 ```
 
--   lines for different treatments **diverge more at some hpf than
-    others**, that's visualizing our **interaction**. Even small
-    divergences across several stages sum into the significant
-    multivariate effects found.
+![](04_timing_files/figure-commonmark/unnamed-chunk-20-1.png)
 
-```{r}
+- lines for different treatments **diverge more at some hpf than
+  others**, that’s visualizing our **interaction**. Even small
+  divergences across several stages sum into the significant
+  multivariate effects found.
+
+``` r
 fitted_prop <- fitted_long %>%
   group_by(sample_id) %>%
   mutate(total = sum(fitted_count),
@@ -594,8 +715,9 @@ ggplot(fitted_prop,
     title = "Compositional developmental trajectories",
     subtitle = "Stage proportions across time by treatment"
   )
-
 ```
+
+![](04_timing_files/figure-commonmark/unnamed-chunk-21-1.png)
 
 What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
@@ -612,7 +734,7 @@ prawnchip, and early gastrula—for each vial at each time point (4, 9,
 and 14 hpf). Because these responses represent count-based multivariate
 outcomes that are likely to be overdispersed and zero-inflated, we used
 a multivariate generalized linear model (GLM) implemented in the mvabund
-package (function manyglm; Wang et al. 2012). Counts of developmental
+package (function manyglm; Wang et al. 2012). Counts of developmental
 stages were modeled simultaneously as a multivariate response:
 
 𝑌 ∼ treatment × hpf Y∼treatment×hpf
@@ -634,29 +756,29 @@ effects and interaction terms was assessed using Analysis of Deviance
 (2025-06-13 ucrt); R Core Team) using the mvabund package
 (mvabund_4.2.1), with alpha set at 0.05.
 
-::: callout-note
-#### Result
-
-Developmental stage had a strong effect on embryo-stage composition (p =
-0.001). Treatment alone did not significantly alter stage counts (p =
-0.995), but there was a significant **treatment × stage interaction** (p
-= 0.008), indicating that treatment effects differed across
-developmental time points. Univariate tests showed consistent but
-individually nonsignificant interaction trends across stages (p ≈
-0.107), suggesting coordinated but subtle stage-specific responses
-detectable only in the multivariate framework.
-:::
+> [!NOTE]
+>
+> ### Result
+>
+> Developmental stage had a strong effect on embryo-stage composition (p
+> = 0.001). Treatment alone did not significantly alter stage counts (p
+> = 0.995), but there was a significant **treatment × stage
+> interaction** (p = 0.008), indicating that treatment effects differed
+> across developmental time points. Univariate tests showed consistent
+> but individually nonsignificant interaction trends across stages (p ≈
+> 0.107), suggesting coordinated but subtle stage-specific responses
+> detectable only in the multivariate framework.
 
 We used a multivariate generalized linear model (manyglm, negative
 binomial) to test whether PVC leachate altered the distribution of
 developmental stages across time (egg, cleavage, morula, prawnchip,
 early gastrula).
 
-For all 5 responses Dev \~0–0.5,p = 0.997... No single stage count
-changes **overall** with treatment. **No individual response hits
-significance at 0.05**, but several are trending in the same direction
-(all p ≈ 0.107), which is why the **multivariate interaction IS
-significant** (p = 0.008).
+For all 5 responses Dev ~0–0.5,p = 0.997… No single stage count changes
+**overall** with treatment. **No individual response hits significance
+at 0.05**, but several are trending in the same direction (all p ≈
+0.107), which is why the **multivariate interaction IS significant** (p
+= 0.008).
 
 This happens often in mvabund:
 
@@ -665,16 +787,16 @@ This happens often in mvabund:
 
 This is exactly why manyglm is useful.
 
-This suggests subtle perturbations in *transition timing...* slowing or
-accelerating development in a stage-specific way... aka a
-**pattern-level developmental distortion**
+This suggests subtle perturbations in *transition timing…* slowing or
+accelerating development in a stage-specific way… aka a **pattern-level
+developmental distortion**
 
 #### Discussion points
 
--   Developmental stage (**hpf**) is by far the strongest driver of the
-    embryo count by stage composition — expected.
+- Developmental stage (**hpf**) is by far the strongest driver of the
+  embryo count by stage composition — expected.
 
--   Treatment alone does **not** shift the by stage count composition.
+- Treatment alone does **not** shift the by stage count composition.
 
--   T**reatment effects depend on stage** → you get a **significant
-    interaction** multivariately.
+- T**reatment effects depend on stage** → you get a **significant
+  interaction** multivariately.

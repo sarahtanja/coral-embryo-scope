@@ -84,7 +84,7 @@ tidy_embryos <- csv %>%
 tidy_embryos <- tidy_embryos %>% 
   mutate(sample_id = sample_name,
          stage = embryo_phase) %>%
-  select(sample_id, stage, status) 
+  dplyr::select(sample_id, stage, status) 
   
 
 summary(tidy_embryos)
@@ -102,7 +102,7 @@ metadata <- read_csv("../data/metadata/scope-metadata.csv")
 ```{r}
 metadata_clean <- metadata %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
-  select(
+  dplyr::select(
     sample_id,
     parent_1 = parent_colony_a,
     parent_2 = parent_colony_b,
@@ -187,8 +187,8 @@ There should now be no `NAs` in `status` except for samples 3L9 & 7H9.. which ha
 tidy_bros %>% 
   filter(if_any(everything(), is.na))
 ```
-![Sample 3L9 only contained two dissolving debris fragments](../images/3L9/3L9_4xstitch_anno.jpg)
-![Sample 7H9 contained many dissolving debris fragments, but none appearing viable](../images/7H9/7H9_manualstitch_anno.jpg)
+![Sample 3L9 only contained two dissolving debris fragments](../scope-images/3L9/3L9_4xstitch_anno.jpg)
+![Sample 7H9 contained many dissolving debris fragments, but none appearing viable](../scope-images/7H9/7H9_manualstitch_anno.jpg)
 
 ## Problems with eggs
 
@@ -214,19 +214,44 @@ write_csv(tidy_bros, "../output/dataframes/tidy_bros.csv")
 
 Counts and proportions of combined and distinct stage and status values in each vial
 ```{r}
-# Count + proportion per group
 vials <- tidy_bros %>%
+  # 1. Count number of observations in each combination of sample_id, stage, and status.
+  #    The resulting count is stored in a new column called `n`.
   count(sample_id, stage, status, name = "n") %>%
+  
+  # 2. For each sample_id, group rows so we can compute proportions within that vial.
   group_by(sample_id) %>%
+  
+  # 3. Compute the proportion of each (stage, status) within a sample_id:
+  #    prop = n / total n for that sample_id.
   mutate(prop = n / sum(n)) %>%
+  
+  # 4. Remove the grouping so downstream operations don’t stay grouped.
   ungroup() %>%
+  
+  # 5. Reshape from long to wide:
+  #    - `stage` and `status` together define the new column names.
+  #      So you’ll get columns like `n_cleavage_typical`, `prop_prawnchip_malformed`, etc.
+  #    - `n` and `prop` become the cell values in those new columns.
+  #    - `values_fill = 0` ensures that missing combinations (no embryos in that category)
+  #      get filled with 0 instead of NA.
   pivot_wider(
-    names_from = c(stage, status),
+    names_from  = c(stage, status),
     values_from = c(n, prop),
     values_fill = 0
   ) %>% 
-  select(!matches("NA"))%>%
+  
+  # 6. Drop any columns whose *names* contain "NA".
+  #    For example, if you somehow ended up with a column like `n_NA_typical`
+  #    or `prop_egg_NA`, this removes those.
+  dplyr::select(!matches("NA")) %>%
+  
+  # 7. Join in metadata for each sample_id:
+  #    - Keep all rows from the current `vials` table
+  #    - Match them with `metadata_clean` using `sample_id`
+  #    - Adds columns from metadata_clean (e.g., treatment, hpf, whatever you stored there).
   left_join(metadata_clean, by = "sample_id")
+
 
 str(vials)
 
@@ -311,7 +336,7 @@ These samples show '1' embryo, but the row was just a placeholder and really the
 ```{r}
 tidy_vials <- tidy_vials %>%
   mutate(across(
-    c(n_viable, prop_viable, n_embryos),
+     c(starts_with("n_"), starts_with("prop_")),
     ~if_else(sample_id %in% c("3L9", "7H9"), 0, .)
   ))
 ```
@@ -333,33 +358,16 @@ tidy_vials <- tidy_vials %>%
 
 ## Save dataframe
 ```{r}
+str(tidy_vials)
+```
+
+```{r}
 write_csv(tidy_vials, "../output/dataframes/tidy_vials.csv")
 ```
 
 # Summary & Next Steps
 
 Ok! We have two tidy dataframes in long format to work with that should allow us to answer all our questions.
-
-
-The following are thought-experiment dataframes... not fully flushed out yet
-
-## embryos_summary : 
-```{r}
-# Count embryos per (sample_id, stage, status)
-embryos_summary <- tidy_bros %>%
-  count(sample_id, stage, status, name = "n_embryos") %>%
-  group_by(sample_id) %>%
-  mutate(proportion = n_embryos / sum(n_embryos)) %>%
-  ungroup()
-
-```
-
-## stage_totals :
-```{r}
-# Total counts per stage per sample_id
-stage_totals <- tidy_bros %>%
-  count(sample_id, stage, name = "total_n")
-```
 
 ```{r}
 sessionInfo()

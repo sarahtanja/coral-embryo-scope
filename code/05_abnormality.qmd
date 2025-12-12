@@ -46,22 +46,15 @@ knitr::opts_chunk$set(
 ```{r, eval=FALSE}
 library(tidyverse)
 library(ggplot2)
-library(kableExtra)
-library(betareg)
-library(gamlss)
-library(MASS) # for multinomial or negative binomial GLM
-library(glmmTMB)
-library(performance)
 library(DHARMa)
 library(mvabund)
 library(scales)
-library(AER) # for dispersiontest
 ```
 
 ## Load data
 
 ```{r}
-tidy_vials <- read_csv("../output/tidy_vials.csv")
+tidy_vials <- read_csv("../output/dataframes/tidy_vials.csv")
 ```
 
 ```{r}
@@ -70,13 +63,13 @@ tidy_status <- tidy_vials %>%
 ```
 
 ```{r, eval=FALSE}
-write_csv(tidy_status, "../output/tidy_status.csv")
+write_csv(tidy_status, "../output/dataframes/tidy_status.csv")
 ```
 
 ## Set colors
 ```{r}
 status.colors <- c(typical = "#75C165", 
-                   fragmented = "#E3FAA5", 
+                   uncertain = "#E3FAA5", 
                    malformed = "#8B0069")
 ```
 
