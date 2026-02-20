@@ -58,8 +58,14 @@ tidy_vials <- read_csv("../output/dataframes/tidy_vials.csv")
 ```
 
 ```{r}
-tidy_status <- tidy_vials %>% 
-  dplyr::select(sample_id, treatment, hpf, date, n_typical, n_uncertain, n_malformed)
+tidy_vials_status_counts <- tidy_vials %>% 
+  dplyr::select(sample_id, treatment, hpf, date, n_typical, n_uncertain, n_malformed)%>% 
+  mutate(hpf = factor(hpf, levels = c(4, 9, 14), 
+                      ordered = TRUE),
+         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
+                      ordered = TRUE))
+
+str(tidy_vials_status_counts)
 ```
 
 ```{r, eval=FALSE}
@@ -78,7 +84,7 @@ Check out raw count data...
 
 ```{r}
 # Pivot to long format
-long_tidy_status <- tidy_status %>%
+long_status_counts <- tidy_status %>%
   pivot_longer(
     cols = starts_with("n"),
     names_to = c(".value", "status"),
@@ -86,323 +92,168 @@ long_tidy_status <- tidy_status %>%
   ) %>% 
   mutate(hpf = factor(hpf, levels = c(4, 9, 14), 
                       ordered = TRUE),
-         status = factor(status, levels = c("typical", "uncertain", "malformed"), 
+         status = factor(status, levels = c("malformed", "uncertain", "typical"), 
                       ordered = TRUE),
          treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
                       ordered = TRUE))
 
-head(long_tidy_status)
+head(long_status_counts)
 ```
 
 ```{r}
-summary(long_tidy_status$n)
-mean(long_tidy_status$n)
-var(long_tidy_status$n)
-
-hist(long_tidy_status$n, breaks = 30)
+summary(long_status_counts$n)
 ```
 
 
 #### Overdispersion
-- The variance (45.0) is greater than the mean (3.5), indicating that our data has overdispersion. 
 ```{r}
-mod_pois <- glm(n ~ treatment * hpf, data=long_tidy_status, family=poisson)
-dispersiontest(mod_pois)
+var(long_status_counts$n)
+mean(long_status_counts$n)
 ```
-
+- The variance (76.5) is greater than the mean (5.9), indicating that our data is massively overdispersed. 
 
 #### Zero-inflation
+```{r}
+hist(long_status_counts$n, breaks = 30)
+```
 - Most of the values are 0! Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
 
 ```{r}
-long_timing_counts %>%
-  group_by(stage) %>%
+long_status_counts %>%
+  group_by(status) %>%
   summarize(prop_zero = mean(n == 0))
 ```
 
-More than 50% of the counts for each stage are zeros....That's a lot of zeros!... Our data is zero-inflated.
+More than 50% of the counts for our `uncertain` and `malformed` statuses are zeros.... Our data is zero-inflated in two out of the three statuses we are testing. 
 
-
-
-
-# OLD Approach: Proportion means
-
-Set factor levels for treatment and hpf
+# Stacked bar chart of status counts
 
 ```{r}
-status <- tidy_vials %>%
-  mutate(
-    # ordered factors
-    treatment  = factor(treatment, levels = treat_levels, ordered = TRUE),
-    hpf_factor = factor(hpf, levels = hpf_levels, ordered = TRUE),
-
-    # numeric concentration mapped from treatment (safe + explicit)
-    leachate_mgL = unname(map_leachate[as.character(treatment)])
-  ) %>%
-  dplyr::select(sample_id, 
-                treatment, 
-                hpf, 
-                hpf_factor, 
-                leachate_mgL, 
-                n_typical,
-                prop_typical, 
-                n_malformed,
-                prop_malformed,
-                n_uncertain,
-                prop_uncertain)
-
-str(status)
+ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ hpf) +
+  labs(title = "Embryo stage counts by treatment over time",
+       x = "Treatment",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_manual(values = status.colors)
 ```
 
-### Calculate proportion means
-
-Drop the samples with zero embryos (drop zeros)
+# Calculate status count means
 
 ```{r}
-status <- status %>% 
-  filter(sample_id != c("3L9", "7H9"))
-```
-
-```{r}
-# Pivot to long format
-long_status <- status %>%
-  pivot_longer(
-    cols = starts_with("prop") | starts_with("n"),
-    names_to = c(".value", "status"),
-    names_pattern = "(prop|n)_(.*)"
-  )
-
-# Calculate mean proportions for each status within each treatment
-status_summary <- long_status %>%
+# Step 2: Calculate mean proportions for each stage within each treatment
+status_summary <- long_status_counts %>%
   group_by(treatment, status, hpf) %>%
-  summarize(mean_prop = mean(prop), .groups = "drop") %>% 
-  mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"))) 
+  summarize(mean_counts = mean(n), .groups = "drop") %>% 
+  mutate(mean_counts = round(mean_counts, 2)) %>% 
+  mutate(hpf = factor(hpf, levels = c("4", "9", "14"))) %>% 
+  mutate(treatment = factor(treatment, 
+                        levels = c("control", "low", "mid", "high")))
 
-status_summary
+head(status_summary)
 ```
 
-Save status summary as csv
-```{r}
-write_csv(status_summary, "../output/status_summary.csv")
-```
-
-# Visualize
+## Table: Status composition means 
 
 ```{r}
-#| include: false
-status_colors <- c("#810F7C", "#FED976", "#41AE76")
-```
 
-## Stacked barplot
-
-```{r}
-# labels for legend
-labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
-              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
-
-bar <- status_summary %>% 
-  mutate(mean_perc = mean_prop*100) %>% 
-ggplot(., aes(x = treatment, y = mean_perc, fill = status))+
-  geom_bar(stat = "identity")+
-  scale_fill_manual(values = status_colors)+
-  ggtitle("Percentage of embryos categorized by status")+
-  labs(y = "Percentage", x = "Treatment", fill = "Embryonic Status")+
-  facet_wrap(~ hpf)+
-  theme_minimal()
-
-bar
-```
-
-```{r}
-ggsave("../figs/percentage_status_stackedbar.png", width = 8, height = 6, dpi = 600)
-```
-
-# Analyze
-
-# Multinomial logistic regression
-
-[![Figure 1. from 'Analysing continuous proportions in ecology and evolution: A practical introduction to beta and Dirichlet regression' by Jacob C. Douma and James T. Weedon, Ecology and Evolution September 2019](images/douma_weedon_2019_fig1.jpg)](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13234)
-
-```{r}
-install.packages("VGAM")   # if not already installed
-library(VGAM)
-```
-> vglm() expects the response as a n×k matrix where k = number of categories.
-It automatically treats the last column as the reference category.
-So you can control which category is the denominator in the log-ratios simply by column order.
-
-```{r}
-# Make a response matrix of counts:
-Y_status <- as.matrix(status[, c("n_uncertain",
-                            "n_malformed",
-                            "n_typical")]) # place `typical` as last column becomes reference
-
-# Rename the matrix columns for clarity (these names carry through to fitted() output)
-colnames(Y_status) <- c("uncertain", "malformed", "typical")
-
-# Multinomial logistic regression of count matrix
-fit_status <- vglm(Y_status ~ treatment * hpf_factor, family = multinomial, data = status)
-
-summary(fit_status)
-```
-
-## Check for overdispersion
-> For multinomial models, overdispersion means the observed variation among counts is larger than expected under the multinomial distribution (i.e., your embryos are not behaving as independent “trials”).
-
-```{r}
-deviance(fit_status) / df.residual(fit_status)
-```
-
-Values greater than 1 indicate overdispersion.
-
-Proceed to Dirichlet regression
-
-## Pearson residuals
-```{r}
-resid_pearson <- residuals(fit_status, type = "pearson")
-head(resid_pearson)
-
-fitted_probs <- fitted(fit_status)
-head(fitted_probs)
-
-```
-
-```{r}
-plot(fitted_probs[, "typical"], resid_pearson[, 1],
-     xlab = "Fitted probability (typical)",
-     ylab = "Pearson residual (uncertain vs typical)")
-abline(h = 0, lty = 2)
-```
-
-
-> What it shows:
-The x-axis is the model’s predicted probability that an observation is typical.
-The y-axis is the Pearson residual for the uncertain vs typical contrast.
-Interpretation:
-Ideally: points scatter randomly around 0 with no trend or funnel shape.
-Your plot:
-Slight fanning (more spread at high fitted probabilities).
-Some clusters of residuals around ±2–3.
-This suggests mild overdispersion — more variability in the counts than the multinomial assumes — but no severe systematic bias (the center stays around 0).
-There’s no clear nonlinear pattern, so your functional form (treatment × stage) looks okay.
-
-```{r}
-plot(fitted_probs[, "typical"], resid_pearson[, 2],
-     xlab = "Fitted probability (typical)",
-     ylab = "Pearson residual (malformed vs typical)")
-abline(h = 0, lty = 2)
-
-```
-
-
-
-```{r}
-obs_props <- prop.table(Y_status, 1)
-pred_props <- fitted(fit_status)
-plot(as.vector(obs_props), as.vector(pred_props),
-     xlab = "Observed proportions", ylab = "Predicted proportions")
-abline(0, 1, col = "red")
-
-```
-
-
-
-# Dirichlet-multinomial regression
-
-This is essentially a multinomial with an extra dispersion parameter. Each row of counts is assumed to follow a Dirichlet-multinomial distribution.
-
-```{r}
-install.packages("MGLM")
-library(MGLM)
-```
-
-```{r}
-# Fit Dirichlet-multinomial regression to count matrix
-fit_status_DM <- MGLMreg(Y_status ~ treatment + hpf, data = status, dist = "DM")
-```
-
-Coefficients
-
-```{r}
-coef(fit_status_DM)
-```
-
-Log-likelihood, AIC, BIC
-
-```{r}
-logLik(fit_status_DM)
-AIC(fit_status_DM)
-BIC(fit_status_DM)
-```
-
-ANOVA/ Likelihood ratio test
-
-```{r}
-fit_reduced <- MGLMreg(Y_status ~ hpf, data = status, dist = "DM")
-anova(fit_reduced, fit_status_DM, test = "Chisq")
-```
-
-# Dirichlet regression on proportions
-
-Subset to each hours post fertilization end point (4, 9, 14) to simplify models. 
-
-## 4
-```{r}
-tidy_4 <- tidy_vials_dropz %>% 
-  filter(hpf == "4") %>% 
-  select(treatment, n_typical, n_uncertain, n_malformed, prop_typical, prop_uncertain, prop_malformed)
-nrow(tidy_4)
-```
-
-# Table
-
-```{r}
-table_status <-
-  prop_summary %>%
-  # set clear order
-  mutate(
-    status     = factor(status, levels = c("typical", "uncertain", "malformed")),
-    treatment = factor(treatment, levels = c("control","low","mid","high")),
-    hpf       = factor(hpf, levels = c(4, 9, 14))
-  ) %>%
-  select(treatment, hpf, status, mean_prop) %>%
+table_status <- status_summary %>%
   pivot_wider(
-    names_from  = status,
-    values_from = mean_prop,
-    values_fill = 0
+    names_from  = c(treatment, hpf),
+    values_from = mean_counts,
+    values_fill = 0,
+    # column names like "4 hpf - control"
+    names_glue  = "{hpf} hpf - {treatment}"
   ) %>%
-  arrange(hpf, treatment) %>%
-  relocate(hpf, treatment) %>% 
-  # this orders across table top
-  select(hpf, treatment, typical, uncertain, malformed) %>%
-  # optional: nicer column labels for manuscript
-  rename(`PVC leachate` = treatment, Typical = typical, Uncertain = uncertain, Malformed = malformed) 
+  dplyr::select(status, 
+                `4 hpf - control`, `4 hpf - low`, `4 hpf - mid`, `4 hpf - high`,
+                `9 hpf - control`, `9 hpf - low`, `9 hpf - mid`, `9 hpf - high`,
+                `14 hpf - control`, `14 hpf - low`, `14 hpf - mid`, `14 hpf - high`) %>%
+  arrange(status) %>%
+  # turn to % (numeric) for nice formatting
+  mutate(across(-status, ~ round(.x, 1))) %>%
+  rename(Status = status) 
 
-# ----- percents (if mean_prop is a proportion 0–1) -----
-table_status <- table_status %>%
-  mutate(across(c(Typical, Uncertain, Malformed), 
-                ~ percent(.x, accuracy = 0.1)))
-
-```
-
-```{r}
-table_status %>%
-  kable(
-    format = "latex",               # use "latex" if knitting to PDF
-    digits = 3,                    # number of decimals
-    caption = "Percentage of typical, uncertain, and malformed embryos by treatment and hpf",
-    align = "c"                    # center align all columns
-  ) %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-    full_width = FALSE,
-    position = "center",
-    font_size = 12
-  ) %>%
-  column_spec(1, bold = TRUE) %>%  # bold hpf column
-  collapse_rows(columns = 1, valign = "top")  # group rows by hpf
 
 table_status
 ```
+```{r}
+library(sjPlot)
 
-# Summary
+sjPlot::tab_df(
+  table_status,
+  title         = "Mean status composition (counts of embryos) by treatment and developmental time (hpf)",
+  show.rownames = FALSE,
+  digits        = 1
+)
+```
+
+```{r}
+library(stargazer)
+
+stargazer::stargazer(
+  table_stage_count,
+  type      = "html",  # or "latex" if knitting to PDF
+  summary   = FALSE,
+  rownames  = FALSE,
+  digits    = 1,
+  title     = "Mean status composition (counts of embryos) by treatment and developmental time (hpf)",
+  out       = "../output/tables/table_status_counts.doc"  # optional
+)
+
+```
+
+# MVABUD/ MANYGLM
+
+This tests whether the whole multivariate response vector `Y` is
+affected by treatment, hpf, or their interaction.
+
+```{r}
+Y <- mvabund(tidy_vials_status_counts[, 
+                                     c("n_typical", 
+                                       "n_uncertain", 
+                                       "n_malformed")])
+
+mod_all <- manyglm(
+  Y ~ treatment * hpf,
+  family = "negative.binomial",
+  data = tidy_vials_status_counts
+)
+
+anova(mod_all, p.uni = "adjusted")
+plot(mod_all)
+```
+
+```{r}
+# Get fitted values
+fitted_vals <- as.data.frame(fitted(mod_all))
+fitted_vals$sample_id <- tidy_vials_status_counts$sample_id
+fitted_vals$treatment <- tidy_vials_status_counts$treatment
+fitted_vals$hpf <- tidy_vials_status_counts$hpf
+
+# Long format for ggplot
+fitted_long <- fitted_vals %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "status",
+    values_to = "fitted_count"
+  )
+
+# Plot
+ggplot(fitted_long,
+       aes(x = hpf, y = fitted_count, color = treatment, group = treatment)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  facet_wrap(~ status, scales = "free_y") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Fitted developmental status trajectories",
+    subtitle = "Visualizing the treatment × hpf multivariate interaction",
+    y = "Fitted count"
+  )
+```
+
+
+
+
