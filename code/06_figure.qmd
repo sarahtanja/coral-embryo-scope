@@ -237,7 +237,7 @@ ggsave("../figs/embryo_survival_box.png", width = 8, height = 6, dpi = 600)
 
 # Timing barplot
 
-# Stacked barplot
+## Stacked barplot
 
 ```{r}
 prop_summary <- prop_summary %>% 
@@ -268,11 +268,17 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
     expand = c(0, 0),   # << bars start flush at y = 0
     labels = scales::label_number(accuracy = 1, suffix = "%")  
     )+
-  facet_wrap(~ hpf)+
+    facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hours post-fertilization",
+                       "9" = "9 hours post-fertilization",
+                       "14" = "14 hours post-fertilization")
+             ))+
   theme_sleek_axe()+
   theme(
+    legend.position = "none", 
     panel.border = element_blank(),
-    plot.title = element_text(margin = margin(b = 40)),
+    #plot.title = element_text(margin = margin(b = 40)),
     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
   )
 
@@ -283,11 +289,11 @@ timing
 ```{r}
 timing_pretty <- ggdraw() +
   draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
-  draw_image('../svg/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../svg/cleavage.png',    x = 0.205, y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../svg/morula.png',      x = 0.33,  y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../svg/prawnchip.png',   x = 0.455, y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../svg/earlygastrula.png',
+  draw_image('../legend/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('../legend/cleavage.png',    x = 0.205, y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('../legend/morula.png',      x = 0.33,  y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('../legend/prawnchip.png',   x = 0.455, y = 0.79, width = 0.15, height = 0.15) +
+  draw_image('../legend/earlygastrula.png',
                                    x = 0.58,  y = 0.79, width = 0.15, height = 0.15)
 timing_pretty
 ```
@@ -296,8 +302,55 @@ timing_pretty
 ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
 
-# Abnormalities barplot
 
+## Stage legend
+```{r}
+stage_legend_df <- tibble::tibble(
+  stage = factor(c("egg", 
+                   "cleavage", 
+                   "morula", 
+                   "prawnchip", 
+                   "earlygastrula"),
+  levels = c("egg", 
+             "cleavage",
+             "morula", 
+             "prawnchip",
+             "earlygastrula"),
+  ordered = TRUE),
+  label = c("Egg", 
+            "Cleavage", 
+            "Morula", 
+            "Prawnchip", 
+            "Early gastrula"),
+  img = c('../legend/egg.png', 
+          '../legend/cleavage.png', 
+          '../legend/morula.png', 
+          '../legend/prawnchip.png', 
+          '../legend/earlygastrula.png'))
+```
+
+```{r}
+library(ggimage)
+```
+
+
+```{r}
+stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = stage)) +
+  geom_image(aes(image = img), size = 0.14) +
+  geom_text(aes(label = label), 
+            hjust = 0, nudge_x = 0.02, 
+            color = "grey40", size = 2) +
+  scale_x_continuous(limits = c(-0.1, 0.1), expand = c(0, 0)) +
+  scale_y_discrete(limits = rev) +
+  theme_void()+
+  theme(
+    plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
+  )
+
+stage_legend_plot
+```
+
+# Abnormalities barplot
 
 ```{r}
 status_summary <- status_summary %>%
@@ -318,11 +371,17 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
     expand = c(0, 0),   # << bars start flush at y = 0
     labels = scales::label_number(accuracy = 1, suffix = "%")
   )+
-  facet_wrap(~ hpf)+
+      facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hours post-fertilization",
+                       "9" = "9 hours post-fertilization",
+                       "14" = "14 hours post-fertilization")
+             ))+
   theme_sleek_axe()+
   theme(
+    legend.position = "none",
     panel.border = element_blank(),
-    plot.title = element_text(margin = margin(b = 40)),
+    #plot.title = element_text(margin = margin(b = 40)),
       axis.text.x = element_text(
       angle = 45,      # rotate 45°
       hjust = 1,       # horizontal justification
@@ -330,6 +389,36 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
     ))
 
 abnormality
+```
+
+## Status legend
+```{r}
+status_legend_df <- tibble::tibble(
+  status = factor(c("malformed", "uncertain", "typical"),
+                    levels = c("malformed", "uncertain", "typical"), 
+                    ordered = TRUE),
+  label = c("Typical", "Uncertain/Torn", "Malformed"),
+  img = c('../legend/typical.png', 
+          '../legend/uncertain.png', 
+          '../legend/malformed.png')
+)
+```
+
+```{r}
+status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
+  geom_image(aes(image = img), size = 0.19) +
+  geom_text(aes(label = label), 
+            hjust = 0, nudge_x = 0.0014, 
+            color = "grey40", size = 8) +
+  scale_x_continuous(limits = c(-0.01, 0.01), 
+                     expand = c(0, 0)) +
+  scale_y_discrete() +
+  theme_void()+
+  theme(
+    plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
+  )
+
+status_legend_plot
 ```
 
 ```{r}
@@ -355,7 +444,7 @@ patch <- survival / (timing | abnormality)+
           size   = 12,
           color  = "grey30",
           hjust  = 0.5,    # center
-          margin = margin(b = 30) # add space BELOW title
+         # margin = margin(b = 30) # add space BELOW title
         )
       )
 
@@ -376,7 +465,20 @@ patch_pretty <- ggdraw() +
 
 patch_pretty
 ```
+## Legend patch
+```{r}
+B_panel <- timing + stage_legend_plot + plot_layout(widths = c(6, 2))
+C_panel <- abnormality + status_legend_plot + plot_layout(widths = c(4, 1))
+```
 
+```{r, fig.height=12, fig.width=10}
+final_plot <- (
+  survival/ 
+  (B_panel | C_panel)
+) + plot_layout(heights = c(1.5, 1))
+
+final_plot
+```
 
 # Save figure
 ```{r}
