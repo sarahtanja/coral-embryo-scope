@@ -56,8 +56,12 @@ library(cowplot) # for draw_image
 
 ```{r}
 tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
+
 prop_summary <- read.csv("../output/dataframes/prop_summary.csv")
+
+
 status_summary <- read.csv("../output/dataframes/status_summary.csv")
+long_status_counts <- read.csv("../output/dataframes/long_status_counts.csv")
 ```
 
 ## Data prep
@@ -352,6 +356,7 @@ stage_legend_plot
 
 # Abnormalities barplot
 
+## Percent composition of status categories per treatment and timepoint
 ```{r}
 status_summary <- status_summary %>%
   mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"), 
@@ -391,6 +396,32 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
 abnormality
 ```
 
+## Embryo counts for each status category per treatment and timepoint
+```{r}
+status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hours post-fertilization",
+                       "9" = "9 hours post-fertilization",
+                       "14" = "14 hours post-fertilization")
+             )) +
+  scale_fill_manual(values = status.colors) +
+  scale_x_discrete(
+    labels = tick_map     
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0)) +
+  labs(title = "Embryo stage counts by treatment over time",
+       x = "Treatment",
+       y = "Embryo count") +
+  theme_sleek_axe()+
+  theme(
+    panel.border = element_blank()
+  )
+
+status_count_plot
+```
 ## Status legend
 ```{r}
 status_legend_df <- tibble::tibble(

@@ -602,7 +602,7 @@ What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
 preventing their degradation.
 
-#### Method
+# Method
 
 Developmental Stage Composition Analysis
 
@@ -636,7 +636,8 @@ effects and interaction terms was assessed using Analysis of Deviance
 (mvabund_4.2.1), with alpha set at 0.05.
 
 ::: callout-note
-#### Result
+
+# Result
 
 Developmental stage had a strong effect on embryo-stage composition (p =
 0.001). Treatment alone did not significantly alter stage counts (p =
@@ -670,12 +671,12 @@ This suggests subtle perturbations in *transition timing...* slowing or
 accelerating development in a stage-specific way... aka a
 **pattern-level developmental distortion**
 
-#### Discussion points
+# Discussion points
 
 -   Developmental stage (**hpf**) is by far the strongest driver of the
     embryo count by stage composition — expected.
 
 -   Treatment alone does **not** shift the by stage count composition.
 
--   T**reatment effects depend on stage** → you get a **significant
+-   **Treatment effects depend on stage** → you get a **significant
     interaction** multivariately.
