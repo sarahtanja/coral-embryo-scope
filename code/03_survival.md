@@ -8,9 +8,11 @@
   data](#load-in-data)
   - [<span class="toc-section-number">2.1</span> Data prep](#data-prep)
 - [<span class="toc-section-number">3</span> Visualize](#visualize)
-  - [<span class="toc-section-number">3.1</span> Boxplot](#boxplot)
-  - [<span class="toc-section-number">3.2</span> Line plot](#line-plot)
-  - [<span class="toc-section-number">3.3</span> Relative
+  - [<span class="toc-section-number">3.1</span> Set
+    colors](#set-colors)
+  - [<span class="toc-section-number">3.2</span> Boxplot](#boxplot)
+  - [<span class="toc-section-number">3.3</span> Line plot](#line-plot)
+  - [<span class="toc-section-number">3.4</span> Relative
     survival](#relative-survival)
 - [<span class="toc-section-number">4</span> Survival rates & embryo
   counts](#survival-rates--embryo-counts)
@@ -33,7 +35,7 @@
       test](#levenes-test)
 - [<span class="toc-section-number">6</span> emmeans](#emmeans)
   - [<span class="toc-section-number">6.1</span> Table 3. emmeans
-    results](#table-3-emmeans-results)
+    results summary](#table-3-emmeans-results-summary)
 - [<span class="toc-section-number">7</span> Summary](#summary)
 
 # Load libraries
@@ -41,7 +43,6 @@
 ``` r
 library(tidyverse)
 library(emmeans)
-library(ggplot2)
 library(ggbeeswarm)
 library(ggrepel)
 library(scales)
@@ -49,7 +50,6 @@ library(ggtext)
 library(sjPlot)
 library(stargazer)
 library(broom)
-library(dplyr)
 ```
 
 # Load in data
@@ -90,6 +90,8 @@ str(survival)
      $ n_viable    : int  21 29 16 11 20 19 12 26 25 19 ...
 
 # Visualize
+
+## Set colors
 
 ``` r
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
@@ -349,7 +351,7 @@ survival_data_summary <- survival_summary %>%
   left_join(summary_data) %>% 
   dplyr::select(hpf, treatment, mean_survival_rate, sd_survival_rate, mean_embryo, sd_embryo)
 
-table_wide <- survival_data_summary %>%
+survival_table_wide <- survival_data_summary %>%
   mutate(
     across(
       c(mean_embryo, sd_embryo),
@@ -378,7 +380,7 @@ table_wide <- survival_data_summary %>%
   
 
 # Rename and drop numeric hpf column
-table_wide_print <- table_wide %>%
+survival_table_wide_print <- survival_table_wide %>%
   rename(
     `Hours post-fertilization` = hpf_label,  # character, not factor codes
     `Control (FSW)`           = control,
@@ -394,7 +396,7 @@ table_wide_print <- table_wide %>%
     `High (1 mg/L)`
   )
 
-table_wide_print
+survival_table_wide_print
 ```
 
     # A tibble: 3 × 5
@@ -404,6 +406,10 @@ table_wide_print
     2 9 hpf                      41.5% (12.4 ± 7… 41.9% (12.6 ± 8.… 43.0% (12.9 ± 6…
     3 14 hpf                     37.8% (11.3 ± 5… 42.2% (12.7 ± 4.… 47.4% (14.2 ± 7…
     # ℹ 1 more variable: `High (1 mg/L)` <chr>
+
+``` r
+write.csv(survival_table_wide_print, "../output/tables/table_survival_summary.csv", row.names = FALSE)
+```
 
 We can generate the table in .doc format for copy and pasting into
 Google Doc manuscript draft, or html format for viewing in browser.
@@ -486,6 +492,10 @@ anova_tab
     3 Treatment × stage             6    126.       21.0     0.572  7.52e- 1
     4 Residuals                    96   3520        36.7    NA     NA       
 
+``` r
+write.csv(anova_tab, "../output/tables/table_anova_results.csv", row.names = FALSE)
+```
+
 ## Normality
 
 For ANOVA, it’s **the residuals** (not the raw data) that should be
@@ -497,7 +507,7 @@ approximately normal.
 plot(anova_result, which = 2)  # QQ plot
 ```
 
-![](03_survival_files/figure-commonmark/unnamed-chunk-16-1.png)
+![](03_survival_files/figure-commonmark/unnamed-chunk-17-1.png)
 
 ### Shapiro-Wilk test
 
@@ -531,6 +541,20 @@ survival %>%
 > distribution. Here we see our count data for each hpf come from an
 > approximately normal distribution.
 
+All data density plot
+
+``` r
+ggplot(survival, aes(x = n_viable)) +
+  geom_density(alpha = 0.4, fill = "#FDAE6B") +
+  labs(x = "Counts of viable embryos", y = "Density") +
+  theme_minimal()
+```
+
+![](03_survival_files/figure-commonmark/unnamed-chunk-20-1.png)
+
+Slightly bimodal distribution because counts at 4hpf are showing a mound
+around 25 and counts at 9hpf and 14hpf are 10-15
+
 Overlapping density plots
 
 ``` r
@@ -541,7 +565,7 @@ ggplot(survival, aes(x = n_viable, fill = hpf_factor, group = hpf_factor)) +
   theme_minimal()
 ```
 
-![](03_survival_files/figure-commonmark/unnamed-chunk-19-1.png)
+![](03_survival_files/figure-commonmark/unnamed-chunk-21-1.png)
 
 ## Equal variance
 
@@ -549,7 +573,7 @@ ggplot(survival, aes(x = n_viable, fill = hpf_factor, group = hpf_factor)) +
 plot(anova_result, which = 1)
 ```
 
-![](03_survival_files/figure-commonmark/unnamed-chunk-20-1.png)
+![](03_survival_files/figure-commonmark/unnamed-chunk-22-1.png)
 
 ✅ What looks good here The red line is nearly horizontal and centered
 around 0. There’s no obvious curve or systematic trend. Variance within
@@ -595,7 +619,9 @@ leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
 > viable-embryo counts differ among treatments?
 
 ``` r
-emmeans(anova_result, pairwise ~ treatment | hpf_factor)
+emm <- emmeans(anova_result, pairwise ~ treatment | hpf_factor)
+
+emm
 ```
 
     $emmeans
@@ -652,16 +678,21 @@ emmeans(anova_result, pairwise ~ treatment | hpf_factor)
 
     P value adjustment: tukey method for comparing a family of 4 estimates 
 
-| hpf        | Treatment means (±SE) | Pattern                                                                   | Tukey post-hoc contrasts    |
-|------------|-----------------------|---------------------------------------------------------------------------|-----------------------------|
-| **4 hpf**  | Means ≈ 24–27         | All treatments roughly equal; p \> 0.6 for every pair                     | → no difference             |
-| **9 hpf**  | Means ≈ 11–13         | All treatments tightly clustered; p \> 0.9                                | → no difference             |
-| **14 hpf** | Means ≈ 9.5–14        | Slight trend: mid \> low \> control \> high, but SE = 2 and all p \> 0.36 | → no significant difference |
+``` r
+emm_df <- as.data.frame(emm$emmeans) %>%
+  select(hpf_factor, treatment, emmean, SE)
+```
+
+## Table 3. emmeans results summary
+
+| hpf | Treatment means (±SE) | Pattern | Tukey post-hoc contrasts |
+|----|----|----|----|
+| **4 hpf** | Means ≈ 24–27 | All treatments roughly equal; p \> 0.6 for every pair | → no difference |
+| **9 hpf** | Means ≈ 11–13 | All treatments tightly clustered; p \> 0.9 | → no difference |
+| **14 hpf** | Means ≈ 9.5–14 | Slight trend: mid \> low \> control \> high, but SE = 2 and all p \> 0.36 | → no significant difference |
 
 > Across 4, 9, and 14 hpf: The treatment effect was consistently
 > non-significant, even within each developmental stage window. .
-
-## Table 3. emmeans results
 
 # Summary
 
@@ -700,45 +731,47 @@ sublethal developmental delays rather than outright mortality.
 sessionInfo()
 ```
 
-    R version 4.2.3 (2023-03-15)
-    Platform: x86_64-pc-linux-gnu (64-bit)
-    Running under: Ubuntu 24.04.3 LTS
+    R version 4.5.1 (2025-06-13 ucrt)
+    Platform: x86_64-w64-mingw32/x64
+    Running under: Windows 11 x64 (build 26200)
 
     Matrix products: default
-    BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
-    LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so
+      LAPACK version 3.12.1
 
     locale:
-     [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
-     [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
-     [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
-     [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
-     [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-    [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+    [1] LC_COLLATE=English_United States.utf8 
+    [2] LC_CTYPE=English_United States.utf8   
+    [3] LC_MONETARY=English_United States.utf8
+    [4] LC_NUMERIC=C                          
+    [5] LC_TIME=English_United States.utf8    
+
+    time zone: America/Los_Angeles
+    tzcode source: internal
 
     attached base packages:
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     other attached packages:
-     [1] car_3.1-3        carData_3.0-5    broom_1.0.9      stargazer_5.2.3 
+     [1] car_3.1-3        carData_3.0-5    broom_1.0.12     stargazer_5.2.3 
      [5] sjPlot_2.9.0     ggtext_0.1.2     scales_1.4.0     ggrepel_0.9.6   
-     [9] ggbeeswarm_0.7.2 emmeans_2.0.0    lubridate_1.9.4  forcats_1.0.0   
-    [13] stringr_1.6.0    dplyr_1.1.4      purrr_1.2.0      readr_2.1.5     
-    [17] tidyr_1.3.1      tibble_3.3.0     ggplot2_4.0.1    tidyverse_2.0.0 
+     [9] ggbeeswarm_0.7.3 emmeans_2.0.1    lubridate_1.9.4  forcats_1.0.1   
+    [13] stringr_1.6.0    dplyr_1.1.4      purrr_1.2.1      readr_2.1.6     
+    [17] tidyr_1.3.2      tibble_3.3.1     ggplot2_4.0.1    tidyverse_2.0.0 
 
     loaded via a namespace (and not attached):
-     [1] Rcpp_1.1.0         mvtnorm_1.3-3      lattice_0.22-7     zoo_1.8-14        
-     [5] utf8_1.2.6         digest_0.6.37      R6_2.6.1           backports_1.5.0   
-     [9] evaluate_1.0.5     coda_0.19-4.1      pillar_1.11.1      rlang_1.1.6       
-    [13] multcomp_1.4-29    rstudioapi_0.17.1  Matrix_1.6-1       rmarkdown_2.29    
-    [17] labeling_0.4.3     splines_4.2.3      S7_0.2.1           gridtext_0.1.5    
-    [21] compiler_4.2.3     vipor_0.4.7        xfun_0.54          pkgconfig_2.0.3   
-    [25] htmltools_0.5.8.1  tidyselect_1.2.1   codetools_0.2-20   tzdb_0.5.0        
-    [29] withr_3.0.2        commonmark_2.0.0   MASS_7.3-60        grid_4.2.3        
-    [33] jsonlite_2.0.0     xtable_1.8-4       gtable_0.3.6       lifecycle_1.0.4   
-    [37] litedown_0.8       magrittr_2.0.4     estimability_1.5.1 cli_3.6.5         
-    [41] stringi_1.8.7      farver_2.1.2       xml2_1.4.0         generics_0.1.4    
-    [45] vctrs_0.6.5        sandwich_3.1-1     Formula_1.2-5      TH.data_1.1-5     
-    [49] RColorBrewer_1.1-3 tools_4.2.3        glue_1.8.0         beeswarm_0.4.0    
-    [53] markdown_2.0       hms_1.1.3          abind_1.4-8        fastmap_1.2.0     
-    [57] survival_3.8-3     yaml_2.3.10        timechange_0.3.0   knitr_1.50        
+     [1] gtable_0.3.6       beeswarm_0.4.0     xfun_0.57          lattice_0.22-7    
+     [5] tzdb_0.5.0         vctrs_0.6.5        tools_4.5.1        generics_0.1.4    
+     [9] sandwich_3.1-1     pkgconfig_2.0.3    Matrix_1.7-4       RColorBrewer_1.1-3
+    [13] S7_0.2.1           lifecycle_1.0.5    compiler_4.5.1     farver_2.1.2      
+    [17] codetools_0.2-20   litedown_0.9       vipor_0.4.7        htmltools_0.5.9   
+    [21] yaml_2.3.12        Formula_1.2-5      pillar_1.11.1      MASS_7.3-65       
+    [25] abind_1.4-8        multcomp_1.4-29    commonmark_2.0.0   tidyselect_1.2.1  
+    [29] digest_0.6.39      mvtnorm_1.3-3      stringi_1.8.7      labeling_0.4.3    
+    [33] splines_4.5.1      fastmap_1.2.0      grid_4.5.1         cli_3.6.5         
+    [37] magrittr_2.0.4     utf8_1.2.6         dichromat_2.0-0.1  survival_3.8-3    
+    [41] TH.data_1.1-5      withr_3.0.2        backports_1.5.0    estimability_1.5.1
+    [45] timechange_0.3.0   rmarkdown_2.30     otel_0.2.0         zoo_1.8-15        
+    [49] hms_1.1.4          coda_0.19-4.1      evaluate_1.0.5     knitr_1.51        
+    [53] markdown_2.0       rlang_1.1.6        gridtext_0.1.5     Rcpp_1.1.1        
+    [57] xtable_1.8-4       glue_1.8.0         xml2_1.5.1         rstudioapi_0.18.0 
+    [61] jsonlite_2.0.0     R6_2.6.1          

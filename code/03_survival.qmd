@@ -42,7 +42,6 @@ knitr::opts_chunk$set(
 ```{r}
 library(tidyverse)
 library(emmeans)
-library(ggplot2)
 library(ggbeeswarm)
 library(ggrepel)
 library(scales)
@@ -50,7 +49,6 @@ library(ggtext)
 library(sjPlot)
 library(stargazer)
 library(broom)
-library(dplyr)
 ```
 
 # Load in data
@@ -60,6 +58,7 @@ tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
 ```
 
 ## Data prep
+
 Set factor levels for treatment and hpf
 
 ```{r}
@@ -84,6 +83,7 @@ str(survival)
 # Visualize
 
 ## Set colors
+
 ```{r}
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
 stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
@@ -136,7 +136,6 @@ box <- ggplot(survival, aes(x = hpf_factor, y = n_viable, color = treatment, fil
 
 box
 ```
-
 
 ## Line plot
 
@@ -262,6 +261,7 @@ survival_summary
 ```
 
 ## Table 1. Survival rates & counts
+
 ```{r}
 survival_data_summary <- survival_summary %>%
   left_join(summary_data) %>% 
@@ -315,7 +315,12 @@ survival_table_wide_print <- survival_table_wide %>%
 survival_table_wide_print
 ```
 
+```{r}
+write.csv(survival_table_wide_print, "../output/tables/table_survival_summary.csv", row.names = FALSE)
+```
+
 We can generate the table in .doc format for copy and pasting into Google Doc manuscript draft, or html format for viewing in browser.
+
 ```{r, eval=FALSE}
 sjPlot::tab_df(
   table_wide_print,
@@ -349,7 +354,9 @@ Summarize the ANOVA result
 ```{r}
 summary(anova_result)
 ```
+
 ## Table 2. Two-way ANOVA results
+
 ```{r}
 anova_tab <- broom::tidy(anova_result) %>%
   mutate(
@@ -371,16 +378,21 @@ anova_tab <- broom::tidy(anova_result) %>%
   )
 
 anova_tab
+write.csv(anova_tab, "../output/tables/table_anova_results.csv", row.names = FALSE)
 ```
 
 ## Normality
+
 For ANOVA, it’s **the residuals** (not the raw data) that should be approximately normal.
 
 ### Q-Q plot
+
 ```{r}
 plot(anova_result, which = 2)  # QQ plot
 ```
+
 ### Shapiro-Wilk test
+
 ```{r}
 shapiro.test(residuals(anova_result))
 ```
@@ -396,12 +408,14 @@ Shapiro Wilk Test : If p \< 0.05 the sample does not come from a normal distribu
 :::
 
 All data density plot
+
 ```{r}
 ggplot(survival, aes(x = n_viable)) +
   geom_density(alpha = 0.4, fill = "#FDAE6B") +
   labs(x = "Counts of viable embryos", y = "Density") +
   theme_minimal()
 ```
+
 Slightly bimodal distribution because counts at 4hpf are showing a mound around 25 and counts at 9hpf and 14hpf are 10-15
 
 Overlapping density plots
@@ -419,26 +433,19 @@ ggplot(survival, aes(x = n_viable, fill = hpf_factor, group = hpf_factor)) +
 ```{r}
 plot(anova_result, which = 1)
 ```
-✅ What looks good here
-The red line is nearly horizontal and centered around 0.
-There’s no obvious curve or systematic trend.
-Variance within each cluster of fitted values (≈ 8–15 and ≈ 25–27) looks roughly similar — no funnel shape.
-Residuals are fairly symmetrically distributed above/below zero.
-That means our data show no strong evidence of heteroscedasticity (variance inequality).
-The ANOVA’s equal-variance assumption looks reasonably met.
 
-⚠️ Things to keep an eye on
-We have two main clusters of fitted values (≈ 10–15 vs 25–27).
-That’s expected with our distinct mean embryo counts at early (4hpf) vs later (9 & 14 hpf) development.
-Variances look somewhat smaller in the higher-mean cluster, but not alarmingly so.
-A few labeled points (33, 87, 9) are outliers
+✅ What looks good here The red line is nearly horizontal and centered around 0. There’s no obvious curve or systematic trend. Variance within each cluster of fitted values (≈ 8–15 and ≈ 25–27) looks roughly similar — no funnel shape. Residuals are fairly symmetrically distributed above/below zero. That means our data show no strong evidence of heteroscedasticity (variance inequality). The ANOVA’s equal-variance assumption looks reasonably met.
+
+⚠️ Things to keep an eye on We have two main clusters of fitted values (≈ 10–15 vs 25–27). That’s expected with our distinct mean embryo counts at early (4hpf) vs later (9 & 14 hpf) development. Variances look somewhat smaller in the higher-mean cluster, but not alarmingly so. A few labeled points (33, 87, 9) are outliers
 
 ### Inspect outliers
+
 ```{r}
 survival[c(9, 33, 87), ]
 ```
 
 ### Levene's test
+
 ```{r}
 # Levene’s test (more robust)
 library(car)
@@ -450,25 +457,31 @@ leveneTest(n_viable ~ treatment * hpf_factor, data = survival)
 > Within each developmental timepoint (4, 9, 14 hpf), do mean viable-embryo counts differ among treatments?
 
 ```{r}
-emmeans(anova_result, pairwise ~ treatment | hpf_factor)
+emm <- emmeans(anova_result, pairwise ~ treatment | hpf_factor)
+
+emm
 ```
 
+```{r}
+emm_df <- as.data.frame(emm$emmeans) %>%
+  select(hpf_factor, treatment, emmean, SE)
+```
+
+## Table 3. emmeans results summary
+
 | hpf | Treatment means (±SE) | Pattern | Tukey post-hoc contrasts |
-|-------------|-------------|---------------------------------|-------------|
+|---------------|---------------|-----------------------------|---------------|
 | **4 hpf** | Means ≈ 24–27 | All treatments roughly equal; p \> 0.6 for every pair | → no difference |
 | **9 hpf** | Means ≈ 11–13 | All treatments tightly clustered; p \> 0.9 | → no difference |
 | **14 hpf** | Means ≈ 9.5–14 | Slight trend: mid \> low \> control \> high, but SE = 2 and all p \> 0.36 | → no significant difference |
 
 > Across 4, 9, and 14 hpf: The treatment effect was consistently non-significant, even within each developmental stage window. .
 
-
-## Table 3. emmeans results
-
 # Summary
 
-A two-way ANOVA revealed no significant effects of PVC leachate treatment on embryo survival across any developmental stage (treatment: F₍3,96₎ = 0.523, p = 0.668). As expected, developmental time (hpf) strongly influenced the number of viable embryos (F₍2,96₎ = 64.04, p < 0.0001), reflecting the typical decline in survival from 4 to 14 hours post fertilization. However, the interaction between treatment and developmental stage was not significant (F₍6,96₎ = 0.572, p = 0.752), indicating that survival trajectories over time were parallel across treatments.
+A two-way ANOVA revealed no significant effects of PVC leachate treatment on embryo survival across any developmental stage (treatment: F₍3,96₎ = 0.523, p = 0.668). As expected, developmental time (hpf) strongly influenced the number of viable embryos (F₍2,96₎ = 64.04, p \< 0.0001), reflecting the typical decline in survival from 4 to 14 hours post fertilization. However, the interaction between treatment and developmental stage was not significant (F₍6,96₎ = 0.572, p = 0.752), indicating that survival trajectories over time were parallel across treatments.
 
-Estimated marginal means showed comparable survival among treatments at each hpf. At 4 hpf, mean viable counts ranged from 24–27 embryos ± 2 SE. At 9 hpf, all treatments clustered tightly (11–13 embryos ± 2 SE), and by 14 hpf, counts remained similar (10–14 embryos ± 2 SE). Tukey-adjusted pairwise contrasts confirmed no significant differences at any developmental stage (all adjusted p > 0.36). Assumptions of normality and equal variance were met (Shapiro–Wilk: p = 0.70 for residuals; Levene’s test: F₍11,96₎ = 1.25, p = 0.263).
+Estimated marginal means showed comparable survival among treatments at each hpf. At 4 hpf, mean viable counts ranged from 24–27 embryos ± 2 SE. At 9 hpf, all treatments clustered tightly (11–13 embryos ± 2 SE), and by 14 hpf, counts remained similar (10–14 embryos ± 2 SE). Tukey-adjusted pairwise contrasts confirmed no significant differences at any developmental stage (all adjusted p \> 0.36). Assumptions of normality and equal variance were met (Shapiro–Wilk: p = 0.70 for residuals; Levene’s test: F₍11,96₎ = 1.25, p = 0.263).
 
 Overall, these findings indicate that acute exposure to PVC leachate (0–1 mg L⁻¹) did not significantly affect embryo survival across early developmental stages of Montipora capitata.
 
@@ -479,4 +492,3 @@ Any potential effects of leachate may occur later, or emerge via sublethal devel
 ```{r}
 sessionInfo()
 ```
-
