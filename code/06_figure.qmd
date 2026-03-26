@@ -81,6 +81,12 @@ long_timing_counts <- long_timing_counts %>%
     hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE),
     stage     = factor(stage, levels = stage_levels, ordered = TRUE)
   )
+
+long_status_counts <- long_status_counts %>%
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE),
+    status    = factor(status, levels = c("malformed", "uncertain", "typical"), ordered = TRUE))
 ```
 
 ```{r}
@@ -230,8 +236,10 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
     labels = labs_map
   ) +
   labs(
-    x = "Hours post-fertilization", y = "Viable embryo counts",
-    title = "Relative survival"
+    x = "Hours post-fertilization", 
+    y = "Viable embryo counts",
+    title = "Relative survival",
+    subtitle = ("(viable embryo counts and percentages)")
   ) +
   geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
@@ -242,8 +250,13 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
   ) +
   theme_sleek_axe() +
   theme(
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(), 
+    legend.position = "bottom",
+    axis.title.y.right = element_text(margin = margin(l = 0)),
+    plot.title = element_text(margin = margin(b = 1)),
+    plot.subtitle = element_text(margin = margin(t = 0, b=10))
   )
+  
 
 survival
 ```
@@ -320,83 +333,50 @@ timing_pretty
 ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
 
-## Embryo counts for each stage category 
+## Stage counts for each stage category 
 ```{r}
 stage_count_plot <- long_timing_counts %>% 
 ggplot(., aes(x = treatment, y =n, fill = stage)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = stage.5.colors) +
-  ggtitle("Developmental timing (stage composition)")+
-  labs(y = "", x = "PVC Leachate", fill = "Embryonic stage") +
+  labs(y = "Embryo count", 
+       x = "PVC Leachate", 
+       fill = "Embryonic stage",
+       title = "Developmental timing",
+       subtitle = "(stage composition)") +
   scale_x_discrete(
     breaks = names(tick_map),  # control, low, mid, high
     labels = tick_map          # pretty labels you defined
   )+
   scale_y_continuous(
     expand = c(0, 0),   # << bars start flush at y = 0
-    labels = scales::label_number(accuracy = 1, suffix = "%")  
+    labels = scales::label_number(accuracy = 1)  
     )+
     facet_wrap(~hpf,
              labeller = labeller(
-               hpf = c("4" = "4 hours post-fertilization",
-                       "9" = "9 hours post-fertilization",
-                       "14" = "14 hours post-fertilization")
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
              ))+
   theme_sleek_axe()+
   theme(
     legend.position = "none", 
     panel.border = element_blank(),
-    #plot.title = element_text(margin = margin(b = 40)),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    plot.title = element_text(
+    margin = margin(b = 1)   
+  ),
+  plot.subtitle = element_text(
+    margin = margin(t = 0, b = 10)   
+  )
   )
 
 stage_count_plot
 ```
-## Stage legend
-```{r}
-stage_legend_df <- tibble::tibble(
-  stage = factor(c("egg", 
-                   "cleavage", 
-                   "morula", 
-                   "prawnchip", 
-                   "earlygastrula"),
-  levels = c("egg", 
-             "cleavage",
-             "morula", 
-             "prawnchip",
-             "earlygastrula"),
-  ordered = TRUE),
-  label = c("Egg", 
-            "Cleavage", 
-            "Morula", 
-            "Prawnchip", 
-            "Early gastrula"),
-  img = c('../legend/egg.png', 
-          '../legend/cleavage.png', 
-          '../legend/morula.png', 
-          '../legend/prawnchip.png', 
-          '../legend/earlygastrula.png'))
-```
 
-```{r}
-library(ggimage)
-```
 
-```{r}
-stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = stage)) +
-  geom_image(aes(image = img), size = 0.14) +
-  geom_text(aes(label = label), 
-            hjust = 0, nudge_x = 0.02, 
-            color = "grey40", size = 3) +
-  scale_x_continuous(limits = c(-0.1, 0.1), expand = c(0, 0)) +
-  scale_y_discrete(limits = rev) +
-  theme_void()+
-  theme(
-    plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
-  )
 
-stage_legend_plot
-```
+
 
 # Abnormalities barplot
 
@@ -440,61 +420,43 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
 abnormality
 ```
 
-## Embryo counts for each status category
+## Status counts for each status category
 ```{r}
 status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~hpf,
              labeller = labeller(
-               hpf = c("4" = "4 hours post-fertilization",
-                       "9" = "9 hours post-fertilization",
-                       "14" = "14 hours post-fertilization")
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
              )) +
   scale_fill_manual(values = status.colors) +
   scale_x_discrete(
-    labels = tick_map     
-  ) +
+    breaks = names(tick_map),  # control, low, mid, high
+    labels = tick_map          # pretty labels you defined
+  )+
   scale_y_continuous(
     expand = c(0, 0)) +
-  labs(title = "Embryo stage counts by treatment over time",
-       x = "Treatment",
+  labs(title = "Morphological abnormality",
+       subtitle = "(status composition)",
+       x = "PVC Leachate",
        y = "Embryo count") +
   theme_sleek_axe()+
   theme(
-    panel.border = element_blank()
+    panel.border = element_blank(), 
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    plot.title = element_text(
+    margin = margin(b = 1)   
+  ),
+  plot.subtitle = element_text(
+    margin = margin(t = 0, b=10)   
+  )
   )
 
 status_count_plot
 ```
-## Status legend
-```{r}
-status_legend_df <- tibble::tibble(
-  status = factor(c("malformed", "uncertain", "typical"),
-                    levels = c("malformed", "uncertain", "typical"), 
-                    ordered = TRUE),
-  label = c("Typical", "Uncertain/Torn", "Malformed"),
-  img = c('../legend/typical.png', 
-          '../legend/uncertain.png', 
-          '../legend/malformed.png')
-)
-```
 
-```{r}
-status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
-  geom_image(aes(image = img), size = 0.19) +
-  geom_text(aes(label = label), 
-            hjust = 0, nudge_x = 0.0014, 
-            color = "grey40", size = 8) +
-  scale_x_continuous(limits = c(-0.01, 0.01), 
-                     expand = c(0, 0)) +
-  scale_y_discrete() +
-  theme_void()+
-  theme(
-    plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
-  )
-
-status_legend_plot
-```
 
 ```{r}
 ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
@@ -541,23 +503,127 @@ patch_pretty <- ggdraw() +
 patch_pretty
 ```
 
-## Legend patch
+## Legends
+
 ```{r}
-B_panel <- timing + stage_legend_plot + plot_layout(widths = c(4, 1))
-C_panel <- abnormality + status_legend_plot + plot_layout(widths = c(4, 1))
+library(ggimage)
 ```
 
+### Stage legend
+```{r}
+stage_legend_df <- tibble::tibble(
+  stage = factor(c("egg", 
+                   "cleavage", 
+                   "morula", 
+                   "prawnchip", 
+                   "earlygastrula"),
+  levels = c("egg", 
+             "cleavage",
+             "morula", 
+             "prawnchip",
+             "earlygastrula"),
+  ordered = TRUE),
+  label = factor(c("Egg", 
+            "Cleavage", 
+            "Morula", 
+            "Prawnchip", 
+            "Early gastrula"), 
+  levels = c("Egg", 
+            "Cleavage", 
+            "Morula", 
+            "Prawnchip", 
+            "Early gastrula"),
+    ordered = TRUE),
+  img = c('../legend/egg.png', 
+          '../legend/cleavage.png', 
+          '../legend/morula.png', 
+          '../legend/prawnchip.png', 
+          '../legend/earlygastrula.png'))
+```
+
+```{r}
+stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = label)) +
+  geom_image(aes(image = img), size = 0.18) +
+  #geom_text(aes(label = label), 
+  #          hjust = 0, nudge_x = 0.1, 
+  #          color = "grey40", size = 3) +
+  scale_x_continuous() +
+  scale_y_discrete(limits = rev, position = "right")+
+  theme_void()+
+  theme(
+    axis.text.y.right = element_text(size = 8, color = "grey40", hjust =0)
+  )
+
+stage_legend_plot
+```
+
+### Status legend
+```{r}
+status_legend_df <- tibble::tibble(
+  status = factor(c("",
+                    " ",
+                    "Malformed", 
+                    "Uncertain/Torn", 
+                    "Typical"),
+                    levels = c("",
+                    " ",
+                    "Malformed", 
+                    "Uncertain/Torn", 
+                    "Typical"), 
+                    ordered = TRUE),
+  img = c('',
+          ' ',
+          '../legend/malformed.png', 
+          '../legend/uncertain.png', 
+          '../legend/typical.png')
+)
+```
+
+```{r}
+status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
+  geom_image(aes(image = img), size = 0.18) +
+  scale_x_continuous() +
+  scale_y_discrete(limit = rev, position = "right") +
+  theme_void()+
+  theme(
+    axis.text.y.right = element_text(size = 8, color = "grey40", hjust =0)
+  )
+
+status_legend_plot
+```
+### Panels
+```{r}
+B_panel <- stage_count_plot + stage_legend_plot + plot_layout(widths = c(4, 1.1))
+C_panel <- status_count_plot + status_legend_plot + plot_layout(widths = c(4, 1.1))
+```
+
+```{r}
+B_panel
+```
+```{r}
+C_panel
+```
+
+# Final Patch
 ```{r, fig.height=12, fig.width=10}
 final_plot <- (
-  survival/ 
-  (B_panel | C_panel)
-) + plot_layout(heights = c(1.5, 1))
+  wrap_elements(survival)/ 
+  (wrap_elements(B_panel) | wrap_elements(C_panel))
+) + plot_layout(heights = c(1, 1))+
+  plot_annotation(tag_levels = "a")&
+  theme(
+    plot.tag = element_text(
+      color = "grey40",
+      face = "bold",
+      size = 12
+    )
+  )
 
 final_plot
 ```
 
 # Save figure
 ```{r}
-ggsave("../figs/figure_survival_timing_morphology.png", width = 10, height = 12, dpi = 900)
+ggsave("../figs/survival_timing_morphology.png", width = 10, height = 12, dpi = 900)
 ```
 
