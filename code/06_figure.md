@@ -1,45 +1,58 @@
----
-title: "Final patched figure: Embryo survival, timing, and morphology"
-subtitle: "Using cowplot, ggdraw and patchwork? Is it possible?"
-date: 11/24/2025
-date-modified: today
-format:
-  gfm: 
-    toc: true
-    number-sections: true
-  html:
-    theme: journal
-    highlight-style: github
-    page-layout: article
-    code-background: true
-    code-tools: 
-      source: true
-      toggle: true
-    toc: true
-    toc-depth: 2
-    toc-location: left
-    number-sections: true
-    df-print: kable
-    smooth-scroll: true
-    link-external-icon: true
-    link-external-newwindow: true
-    reference-location: margin
-    citation-location: margin
----
+# Final patched figure: Embryo survival, timing, and morphology
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  echo = TRUE, # Display code chunks
-  eval = TRUE, # Evaluate code chunks
-  warning = FALSE, # Hide warnings
-  message = FALSE, # Hide messages
-  comment = "" # Prevents appending '##' to beginning of lines in code output)
- )        
-```
+2025-11-24
+
+- [<span class="toc-section-number">1</span> Load
+  libraries](#load-libraries)
+- [<span class="toc-section-number">2</span> Load in
+  data](#load-in-data)
+  - [<span class="toc-section-number">2.1</span> Data prep](#data-prep)
+  - [<span class="toc-section-number">2.2</span> Set custom ggplot
+    theme](#set-custom-ggplot-theme)
+  - [<span class="toc-section-number">2.3</span> Set
+    colorscheme](#set-colorscheme)
+    - [<span class="toc-section-number">2.3.1</span>
+      Leachate](#leachate)
+    - [<span class="toc-section-number">2.3.2</span> Stage](#stage)
+    - [<span class="toc-section-number">2.3.3</span> Spawn
+      night](#spawn-night)
+    - [<span class="toc-section-number">2.3.4</span> Status](#status)
+- [<span class="toc-section-number">3</span> Survival
+  boxplot](#survival-boxplot)
+- [<span class="toc-section-number">4</span> Timing stacked
+  barplot](#timing-stacked-barplot)
+  - [<span class="toc-section-number">4.1</span> Percent composition of
+    stage categories](#percent-composition-of-stage-categories)
+    - [<span class="toc-section-number">4.1.1</span> Add pretty stage
+      icons](#add-pretty-stage-icons)
+  - [<span class="toc-section-number">4.2</span> Stage counts for each
+    stage category](#stage-counts-for-each-stage-category)
+- [<span class="toc-section-number">5</span> Abnormalities
+  barplot](#abnormalities-barplot)
+  - [<span class="toc-section-number">5.1</span> Percent composition of
+    status categories](#percent-composition-of-status-categories)
+  - [<span class="toc-section-number">5.2</span> Status counts for each
+    status category](#status-counts-for-each-status-category)
+- [<span class="toc-section-number">6</span> Patchwork](#patchwork)
+  - [<span class="toc-section-number">6.1</span> Add
+    caption](#add-caption)
+  - [<span class="toc-section-number">6.2</span> Patch it
+    together](#patch-it-together)
+  - [<span class="toc-section-number">6.3</span> Add pretty embryo icons
+    with `ggdraw()`](#add-pretty-embryo-icons-with-ggdraw)
+  - [<span class="toc-section-number">6.4</span> Legends](#legends)
+    - [<span class="toc-section-number">6.4.1</span> Stage
+      legend](#stage-legend)
+    - [<span class="toc-section-number">6.4.2</span> Status
+      legend](#status-legend)
+    - [<span class="toc-section-number">6.4.3</span> Panels](#panels)
+- [<span class="toc-section-number">7</span> Final Patch](#final-patch)
+- [<span class="toc-section-number">8</span> Save figure](#save-figure)
+- [<span class="toc-section-number">9</span> Forest plot](#forest-plot)
 
 # Load libraries
 
-```{r}
+``` r
 library(tidyverse)
 library(ggplot2)
 library(colorspace)
@@ -54,7 +67,7 @@ library(cowplot) # for draw_image
 
 # Load in data
 
-```{r}
+``` r
 tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
 
 prop_summary <- read.csv("../output/dataframes/prop_summary.csv")
@@ -65,16 +78,17 @@ long_status_counts <- read.csv("../output/dataframes/long_status_counts.csv")
 ```
 
 ## Data prep
+
 Set factor levels for treatment and hpf
 
-```{r}
+``` r
 treat_levels <- c("control", "low", "mid", "high")
 hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
 map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
 ```
 
-```{r}
+``` r
 long_timing_counts <- long_timing_counts %>%
   mutate(
     treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
@@ -89,8 +103,7 @@ long_status_counts <- long_status_counts %>%
     status    = factor(status, levels = c("malformed", "uncertain", "typical"), ordered = TRUE))
 ```
 
-```{r}
-
+``` r
 survival_df <- tidy_vials %>%
   mutate(
     # ordered factors
@@ -105,9 +118,17 @@ survival_df <- tidy_vials %>%
 str(survival_df)
 ```
 
+    'data.frame':   108 obs. of  6 variables:
+     $ sample_id   : chr  "10C14" "10C4" "10C9" "10H14" ...
+     $ treatment   : Ord.factor w/ 4 levels "control"<"low"<..: 1 1 1 4 4 4 2 2 2 3 ...
+     $ hpf         : int  14 4 9 14 4 9 14 4 9 14 ...
+     $ hpf_factor  : Ord.factor w/ 3 levels "4"<"9"<"14": 3 1 2 3 1 2 3 1 2 3 ...
+     $ leachate_mgL: num  0 0 0 1 1 1 0.01 0.01 0.01 0.1 ...
+     $ n_viable    : int  21 29 16 11 20 19 12 26 25 19 ...
 
 ## Set custom ggplot theme
-```{r}
+
+``` r
 theme_sleek_axe <- function() {
   theme_sleek() +
     theme(
@@ -141,21 +162,19 @@ theme_sleek_axe <- function() {
       legend.text = element_text(size = 7, color = "grey40")
     )
 }
-
 ```
-
 
 ## Set colorscheme
 
-```{r}
+``` r
 #colorspace::hclwizard()
 ```
 
 ### Leachate
-Leachate options
-Ocean environmental watery tones
-blue-purple
-```{r}
+
+Leachate options Ocean environmental watery tones blue-purple
+
+``` r
 leachate_0 <- c("#B0F4FA", "#75C165", "#A96C00", "#8B0069")
 leachate_1 <- c("#D5ECC0", "#6ACFBA", "#399AC2", "#80146E")
 leachate_2 <- c("#E4EBD6", "#8CC4AD", "#3E909F", "#4E4E7A")
@@ -168,9 +187,10 @@ leachate.colors <- c(control = "#AEF1FF",
 ```
 
 ### Stage
-Earthy stony coral tones
-yellow-orange-red
-```{r}
+
+Earthy stony coral tones yellow-orange-red
+
+``` r
 stage_0 <- c("#DCC14F", "#D89500", "#C86600")
 stage_1 <- c("#DCC14F", "#9F3D2F", "#000000")
 stage_2 <- c("#A2223C", "#E6AA83",  "#D9685B")
@@ -191,7 +211,7 @@ stage.3.colors <- c(cleavage = "#EBA600",
 
 ### Spawn night
 
-```{r}
+``` r
 night_0 <- c("#FDE725", "#440154", "#21918C")
 night_1 <- c("#FFCEF4", "#578B21", "#201158")
 night_2 <- c("#E3FAA5", "#B16776", "#1E2440")
@@ -206,7 +226,8 @@ night.colors.alt <- c(July_6th = "#21918C",
 ```
 
 ### Status
-```{r}
+
+``` r
 status.colors <- c(typical = "#75C165", 
                    uncertain = "#E3FAA5", 
                    malformed = "#8B0069")
@@ -214,7 +235,7 @@ status.colors <- c(typical = "#75C165",
 
 # Survival boxplot
 
-```{r}
+``` r
 # labels for legend
 labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
@@ -261,16 +282,17 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
 survival
 ```
 
-```{r}
+![](06_figure_files/figure-commonmark/unnamed-chunk-12-1.png)
+
+``` r
 ggsave("../figs/embryo_survival_box.png", width = 8, height = 6, dpi = 600)
 ```
 
-
 # Timing stacked barplot
 
-## Percent composition of stage categories 
+## Percent composition of stage categories
 
-```{r}
+``` r
 prop_summary <- prop_summary %>% 
   mutate(
     treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
@@ -279,8 +301,7 @@ prop_summary <- prop_summary %>%
   )
 ```
 
-
-```{r}
+``` r
 # Step 3: Plot
 tick_map <- c(control = "control", low = "low",
               mid = "mid", high = "high")
@@ -315,9 +336,12 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
 
 timing
 ```
+
+![](06_figure_files/figure-commonmark/unnamed-chunk-15-1.png)
+
 ### Add pretty stage icons
 
-```{r}
+``` r
 timing_pretty <- ggdraw() +
   draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
   draw_image('../legend/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
@@ -329,12 +353,15 @@ timing_pretty <- ggdraw() +
 timing_pretty
 ```
 
-```{r}
+![](06_figure_files/figure-commonmark/unnamed-chunk-16-1.png)
+
+``` r
 ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
 
-## Stage counts for each stage category 
-```{r}
+## Stage counts for each stage category
+
+``` r
 stage_count_plot <- long_timing_counts %>% 
 ggplot(., aes(x = treatment, y =n, fill = stage)) +
   geom_bar(stat = "identity") +
@@ -374,14 +401,13 @@ ggplot(., aes(x = treatment, y =n, fill = stage)) +
 stage_count_plot
 ```
 
-
-
-
+![](06_figure_files/figure-commonmark/unnamed-chunk-18-1.png)
 
 # Abnormalities barplot
 
-## Percent composition of status categories 
-```{r}
+## Percent composition of status categories
+
+``` r
 status_summary <- status_summary %>%
   mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"), 
                        ordered = TRUE),
@@ -420,8 +446,11 @@ abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill
 abnormality
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-19-1.png)
+
 ## Status counts for each status category
-```{r}
+
+``` r
 status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~hpf,
@@ -457,19 +486,30 @@ status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill =
 status_count_plot
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-20-1.png)
 
-```{r}
+``` r
 ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
 ```
-# Patchwork 
 
-## Add caption 
-A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure.
+# Patchwork
 
+## Add caption
+
+A. Boxplot showing mean and individual counts of viable embryos at 4, 9,
+and 14 hours post-fertilization (hpf) following exposure to different
+doses of PVC leachate, illustrating no significant differences or trends
+in survival due to leachate exposure levels. B. Stacked barplot
+indicating the stage composition of samples at each treatment and
+timepoint, showing that PVC leachate levels did not influence the
+developmental timing across samples. C. Stacked barplot indicating the
+status composition of samples at each treatment and timepoint showing no
+significant differences in morphological abnormalities due to PVC
+leachate exposure.
 
 ## Patch it together
 
-```{r, fig.height=12, fig.width=10}
+``` r
 patch <- survival / (timing | abnormality)+
   plot_annotation(
     title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
@@ -488,10 +528,18 @@ patch <- survival / (timing | abnormality)+
 patch
 ```
 
-## Add pretty embryo icons with `ggdraw()`
-Add in embryos on top of the patchwork figure with ggdraw and draw_image. Do this step last! When I tried to ggdraw on the Timing subplot and then patch it together the aspect ration got very wonky. Once you ggdraw a plot it becomes a raster image and patchwork can't handle that well. Definately add the fiddly little ggdraw icons at the end!
+![](06_figure_files/figure-commonmark/unnamed-chunk-22-1.png)
 
-```{r, fig.height=12, fig.width=10}
+## Add pretty embryo icons with `ggdraw()`
+
+Add in embryos on top of the patchwork figure with ggdraw and
+draw_image. Do this step last! When I tried to ggdraw on the Timing
+subplot and then patch it together the aspect ration got very wonky.
+Once you ggdraw a plot it becomes a raster image and patchwork can’t
+handle that well. Definately add the fiddly little ggdraw icons at the
+end!
+
+``` r
 patch_pretty <- ggdraw() +
   draw_plot(patch, 0, 0, 1, 1) +   # base plot fills the whole panel
   draw_image('../legend/egg.png',         x = 0.05,  y = 0.415, width = 0.056, height = 0.056) +
@@ -503,14 +551,17 @@ patch_pretty <- ggdraw() +
 patch_pretty
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-23-1.png)
+
 ## Legends
 
-```{r}
+``` r
 library(ggimage)
 ```
 
 ### Stage legend
-```{r}
+
+``` r
 stage_legend_df <- tibble::tibble(
   stage = factor(c("egg", 
                    "cleavage", 
@@ -541,7 +592,7 @@ stage_legend_df <- tibble::tibble(
           '../legend/earlygastrula.png'))
 ```
 
-```{r}
+``` r
 stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = label)) +
   geom_image(aes(image = img), size = 0.18) +
   #geom_text(aes(label = label), 
@@ -557,8 +608,11 @@ stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = label)) +
 stage_legend_plot
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-26-1.png)
+
 ### Status legend
-```{r}
+
+``` r
 status_legend_df <- tibble::tibble(
   status = factor(c("",
                     " ",
@@ -579,7 +633,7 @@ status_legend_df <- tibble::tibble(
 )
 ```
 
-```{r}
+``` r
 status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
   geom_image(aes(image = img), size = 0.18) +
   scale_x_continuous() +
@@ -591,21 +645,31 @@ status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
 
 status_legend_plot
 ```
+
+![](06_figure_files/figure-commonmark/unnamed-chunk-28-1.png)
+
 ### Panels
-```{r}
+
+``` r
 B_panel <- stage_count_plot + stage_legend_plot + plot_layout(widths = c(4, 1.1))
 C_panel <- status_count_plot + status_legend_plot + plot_layout(widths = c(4, 1.1))
 ```
 
-```{r}
+``` r
 B_panel
 ```
-```{r}
+
+![](06_figure_files/figure-commonmark/unnamed-chunk-30-1.png)
+
+``` r
 C_panel
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-31-1.png)
+
 # Final Patch
-```{r, fig.height=12, fig.width=10}
+
+``` r
 final_plot <- (
   wrap_elements(survival)/ 
   (wrap_elements(B_panel) | wrap_elements(C_panel))
@@ -622,14 +686,17 @@ final_plot <- (
 final_plot
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-32-1.png)
+
 # Save figure
-```{r}
+
+``` r
 ggsave("../figs/survival_timing_morphology.png", width = 10, height = 12, dpi = 900)
 ```
 
 # Forest plot
 
-```{r}
+``` r
 diff_df <- read_csv("../output/dataframes/diff_from_control_counts.csv") %>% 
   mutate(
     treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
@@ -638,7 +705,7 @@ diff_df <- read_csv("../output/dataframes/diff_from_control_counts.csv") %>%
   )
 ```
 
-```{r}
+``` r
 timing_forest <- ggplot(diff_df, aes(
   x = diff_from_control,
   y = Stage,
@@ -687,14 +754,18 @@ timing_forest <- ggplot(diff_df, aes(
 timing_forest
 ```
 
-```{r}
+![](06_figure_files/figure-commonmark/unnamed-chunk-35-1.png)
+
+``` r
 stage_legend_plot +
   theme(
     axis.text.y.right = element_blank()
   )
 ```
 
-```{r}
+![](06_figure_files/figure-commonmark/unnamed-chunk-36-1.png)
+
+``` r
 timing_forest_legendary <- timing_forest + 
   stage_legend_plot +
   theme(
@@ -705,8 +776,8 @@ timing_forest_legendary <- timing_forest +
 timing_forest_legendary
 ```
 
+![](06_figure_files/figure-commonmark/unnamed-chunk-37-1.png)
 
-```{r}
+``` r
 ggsave("../figs/timing_forest_plot.png", width = 8, height = 6, dpi = 900)
 ```
-

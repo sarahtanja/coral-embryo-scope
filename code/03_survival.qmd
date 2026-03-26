@@ -267,7 +267,7 @@ survival_data_summary <- survival_summary %>%
   left_join(summary_data) %>% 
   dplyr::select(hpf, treatment, mean_survival_rate, sd_survival_rate, mean_embryo, sd_embryo)
 
-table_wide <- survival_data_summary %>%
+survival_table_wide <- survival_data_summary %>%
   mutate(
     across(
       c(mean_embryo, sd_embryo),
@@ -296,7 +296,7 @@ table_wide <- survival_data_summary %>%
   
 
 # Rename and drop numeric hpf column
-table_wide_print <- table_wide %>%
+survival_table_wide_print <- survival_table_wide %>%
   rename(
     `Hours post-fertilization` = hpf_label,  # character, not factor codes
     `Control (FSW)`           = control,
@@ -312,7 +312,7 @@ table_wide_print <- table_wide %>%
     `High (1 mg/L)`
   )
 
-table_wide_print
+survival_table_wide_print
 ```
 
 We can generate the table in .doc format for copy and pasting into Google Doc manuscript draft, or html format for viewing in browser.

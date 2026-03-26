@@ -529,6 +529,7 @@ This tests whether the whole multivariate response vector `Y` is
 affected by treatment, hpf, or their interaction.
 
 ```{r}
+set.seed(03262026)
 Y <- mvabund(tidy_vials_stage_counts[, 
                                      c("n_egg", 
                                        "n_cleavage", 
@@ -609,28 +610,74 @@ if (is.factor(tidy_vials_stage_counts$hpf)) {
   )
 }
 
-# 2. get fitted values from the model
-pred_mat <- predict(mod_all, newdata = pred_grid, type = "response")
+# 2. get fitted values from the model and SE!
+pred_obj <- predict(mod_all, newdata = pred_grid, type = "response", se.fit = TRUE)
 
-# 3. turn predictions into a tidy dataframe
-pred_df <- pred_grid %>%
-  bind_cols(as.data.frame(pred_mat)) %>%
+# rename 5 columns in SE fit to reflect our 5 stages!
+colnames(pred_obj$se.fit) <- colnames(pred_obj$fit)
+```
+
+
+```{r}
+# 3. join and pivot fitted values
+fit_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_obj$fit)) %>%
   pivot_longer(
     cols = starts_with("n_"),
     names_to = "stage",
     values_to = "fitted_count"
   )
 
-# 4. extract control fitted values at each hpf and stage
+# 4. join and pivot fitted SEs
+se_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_obj$se.fit)) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "se_fit"
+  )
+
+# 5. combine fit + SE and build CIs
+pred_df <- fit_df %>%
+  left_join(se_df, by = c("treatment", "hpf", "stage")) %>%
+  mutate(
+    ci_min = fitted_count - 1.96 * se_fit,
+    ci_max = fitted_count + 1.96 * se_fit
+  )
+```
+
+
+
+```{r}
+# 6. extract control values
 control_df <- pred_df %>%
   filter(treatment == "control") %>%
-  select(hpf, stage, control_fitted = fitted_count)
+  select(
+    hpf, stage,
+    control_fitted = fitted_count,
+    control_se = se_fit
+  )
 
-# 5. subtract control from every treatment within hpf and stage
+# 7. compute treatment - control difference and CI
 diff_df <- pred_df %>%
   left_join(control_df, by = c("hpf", "stage")) %>%
-  mutate(diff_from_control = fitted_count - control_fitted) %>%
-  filter(treatment != "control")
+  mutate(
+    diff_from_control = fitted_count - control_fitted,
+    diff_se = sqrt(se_fit^2 + control_se^2),
+    diff_ci_min = diff_from_control - 1.96 * diff_se,
+    diff_ci_max = diff_from_control + 1.96 * diff_se
+  ) %>%
+  filter(treatment != "control") %>%
+  mutate(
+    Stage = case_when(
+      stage == "n_egg" ~ "Egg",
+      stage == "n_cleavage" ~ "Cleavage",
+      stage == "n_morula" ~ "Morula",
+      stage == "n_prawnchip" ~ "Prawnchip",
+      stage == "n_earlygastrula" ~ "Early gastrula"
+    ), 
+    Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
+  )
 ```
 
 ```{r}
@@ -648,40 +695,35 @@ ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = t
   ) +
   theme_bw()
 ```
+
+## Forest plot
 ```{r}
-pred_df_prop <- pred_grid %>%
-  bind_cols(as.data.frame(pred_mat)) %>%
-  mutate(total_fitted = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula) %>%
-  pivot_longer(
-    cols = starts_with("n_"),
-    names_to = "stage",
-    values_to = "fitted_count"
-  ) %>%
-  mutate(fitted_prop = fitted_count / total_fitted)
-
-control_prop_df <- pred_df_prop %>%
-  filter(treatment == "control") %>%
-  select(hpf, stage, control_prop = fitted_prop)
-
-diff_prop_df <- pred_df_prop %>%
-  left_join(control_prop_df, by = c("hpf", "stage")) %>%
-  mutate(diff_from_control = fitted_prop - control_prop) %>%
-  filter(treatment != "control")
-
-
-ggplot(diff_prop_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_line() +
-  geom_point(size = 2) +
-  facet_wrap(~ stage) +
+ggplot(diff_df, aes(
+  x = diff_from_control,
+  y = Stage,
+  color = treatment
+)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
+  geom_point(
+    position = position_dodge(width = 0.5),
+    size = 2
+  ) +
+  facet_wrap(~ hpf, nrow = 1) +
+  scale_y_discrete(limits = rev(levels(diff_df$Stage))) +  # reverse y-axis order
   labs(
-    title = "Treatment minus control differences in fitted stage proportions",
-    subtitle = "Positive values indicate a higher stage proportion than control",
-    x = "Hours post-fertilization",
-    y = "Difference from control (fitted proportion)",
+    title = "Treatment minus control differences in fitted stage counts",
+    subtitle = "Points right of zero = more embryos than control; left = fewer",
+    x = "Difference from control (fitted count)",
+    y = "Developmental stage",
     color = "Treatment"
   ) +
   theme_bw()
+```
+
+
+```{r}
+write_csv(diff_df, "../output/dataframes/diff_from_control_counts.csv")
 ```
 
 

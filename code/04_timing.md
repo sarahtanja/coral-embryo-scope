@@ -13,8 +13,10 @@ Sarah Tanja
   data](#explore-the-data)
 - [<span class="toc-section-number">4</span> Visualize
   counts](#visualize-counts)
-  - [<span class="toc-section-number">4.1</span> Mean stage composition
-    counts table](#mean-stage-composition-counts-table)
+  - [<span class="toc-section-number">4.1</span> Calculate stage count
+    means](#calculate-stage-count-means)
+  - [<span class="toc-section-number">4.2</span> Table: Stage
+    composition means](#table-stage-composition-means)
 - [<span class="toc-section-number">5</span> Visualize
   proportions](#visualize-proportions)
   - [<span class="toc-section-number">5.1</span> Mean stage proportions
@@ -23,6 +25,11 @@ Sarah Tanja
   approach](#statistical-approach)
 - [<span class="toc-section-number">7</span> MVABUD/
   MANYGLM](#mvabud-manyglm)
+  - [<span class="toc-section-number">7.1</span> Forest
+    plot](#forest-plot)
+- [<span class="toc-section-number">8</span> Method](#method)
+- [<span class="toc-section-number">9</span> Discussion
+  points](#discussion-points)
 
 # Background
 
@@ -97,11 +104,13 @@ stage.5.colors <- c(egg = "#FFE362",
 
 # Explore the data
 
-Pivot to long format
+Pivot to long format for data exploration and visualization *(note that
+the data used for statistical analysis remains in wide format as
+`tidy_vials_stage_counts`)*
 
 ``` r
 # Pivot to long format
-long_timing_counts <- tidy_vials_stage_counts %>%
+long_stage_counts <- tidy_vials_stage_counts %>%
   pivot_longer(
     cols = starts_with("n"),
     names_to = c(".value", "stage"),
@@ -113,7 +122,7 @@ long_timing_counts <- tidy_vials_stage_counts %>%
                   "prawnchip", "earlygastrula"), ordered = TRUE))
 
 
-str(long_timing_counts)
+str(long_stage_counts)
 ```
 
     tibble [540 × 6] (S3: tbl_df/tbl/data.frame)
@@ -125,26 +134,26 @@ str(long_timing_counts)
      $ n        : int [1:540] 0 0 0 0 23 9 12 8 0 0 ...
 
 ``` r
-summary(long_timing_counts$n)
+summary(long_stage_counts$n)
 ```
 
        Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
       0.000   0.000   0.000   3.581   4.000  34.000 
 
 ``` r
-write_csv(long_timing_counts, "../output/dataframes/long_timing_counts.csv")
+write_csv(long_stage_counts, "../output/dataframes/long_timing_counts.csv")
 ```
 
 #### Overdispersion
 
 ``` r
-mean(long_timing_counts$n)
+mean(long_stage_counts$n)
 ```
 
     [1] 3.581481
 
 ``` r
-var(long_timing_counts$n)
+var(long_stage_counts$n)
 ```
 
     [1] 45.05272
@@ -155,7 +164,7 @@ var(long_timing_counts$n)
 #### Zero-inflation
 
 ``` r
-hist(long_timing_counts$n, breaks = 30)
+hist(long_stage_counts$n, breaks = 30)
 ```
 
 ![](04_timing_files/figure-commonmark/unnamed-chunk-4-1.png)
@@ -166,7 +175,7 @@ hist(long_timing_counts$n, breaks = 30)
   treatment and hpf):
 
 ``` r
-long_timing_counts %>%
+long_stage_counts %>%
   group_by(stage) %>%
   summarize(prop_zero = mean(n == 0))
 ```
@@ -186,7 +195,7 @@ zeros!… Our data is zero-inflated.
 # Visualize counts
 
 ``` r
-ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
+ggplot(long_stage_counts, aes(x = treatment, y = n, fill = stage)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~ hpf) +
   labs(title = "Embryo stage counts by treatment over time",
@@ -207,11 +216,11 @@ ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
 > total counts across treatments appear similar, as well as the stage
 > breakdown within each treatment.
 
-Calculate count means
+## Calculate stage count means
 
 ``` r
 # Step 2: Calculate mean proportions for each stage within each treatment
-counts_summary <- long_timing_counts %>%
+counts_summary <- long_stage_counts %>%
   group_by(treatment, stage, hpf) %>%
   summarize(mean_counts = mean(n), .groups = "drop") %>% 
   mutate(mean_counts = round(mean_counts, 2)) %>% 
@@ -239,7 +248,7 @@ head(counts_summary)
     5 control   cleavage 9            0.11
     6 control   cleavage 14           0   
 
-## Mean stage composition counts table
+## Table: Stage composition means
 
 ``` r
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
@@ -610,6 +619,7 @@ This tests whether the whole multivariate response vector `Y` is
 affected by treatment, hpf, or their interaction.
 
 ``` r
+set.seed(03262026)
 Y <- mvabund(tidy_vials_stage_counts[, 
                                      c("n_egg", 
                                        "n_cleavage", 
@@ -637,7 +647,7 @@ anova(mod_all, p.uni = "adjusted")
     (Intercept)      107                           
     treatment        104       3   1.5    0.998    
     hpf              102       2 568.0    0.001 ***
-    treatment:hpf     96       6  40.3    0.001 ***
+    treatment:hpf     96       6  40.3    0.009 ** 
     ---
     Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -647,13 +657,13 @@ anova(mod_all, p.uni = "adjusted")
     (Intercept)                                                         
     treatment       0.141    0.999      0.518    0.999    0.365    0.999
     hpf           111.982    0.001     76.461    0.001   71.986    0.001
-    treatment:hpf  16.532    0.104      2.763    0.138     9.42    0.104
+    treatment:hpf  16.532    0.108      2.763    0.144     9.42    0.108
                   n_prawnchip          n_earlygastrula         
                           Dev Pr(>Dev)             Dev Pr(>Dev)
     (Intercept)                                                
     treatment           0.027    0.999           0.461    0.999
     hpf               126.171    0.001         181.394    0.001
-    treatment:hpf       11.59    0.104               0    0.805
+    treatment:hpf       11.59    0.108               0    0.791
     Arguments:
      Test statistics calculated assuming uncorrelated response (for faster computation) 
     P-value calculated using 999 iterations via PIT-trap resampling.
@@ -663,6 +673,20 @@ plot(mod_all)
 ```
 
 ![](04_timing_files/figure-commonmark/unnamed-chunk-19-1.png)
+
+> [!WARNING]
+>
+> Stage and hpf are not independent!!! We know that hpf will explain
+> most of the variation in Y. Talking about how hpf is significant is
+> not biologically relevant to the study… just confirms what is already
+> obvious- that embryos develop over time. The main question is whether
+> treatment affects stage composition differently at different
+> developmental times, which is what the interaction term tests. So for
+> results we focus on the interaction! The interaction term asks “Does
+> treatment affect stage composition differently at different
+> developmental times?” or “Does PVC leachate delay or speed up
+> development?” We tested whether treatment effects on stage composition
+> varied across developmental time (treatment × hpf interaction).
 
 ``` r
 # Get fitted values
@@ -701,15 +725,153 @@ ggplot(fitted_long,
   multivariate effects found.
 
 ``` r
+# 1. prediction grid
+pred_grid <- expand.grid(
+  treatment = levels(tidy_vials_stage_counts$treatment),
+  hpf = sort(unique(tidy_vials_stage_counts$hpf))
+)
+
+# make sure factor structure matches original data
+pred_grid$treatment <- factor(
+  pred_grid$treatment,
+  levels = levels(tidy_vials_stage_counts$treatment)
+)
+
+# if hpf is a factor in your model, keep it as factor
+if (is.factor(tidy_vials_stage_counts$hpf)) {
+  pred_grid$hpf <- factor(
+    pred_grid$hpf,
+    levels = levels(tidy_vials_stage_counts$hpf)
+  )
+}
+
+# 2. get fitted values from the model and SE!
+pred_obj <- predict(mod_all, newdata = pred_grid, type = "response", se.fit = TRUE)
+
+# rename 5 columns in SE fit to reflect our 5 stages!
+colnames(pred_obj$se.fit) <- colnames(pred_obj$fit)
+```
+
+``` r
+# 3. join and pivot fitted values
+fit_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_obj$fit)) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "fitted_count"
+  )
+
+# 4. join and pivot fitted SEs
+se_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_obj$se.fit)) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "se_fit"
+  )
+
+# 5. combine fit + SE and build CIs
+pred_df <- fit_df %>%
+  left_join(se_df, by = c("treatment", "hpf", "stage")) %>%
+  mutate(
+    ci_min = fitted_count - 1.96 * se_fit,
+    ci_max = fitted_count + 1.96 * se_fit
+  )
+```
+
+``` r
+# 6. extract control values
+control_df <- pred_df %>%
+  filter(treatment == "control") %>%
+  select(
+    hpf, stage,
+    control_fitted = fitted_count,
+    control_se = se_fit
+  )
+
+# 7. compute treatment - control difference and CI
+diff_df <- pred_df %>%
+  left_join(control_df, by = c("hpf", "stage")) %>%
+  mutate(
+    diff_from_control = fitted_count - control_fitted,
+    diff_se = sqrt(se_fit^2 + control_se^2),
+    diff_ci_min = diff_from_control - 1.96 * diff_se,
+    diff_ci_max = diff_from_control + 1.96 * diff_se
+  ) %>%
+  filter(treatment != "control") %>%
+  mutate(
+    Stage = case_when(
+      stage == "n_egg" ~ "Egg",
+      stage == "n_cleavage" ~ "Cleavage",
+      stage == "n_morula" ~ "Morula",
+      stage == "n_prawnchip" ~ "Prawnchip",
+      stage == "n_earlygastrula" ~ "Early gastrula"
+    ), 
+    Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
+  )
+```
+
+``` r
+ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_wrap(~ stage) +
+  labs(
+    title = "Treatment minus control differences in fitted stage counts",
+    subtitle = "Positive values indicate more embryos than control; negative values indicate fewer",
+    x = "Hours post-fertilization",
+    y = "Difference from control (fitted count)",
+    color = "Treatment"
+  ) +
+  theme_bw()
+```
+
+![](04_timing_files/figure-commonmark/unnamed-chunk-24-1.png)
+
+## Forest plot
+
+``` r
+ggplot(diff_df, aes(
+  x = diff_from_control,
+  y = Stage,
+  color = treatment
+)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
+  geom_point(
+    position = position_dodge(width = 0.5),
+    size = 2
+  ) +
+  facet_wrap(~ hpf, nrow = 1) +
+  scale_y_discrete(limits = rev(levels(diff_df$Stage))) +  # reverse y-axis order
+  labs(
+    title = "Treatment minus control differences in fitted stage counts",
+    subtitle = "Points right of zero = more embryos than control; left = fewer",
+    x = "Difference from control (fitted count)",
+    y = "Developmental stage",
+    color = "Treatment"
+  ) +
+  theme_bw()
+```
+
+![](04_timing_files/figure-commonmark/unnamed-chunk-25-1.png)
+
+``` r
+write_csv(diff_df, "../output/dataframes/diff_from_control_counts.csv")
+```
+
+``` r
 fitted_prop <- fitted_long %>%
   group_by(sample_id) %>%
   mutate(total = sum(fitted_count),
          prop = fitted_count / total)
 
 ggplot(fitted_prop,
-       aes(x = hpf, y = prop, color = stage)) +
-  geom_line(aes(group = stage), linewidth = 1) +
-  facet_wrap(~ treatment) +
+       aes(x = hpf, y = prop, color = treatment)) +
+  geom_line(aes(group = treatment), linewidth = 1) +
+  facet_wrap(~ stage) +
   theme_minimal(base_size = 14) +
   labs(
     title = "Compositional developmental trajectories",
@@ -717,13 +879,13 @@ ggplot(fitted_prop,
   )
 ```
 
-![](04_timing_files/figure-commonmark/unnamed-chunk-21-1.png)
+![](04_timing_files/figure-commonmark/unnamed-chunk-27-1.png)
 
 What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
 preventing their degradation.
 
-#### Method
+# Method
 
 Developmental Stage Composition Analysis
 
@@ -791,12 +953,12 @@ This suggests subtle perturbations in *transition timing…* slowing or
 accelerating development in a stage-specific way… aka a **pattern-level
 developmental distortion**
 
-#### Discussion points
+# Discussion points
 
 - Developmental stage (**hpf**) is by far the strongest driver of the
   embryo count by stage composition — expected.
 
 - Treatment alone does **not** shift the by stage count composition.
 
-- T**reatment effects depend on stage** → you get a **significant
+- **Treatment effects depend on stage** → you get a **significant
   interaction** multivariately.
