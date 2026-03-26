@@ -210,7 +210,7 @@ ggplot(long_stage_counts, aes(x = treatment, y = n, fill = stage)) +
 
 ```{r}
 # Step 2: Calculate mean proportions for each stage within each treatment
-counts_summary <- long_timing_counts %>%
+counts_summary <- long_stage_counts %>%
   group_by(treatment, stage, hpf) %>%
   summarize(mean_counts = mean(n), .groups = "drop") %>% 
   mutate(mean_counts = round(mean_counts, 2)) %>% 
@@ -546,6 +546,14 @@ anova(mod_all, p.uni = "adjusted")
 plot(mod_all)
 ```
 
+::: callout-warning
+Stage and hpf are not independent!!! We know that hpf will explain most of the variation in Y.
+Talking about how hpf is significant is not biologically relevant to the study... just confirms what is already obvious- that embryos develop over time. The main question is whether treatment affects stage composition differently at different developmental times, which is what the interaction term tests.
+So for results we focus on the interaction! 
+The interaction term asks "Does treatment affect stage composition differently at different developmental times?" or "Does PVC leachate delay or speed up development?"
+We tested whether treatment effects on stage composition varied across developmental time (treatment × hpf interaction).
+:::
+
 ```{r}
 # Get fitted values
 fitted_vals <- as.data.frame(fitted(mod_all))
@@ -581,15 +589,112 @@ ggplot(fitted_long,
     multivariate effects found.
 
 ```{r}
+# 1. prediction grid
+pred_grid <- expand.grid(
+  treatment = levels(tidy_vials_stage_counts$treatment),
+  hpf = sort(unique(tidy_vials_stage_counts$hpf))
+)
+
+# make sure factor structure matches original data
+pred_grid$treatment <- factor(
+  pred_grid$treatment,
+  levels = levels(tidy_vials_stage_counts$treatment)
+)
+
+# if hpf is a factor in your model, keep it as factor
+if (is.factor(tidy_vials_stage_counts$hpf)) {
+  pred_grid$hpf <- factor(
+    pred_grid$hpf,
+    levels = levels(tidy_vials_stage_counts$hpf)
+  )
+}
+
+# 2. get fitted values from the model
+pred_mat <- predict(mod_all, newdata = pred_grid, type = "response")
+
+# 3. turn predictions into a tidy dataframe
+pred_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_mat)) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "fitted_count"
+  )
+
+# 4. extract control fitted values at each hpf and stage
+control_df <- pred_df %>%
+  filter(treatment == "control") %>%
+  select(hpf, stage, control_fitted = fitted_count)
+
+# 5. subtract control from every treatment within hpf and stage
+diff_df <- pred_df %>%
+  left_join(control_df, by = c("hpf", "stage")) %>%
+  mutate(diff_from_control = fitted_count - control_fitted) %>%
+  filter(treatment != "control")
+```
+
+```{r}
+ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_wrap(~ stage) +
+  labs(
+    title = "Treatment minus control differences in fitted stage counts",
+    subtitle = "Positive values indicate more embryos than control; negative values indicate fewer",
+    x = "Hours post-fertilization",
+    y = "Difference from control (fitted count)",
+    color = "Treatment"
+  ) +
+  theme_bw()
+```
+```{r}
+pred_df_prop <- pred_grid %>%
+  bind_cols(as.data.frame(pred_mat)) %>%
+  mutate(total_fitted = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula) %>%
+  pivot_longer(
+    cols = starts_with("n_"),
+    names_to = "stage",
+    values_to = "fitted_count"
+  ) %>%
+  mutate(fitted_prop = fitted_count / total_fitted)
+
+control_prop_df <- pred_df_prop %>%
+  filter(treatment == "control") %>%
+  select(hpf, stage, control_prop = fitted_prop)
+
+diff_prop_df <- pred_df_prop %>%
+  left_join(control_prop_df, by = c("hpf", "stage")) %>%
+  mutate(diff_from_control = fitted_prop - control_prop) %>%
+  filter(treatment != "control")
+
+
+ggplot(diff_prop_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_wrap(~ stage) +
+  labs(
+    title = "Treatment minus control differences in fitted stage proportions",
+    subtitle = "Positive values indicate a higher stage proportion than control",
+    x = "Hours post-fertilization",
+    y = "Difference from control (fitted proportion)",
+    color = "Treatment"
+  ) +
+  theme_bw()
+```
+
+
+```{r}
 fitted_prop <- fitted_long %>%
   group_by(sample_id) %>%
   mutate(total = sum(fitted_count),
          prop = fitted_count / total)
 
 ggplot(fitted_prop,
-       aes(x = hpf, y = prop, color = stage)) +
-  geom_line(aes(group = stage), linewidth = 1) +
-  facet_wrap(~ treatment) +
+       aes(x = hpf, y = prop, color = treatment)) +
+  geom_line(aes(group = treatment), linewidth = 1) +
+  facet_wrap(~ stage) +
   theme_minimal(base_size = 14) +
   labs(
     title = "Compositional developmental trajectories",
