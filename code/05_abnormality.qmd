@@ -99,6 +99,9 @@ long_status_counts <- tidy_status %>%
 
 head(long_status_counts)
 ```
+```{r}
+write_csv(long_status_counts, "../output/dataframes/long_status_counts.csv")
+```
 
 ```{r}
 summary(long_status_counts$n)
