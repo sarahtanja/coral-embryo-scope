@@ -52,11 +52,11 @@ knitr::opts_chunk$set(
 
 library(tidyverse)
 library(ggplot2)
-#library(kableExtra)
+library(kableExtra)
 #library(betareg)
 #library(gamlss)
-#library(MASS) # for multinomial or negative binomial GLM
-#library(glmmTMB)
+library(MASS) # for multinomial or negative binomial GLM
+library(glmmTMB) # for zero-inflated negative binomial
 #library(performance)
 library(DHARMa)
 library(mvabund)
@@ -182,7 +182,86 @@ long_stage_counts %>%
 ```
 
 More than 50% of the counts for each stage are zeros....That's a lot of
-zeros!... Our data is zero-inflated.
+zeros!... Our data is proabably zero-inflated.
+
+Formally check for Zero inflation  by running a zero-inflated negative binomial model and comparing it to a standard negative binomial model using an anova to compare them ... AIC?
+```{r}
+# Fit standard negative binomial model
+nb_model <- glmmTMB(n ~ treatment * hpf, 
+                    family = nbinom2,
+                    data = long_stage_counts)
+
+# Fit zero-inflated negative binomial model
+zinb_model <- glmmTMB(n ~ treatment * hpf, 
+                      ziformula = ~1, 
+                      family = nbinom2, 
+                      data = long_stage_counts)
+
+# compare with anova
+anova(nb_model, zinb_model)
+```
+
+::: callout-note
+Model fit
+AIC drops: 2012.9 → 1951.7 (ΔAIC ≈ 61)
+LogLik improves: −993 → −962
+
+👉 Statistically, that is very strong evidence that the zero-inflated model fits better.
+:::
+
+Stuctural zeros vs statistical zeros...
+Zeros are expected because embryos move between stages
+at any given timepoint, some stages will naturally have zero counts.
+That is **structural biology**, not necessarily “zero inflation” in the statistical sense.... So the ZINM model is capturing stage absence at certain timepoints, aka the transition in development. 
+
+```{r}
+summary(zinb_model)
+```
+```{r}
+sim_nb <- simulateResiduals(nb_model)
+plot(sim_nb)
+```
+
+```{r}
+sim_zinb <- simulateResiduals(zinb_model)
+plot(sim_zinb)
+```
+```{r}
+testZeroInflation(simulateResiduals(nb_model))
+```
+
+::: callout-caution
+
+LRT (NB vs ZINB): highly significant
+DHARMa zero test: not significant
+
+That looks contradictory, but it’s actually common.
+
+What’s going on
+
+The ZINB model is improving fit by capturing something, but not necessarily true zero inflation.
+
+Most likely:
+
+👉 It’s absorbing model misspecification, not excess zeros
+
+In your case, likely candidates:
+- stage structure (compositional counts)
+- treatment × time dynamics
+- overdispersion patterns not fully captured by NB
+- heterogeneity across stages 
+
+“There was no evidence of excess zeros based on simulation-based diagnostics (DHARMa; p=0.49), despite improved fit of a zero-inflated model.”
+
+You do NOT need a zero-inflated model
+
+Your diagnostics say NB is adequate with respect to zeros.
+
+The ZINB model is just being more flexible—not more correct.
+
+*This is not random zero inflation. This is stage-structured counts with lots of natural zeros*
+:::
+
 
 # Visualize counts
 
@@ -260,33 +339,7 @@ table_stage_count <- counts_summary %>%
   rename(Stage = stage) 
 
 
-table_stage_count
-```
-
-```{r}
-library(sjPlot)
-
-sjPlot::tab_df(
-  table_stage_count,
-  title         = "Mean stage composition (counts of embryos) by treatment and developmental time (hpf)",
-  show.rownames = FALSE,
-  digits        = 1
-)
-```
-
-```{r}
-library(stargazer)
-
-stargazer::stargazer(
-  table_stage_count,
-  type      = "html",  # or "latex" if knitting to PDF
-  summary   = FALSE,
-  rownames  = FALSE,
-  digits    = 1,
-  title     = "Mean stage composition (counts of embryos) by treatment and developmental time (hpf)",
-  out       = "../output/tables/table_stage_composition_counts.doc"  # optional
-)
-
+kable(table_stage_count)
 ```
 
 # Visualize proportions
@@ -396,33 +449,7 @@ table_stage_pct <- prop_summary %>%
   rename(Stage = stage) 
 
 
-table_stage_pct
-```
-
-```{r}
-library(sjPlot)
-
-sjPlot::tab_df(
-  table_stage_pct,
-  title         = "Mean stage composition (% of embryos) by treatment and developmental time (hpf)",
-  show.rownames = FALSE,
-  digits        = 1
-)
-```
-
-```{r, eval=FALSE}
-library(stargazer)
-
-stargazer::stargazer(
-  table_stage_pct,
-  type      = "html",  # or "latex" if knitting to PDF
-  summary   = FALSE,
-  rownames  = FALSE,
-  digits    = 1,
-  title     = "Mean stage composition (% of embryos) by treatment and developmental time (hpf)",
-  out       = "../output/tables/table_stage_composition_prop.doc"  # optional
-)
-
+kable(table_stage_pct)
 ```
 
 # Statistical approach
@@ -523,20 +550,23 @@ consumer choice), multinomial structure is biologically misleading.
 
 ✔ Allows rich residual diagnostics (e.g., via DHARMa)
 
-# MVABUD/ MANYGLM
+# MVABUND/ MANYGLM
 
 This tests whether the whole multivariate response vector `Y` is
 affected by treatment, hpf, or their interaction.
 
 ```{r}
-set.seed(03262026)
+
 Y <- mvabund(tidy_vials_stage_counts[, 
                                      c("n_egg", 
                                        "n_cleavage", 
                                        "n_morula", 
                                        "n_prawnchip", 
                                        "n_earlygastrula")])
+```
 
+```{r}
+set.seed(03262026)
 mod_all <- manyglm(
   Y ~ treatment * hpf,
   family = "negative.binomial",
@@ -554,6 +584,16 @@ So for results we focus on the interaction!
 The interaction term asks "Does treatment affect stage composition differently at different developmental times?" or "Does PVC leachate delay or speed up development?"
 We tested whether treatment effects on stage composition varied across developmental time (treatment × hpf interaction).
 :::
+```{r}
+set.seed(03262026)
+mod_red <- manyglm(
+  Y ~ treatment + hpf,
+  family = "negative.binomial",
+  data = tidy_vials_stage_counts
+)
+
+anova(mod_all, mod_red)
+```
 
 ```{r}
 # Get fitted values
@@ -651,12 +691,12 @@ pred_df <- fit_df %>%
 ```{r}
 # 6. extract control values
 control_df <- pred_df %>%
-  filter(treatment == "control") %>%
-  select(
-    hpf, stage,
+  filter(treatment == "control") %>% 
+  rename(
     control_fitted = fitted_count,
     control_se = se_fit
-  )
+  ) %>% 
+  dplyr::select(hpf, stage, control_fitted, control_se)
 
 # 7. compute treatment - control difference and CI
 diff_df <- pred_df %>%
@@ -666,7 +706,7 @@ diff_df <- pred_df %>%
     diff_se = sqrt(se_fit^2 + control_se^2),
     diff_ci_min = diff_from_control - 1.96 * diff_se,
     diff_ci_max = diff_from_control + 1.96 * diff_se
-  ) %>%
+  ) %>% 
   filter(treatment != "control") %>%
   mutate(
     Stage = case_when(
@@ -782,19 +822,19 @@ effects and interaction terms was assessed using Analysis of Deviance
 (2025-06-13 ucrt); R Core Team) using the mvabund package
 (mvabund_4.2.1), with alpha set at 0.05.
 
-::: callout-note
+
 
 # Result
+A multivariate generalized linear model revealed a significant treatment × developmental stage interaction (Dev=40.3, df=6, p=0.009), indicating that the distribution of embryos across developmental stages varied over time in a treatment-dependent manner. This effect reflects coordinated shifts in stage composition rather than large differences within any single stage.
 
-Developmental stage had a strong effect on embryo-stage composition (p =
-0.001). Treatment alone did not significantly alter stage counts (p =
+Treatment alone did not significantly alter stage counts (p =
 0.995), but there was a significant **treatment × stage interaction** (p
 = 0.008), indicating that treatment effects differed across
 developmental time points. Univariate tests showed consistent but
 individually nonsignificant interaction trends across stages (p ≈
 0.107), suggesting coordinated but subtle stage-specific responses
 detectable only in the multivariate framework.
-:::
+
 
 We used a multivariate generalized linear model (manyglm, negative
 binomial) to test whether PVC leachate altered the distribution of
@@ -802,28 +842,26 @@ developmental stages across time (egg, cleavage, morula, prawnchip,
 early gastrula).
 
 For all 5 responses Dev \~0–0.5,p = 0.997... No single stage count
-changes **overall** with treatment. **No individual response hits
-significance at 0.05**, but several are trending in the same direction
-(all p ≈ 0.107), which is why the **multivariate interaction IS
-significant** (p = 0.008).
+changes overall with treatment. No individual response hits
+significance at 0.05, but several are borderline with variation in effect direction (all p ≈ 0.107), which is why the multivariate interaction IS
+significant (p = 0.008).
 
 This happens often in mvabund:
 
 > *each variable alone is too weak to pass the threshold, but together
-> their coordinated shifts generate a clear multivariate signal.*
+> their variable shifts generate a multivariate signal.*
 
 This is exactly why manyglm is useful.
 
 This suggests subtle perturbations in *transition timing...* slowing or
-accelerating development in a stage-specific way... aka a
-**pattern-level developmental distortion**
+accelerating development in stage by treatment specific ways...
 
 # Discussion points
 
 -   Developmental stage (**hpf**) is by far the strongest driver of the
-    embryo count by stage composition — expected.
+    embryo count by stage composition — expected, to be largely ignored!
 
 -   Treatment alone does **not** shift the by stage count composition.
 
 -   **Treatment effects depend on stage** → you get a **significant
-    interaction** multivariately.
+    interaction** multivariately... but not univariately... 
