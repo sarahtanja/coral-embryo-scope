@@ -26,6 +26,9 @@ format:
     link-external-newwindow: true
     reference-location: margin
     citation-location: margin
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -39,7 +42,6 @@ knitr::opts_chunk$set(
 ```
 
 # Background
-
 
 # Setup
 
@@ -76,6 +78,7 @@ write_csv(tidy_timing, "../output/tidy_timing.csv")
 ```
 
 ## Set colors
+
 ```{r}
 stage.5.colors <- c(egg = "#FFE362",
                     cleavage = "#EBA600", 
@@ -85,11 +88,12 @@ stage.5.colors <- c(egg = "#FFE362",
 ```
 
 # Explore the data
+
 Check out raw count data...
 
 ```{r}
 # Pivot to long format
-long_tidy_counts <- tidy_timing %>%
+long_timing_counts <- tidy_timing %>%
   pivot_longer(
     cols = starts_with("n"),
     names_to = c(".value", "stage"),
@@ -116,17 +120,22 @@ var(long_timing_counts$n)
 hist(long_timing_counts$n, breaks = 30)
 ```
 
-
 #### Overdispersion
-- The variance (45.0) is greater than the mean (3.5), indicating that our data has overdispersion. 
+
+-   The variance (45.0) is greater than the mean (3.5), indicating that
+    our data has overdispersion.
+
 ```{r}
-mod_pois <- glm(n ~ treatment * hpf_factor, data=long_timing_counts, family=poisson)
+mod_pois <- glm(n ~ treatment * hpf, data=long_timing_counts, family=poisson)
 dispersiontest(mod_pois)
 ```
 
-
 #### Zero-inflation
-- Most of the values are 0! Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
+
+-   Most of the values are 0! Visually, we can see there are lots of
+    zeros in our data due to our experimental structure. The following
+    code displays the proportion of total zeros for each stage (across
+    treatment and hpf):
 
 ```{r}
 long_timing_counts %>%
@@ -134,67 +143,90 @@ long_timing_counts %>%
   summarize(prop_zero = mean(n == 0))
 ```
 
-More than 50% of the counts for each stage are zeros....That's a lot of zeros!... Our data is zero-inflated.
-
+More than 50% of the counts for each stage are zeros....That's a lot of
+zeros!... Our data is zero-inflated.
 
 # Statistical approach
-How do we run a statistical test to answer: "Does the distribution of embryos across stages differ by treatment at each time point?" 
 
-Our data is as follows:
-One categorical response per embryo  
-5 categories: egg, cleavage, morula, prawnchip, early gastrula
-Exactly one category per embryo (categories are mutually exclusive)
-Counted per vial, grouped by treatment & hpf
-So per vial we have a composition of counts:
-n_egg, n_cleavage, n_morula, n_prawnchip, n_early_gastrula
-Counts represent developmental stage composition 
-Counts do not sum to a total per vial (since embryos can die, etc.)
+How do we run a statistical test to answer: "Does the distribution of
+embryos across stages differ by treatment at each time point?"
 
-We can either model **counts** with a `Multinomial negative binomial`, or **proportions** of stage composition with a `Dirichlet regression`.
+Our data is as follows: One categorical response per embryo\
+5 categories: egg, cleavage, morula, prawnchip, early gastrula Exactly
+one category per embryo (categories are mutually exclusive) Counted per
+vial, grouped by treatment & hpf So per vial we have a composition of
+counts: n_egg, n_cleavage, n_morula, n_prawnchip, n_early_gastrula
+Counts represent developmental stage composition Counts do not sum to a
+total per vial (since embryos can die, etc.)
 
-#### Should we use Dirichlet? 
-A Dirichlet or beta-multinomial regression on proportions asks “Does PVC shift developmental stage composition?” HOWEVER, the Dirichlet distribution requires strictly positive proportions (all > 0 and summing to 1). Zero counts violate that assumption because proportions of zero imply complete absence of a category — and Dirichlet cannot model that. We would need to subset our data by timepoint and run a Dirichlet for each, only including the non-zero stages at each timepoint (ex. at 4 hpf there are 0 embryos in the early gastrula stage, so we would need to exclude that category from the model). We also considered Dirichlet regression for stage composition analysis; however, several stage categories were biologically absent at early time points (e.g., no gastrula at 4 hpf), violating the requirement for strictly positive proportions. Therefore, manyglm with a negative binomial distribution was selected as a more appropriate method that accommodates structural zeros and overdispersion while analyzing all time points concurrently. 
+We can either model **counts** with a `Multinomial negative binomial`,
+or **proportions** of stage composition with a `Dirichlet regression`.
+
+#### Should we use Dirichlet?
+
+A Dirichlet or beta-multinomial regression on proportions asks “Does PVC
+shift developmental stage composition?” HOWEVER, the Dirichlet
+distribution requires strictly positive proportions (all \> 0 and
+summing to 1). Zero counts violate that assumption because proportions
+of zero imply complete absence of a category — and Dirichlet cannot
+model that. We would need to subset our data by timepoint and run a
+Dirichlet for each, only including the non-zero stages at each timepoint
+(ex. at 4 hpf there are 0 embryos in the early gastrula stage, so we
+would need to exclude that category from the model). We also considered
+Dirichlet regression for stage composition analysis; however, several
+stage categories were biologically absent at early time points (e.g., no
+gastrula at 4 hpf), violating the requirement for strictly positive
+proportions. Therefore, manyglm with a negative binomial distribution
+was selected as a more appropriate method that accommodates structural
+zeros and overdispersion while analyzing all time points concurrently.
 
 #### Should we use Multinomial NB?
-A Multinomial negative binomial on counts asks “Does PVC leachate shift developmental stage counts, accounting for overdispersion and excess zeros?” HOWEVER, Multinomial models (including beta-multinomial and multinomial negative binomial) assume:
-- One response column,
-- Each trial falls into one of several categories,
-- Total number of trials is fixed or modeled separately,
-- Categories must sum to 1 (or N),
-- Variance is usually fixed or only weakly overdispersed unless modeled Bayes/anova style.
+
+A Multinomial negative binomial on counts asks “Does PVC leachate shift
+developmental stage counts, accounting for overdispersion and excess
+zeros?” HOWEVER, Multinomial models (including beta-multinomial and
+multinomial negative binomial) assume: - One response column, - Each
+trial falls into one of several categories, - Total number of trials is
+fixed or modeled separately, - Categories must sum to 1 (or N), -
+Variance is usually fixed or only weakly overdispersed unless modeled
+Bayes/anova style.
 
 But your embryos do not meet those assumptions:
 
-| Violation                                             | Why                                                          |
-| ----------------------------------------------------- | ------------------------------------------------------------ |
-| Counts do **not sum to a fixed total**                | Viable embryos vary across vials                             |
-| Some stages **do not exist at certain timepoints**    | Multinomial cannot handle biologically impossible categories |
-| Counts are **strongly overdispersed & zero-inflated** | Requires negative binomial + mvabund handling                |
-| We need **joint + stage-specific tests**              | Multinomial only gives global odds ratios                    |
-🌿 Biological implications
-Multinomial regression answers:
-> “What is the probability of each category relative to others?”
+| Violation | Why |
+|----|----|
+| Counts do **not sum to a fixed total** | Viable embryos vary across vials |
+| Some stages **do not exist at certain timepoints** | Multinomial cannot handle biologically impossible categories |
+| Counts are **strongly overdispersed & zero-inflated** | Requires negative binomial + mvabund handling |
+| We need **joint + stage-specific tests** | Multinomial only gives global odds ratios |
 
-But our question is different:
-> “Do counts in each developmental stage change with treatment and time — and does PVC shift the overall composition of development?”
+🌿 Biological implications Multinomial regression answers: \> “What is
+the probability of each category relative to others?”
 
-Since development is sequential, not competitive (like elections or consumer choice),
-multinomial structure is biologically misleading.
+But our question is different: \> “Do counts in each developmental stage
+change with treatment and time — and does PVC shift the overall
+composition of development?”
 
-> We considered multinomial negative binomial models but rejected them because our data represent separate count variables rather than a single categorical response, and because developmental stages do not form a fixed-sum composition at all timepoints. Instead, we used a multivariate generalized linear model (manyglm, negative binomial), which accommodates overdispersion, structural zeros, and allows testing both overall shifts in developmental composition and stage-specific responses.
+Since development is sequential, not competitive (like elections or
+consumer choice), multinomial structure is biologically misleading.
+
+> We considered multinomial negative binomial models but rejected them
+> because our data represent separate count variables rather than a
+> single categorical response, and because developmental stages do not
+> form a fixed-sum composition at all timepoints. Instead, we used a
+> multivariate generalized linear model (manyglm, negative binomial),
+> which accommodates overdispersion, structural zeros, and allows
+> testing both overall shifts in developmental composition and
+> stage-specific responses.
 
 #### Should we use Multivariate GLM?
-✔ Handles overdispersed count data
-✔ Allows structural zeros
-✔ Models all stages simultaneously
-✔ Provides multivariate AND univariate tests
-✔ Allows interaction (treatment × hpf) without splitting data
-✔ Allows rich residual diagnostics (e.g., via DHARMa)
 
+✔ Handles overdispersed count data ✔ Allows structural zeros ✔ Models
+all stages simultaneously ✔ Provides multivariate AND univariate tests ✔
+Allows interaction (treatment × hpf) without splitting data ✔ Allows
+rich residual diagnostics (e.g., via DHARMa)
 
-
-
-# Visualize counts 
+# Visualize counts
 
 ```{r}
 # Create the faceted bar plot
@@ -207,6 +239,7 @@ ggplot(long_timing_counts, aes(x = stage, y = n, fill = stage, group = treatment
   theme_minimal() +
   scale_fill_manual(values = stage.5.colors) 
 ```
+
 ```{r}
 ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
   geom_bar(stat = "identity", position = "stack") +
@@ -217,9 +250,18 @@ ggplot(long_timing_counts, aes(x = treatment, y = n, fill = stage)) +
   theme_minimal() +
   scale_fill_manual(values = stage.5.colors)
 ```
-> At 4 hpf, the majority of embryos are indeed in the egg or early cleavage stages, and very few or none are in advanced stages like prawnchip or early gastrula. As time progresses to 9 and then 14 hpf, the embryo counts in the earlier stages (egg, cleavage) decrease, reflecting development progression, while counts in the later stages (prawnchip, early gastrula) increase correspondingly. You can see that total counts across treatments appear similar, as well as the stage breakdown within each treatment. 
+
+> At 4 hpf, the majority of embryos are indeed in the egg or early
+> cleavage stages, and very few or none are in advanced stages like
+> prawnchip or early gastrula. As time progresses to 9 and then 14 hpf,
+> the embryo counts in the earlier stages (egg, cleavage) decrease,
+> reflecting development progression, while counts in the later stages
+> (prawnchip, early gastrula) increase correspondingly. You can see that
+> total counts across treatments appear similar, as well as the stage
+> breakdown within each treatment.
 
 ## Mean stage composition counts table
+
 ```{r}
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
 treat_levels <- c("control", "low", "mid", "high")
@@ -279,11 +321,10 @@ stargazer::stargazer(
 
 ```
 
-
-
 # Visualize proportions
 
 Drop the samples with zero embryos (drop zeros)
+
 ```{r}
 tidy_vials_dropz <- tidy_vials %>% 
   filter(sample_id != c("3L9", "7H9"))%>% 
@@ -297,6 +338,7 @@ tidy_vials_dropz <- tidy_vials %>%
 ```
 
 Calculate proportion means
+
 ```{r}
 # Step 1: Pivot to long format
 long_tidy_vials <- tidy_vials_dropz %>%
@@ -326,6 +368,7 @@ head(prop_summary)
 ```
 
 Save proportion summary as a csv
+
 ```{r}
 write_csv(prop_summary, "../output/prop_summary.csv")
 ```
@@ -345,11 +388,14 @@ ggplot(., aes(x = treatment, y = mean_prop, fill = stage)) +
       vjust = 1        # tweak if you want
     ))
 ```
+
 ::: callout-note
-Visually we can see there is little/no difference in proportion of embryos at each stage across treatments at each end-point (4,9,14 hpf).
+Visually we can see there is little/no difference in proportion of
+embryos at each stage across treatments at each end-point (4,9,14 hpf).
 :::
 
 ## Mean stage proportions table
+
 ```{r}
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
 treat_levels <- c("control", "low", "mid", "high")
@@ -410,6 +456,31 @@ stargazer::stargazer(
 ```
 
 # MVABUD/ MANYGLM
+
+> Modeling survival concomitantly to a development component to make
+> compositional claims: In this step, we elaborate further on what can
+> be done to ensure that compositional claims are backed by the model.
+> The client’s current model is:
+>
+> `mod_all <- manyglm( Y ~ treatment * hpf, family = "negative.binomial", data = tidy_vials_stage_counts)`
+>
+> This model estimates the effect of treatment and time on the absolute
+> count of embryos at each developmental stage. In this specification,
+> the treatment coefficient reflects a mixture of survival and
+> developmental effect, because leachate affects both how many embryos
+> survive and how surviving embryos are distributed across developmental
+> stages. We propose the following correction:
+>
+> `tidy_vials_stage_counts <- tidy_vials_stage_counts |> mutate(N_obs = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula) > mod_offset <- manyglm( Y ~ treatment * hpf, family = "negative.binomial", offset = log(N_obs), data =tidy_vials_stage_counts)`
+>
+> This implementation uses an offset term. Here, N_obs is the total
+> number of scored/classified embryos per vial. By including log(N_obs)
+> as an offset, the model is modeling the expected count divided by
+> N_obs, which is the fraction of scored embryos at each developmental
+> stage. This ensures that treatment and time capture shifts in
+> composition rather than shifts in absolute counts in each
+> developmental stage.
+
 ```{r}
 Y <- mvabund(tidy_timing[, c("n_egg", 
                            "n_cleavage", 
@@ -428,52 +499,77 @@ plot(mod_all)
 ```
 
 #### Method
+
 Developmental Stage Composition Analysis
 
-To test whether PVC leachate altered early embryonic developmental trajectories, we quantified the number of embryos in each of five mutually exclusive developmental stages—egg, cleavage, morula, prawnchip, and early gastrula—for each vial at each time point (4, 9, and 14 hpf). Because these responses represent count-based multivariate outcomes that are likely to be overdispersed and zero-inflated, we used a multivariate generalized linear model (GLM) implemented in the mvabund package (function manyglm; Wang et al. 2012). Counts of developmental stages were modeled simultaneously as a multivariate response:
+To test whether PVC leachate altered early embryonic developmental
+trajectories, we quantified the number of embryos in each of five
+mutually exclusive developmental stages—egg, cleavage, morula,
+prawnchip, and early gastrula—for each vial at each time point (4, 9,
+and 14 hpf). Because these responses represent count-based multivariate
+outcomes that are likely to be overdispersed and zero-inflated, we used
+a multivariate generalized linear model (GLM) implemented in the mvabund
+package (function manyglm; Wang et al. 2012). Counts of developmental
+stages were modeled simultaneously as a multivariate response:
 
-𝑌
-∼
-treatment
-×
-hpf
-Y∼treatment×hpf
+𝑌 ∼ treatment × hpf Y∼treatment×hpf
 
-with a negative binomial error distribution, which provided a better fit than Poisson based on dispersion statistics. The full dataset (all stages × all treatments × hpf) was analyzed as a single multivariate response matrix, allowing us to detect both overall shifts in developmental composition and stage-specific responses. Model significance was assessed using PIT-trap resampling with 999 iterations, which robustly estimates p-values in the presence of non-normal residual structure.
+with a negative binomial error distribution, which provided a better fit
+than Poisson based on dispersion statistics. The full dataset (all
+stages × all treatments × hpf) was analyzed as a single multivariate
+response matrix, allowing us to detect both overall shifts in
+developmental composition and stage-specific responses. Model
+significance was assessed using PIT-trap resampling with 999 iterations,
+which robustly estimates p-values in the presence of non-normal residual
+structure.
 
-We report both multivariate test statistics (testing whether overall developmental stage composition changed across treatments and/or time) and univariate tests for each individual stage. Significance of main effects and interaction terms was assessed using Analysis of Deviance (Type I tests). All analyses were performed in R (R version 4.5.1 (2025-06-13 ucrt); R Core Team) using the mvabund package (mvabund_4.2.1), with alpha set at 0.05.
+We report both multivariate test statistics (testing whether overall
+developmental stage composition changed across treatments and/or time)
+and univariate tests for each individual stage. Significance of main
+effects and interaction terms was assessed using Analysis of Deviance
+(Type I tests). All analyses were performed in R (R version 4.5.1
+(2025-06-13 ucrt); R Core Team) using the mvabund package
+(mvabund_4.2.1), with alpha set at 0.05.
 
 #### Result
-Multivariate Test (overall composition of all stages)
-Term	Significance	Interpretation
-- treatment	❌ not sig	PVC does not alter overall stage composition
-- hpf	⭐ Highly significant	Stage composition strongly depends on developmental time
-- treatment × hpf	❌ not sig	No evidence PVC modifies the trajectory of development
 
-Therefore:
-➡️ Embryos progress through stages as expected over time (hpf is significant),
-➡️ But PVC leachate does not alter that developmental sequence.
+Multivariate Test (overall composition of all stages) Term Significance
+Interpretation - treatment ❌ not sig PVC does not alter overall stage
+composition - hpf ⭐ Highly significant Stage composition strongly
+depends on developmental time - treatment × hpf ❌ not sig No evidence
+PVC modifies the trajectory of development
+
+Therefore: ➡️ Embryos progress through stages as expected over time (hpf
+is significant), ➡️ But PVC leachate does not alter that developmental
+sequence.
 
 Univariate Tests (per stage)
 
-Across all stages, we see the same pattern:
-Stage	hpf effect	treatment effect
-egg	YES	NO
-cleavage	YES	NO
-morula	YES	NO
-prawnchip	Weak / marginal	NO
-gastrula	YES	NO
+Across all stages, we see the same pattern: Stage hpf effect treatment
+effect egg YES NO cleavage YES NO morula YES NO prawnchip Weak /
+marginal NO gastrula YES NO
 
 Interpretation:
 
-Developmental progression from egg → gastrula follows a time-dependent trajectory, but PVC does not shift embryos into or out of any specific stage at the sample size tested.
+Developmental progression from egg → gastrula follows a time-dependent
+trajectory, but PVC does not shift embryos into or out of any specific
+stage at the sample size tested.
 
 🧾 Manuscript-Ready Summary
 
-We used a multivariate generalized linear model (manyglm, negative binomial) to test whether PVC leachate altered the distribution of developmental stages across time (egg, cleavage, morula, prawnchip, early gastrula).
+We used a multivariate generalized linear model (manyglm, negative
+binomial) to test whether PVC leachate altered the distribution of
+developmental stages across time (egg, cleavage, morula, prawnchip,
+early gastrula).
 
-The multivariate test showed a strong effect of time (hpf) on developmental stage composition (Deviance = 441.7, p = 0.001), indicating that embryos progress through stages as expected. However, neither treatment (p > 0.99) nor treatment × hpf interaction (p > 0.18) were significant.
+The multivariate test showed a strong effect of time (hpf) on
+developmental stage composition (Deviance = 441.7, p = 0.001),
+indicating that embryos progress through stages as expected. However,
+neither treatment (p \> 0.99) nor treatment × hpf interaction (p \>
+0.18) were significant.
 
-Univariate tests confirmed that all stages were significantly affected by time, but none were significantly affected by PVC treatment.
+Univariate tests confirmed that all stages were significantly affected
+by time, but none were significantly affected by PVC treatment.
 
-Thus, PVC leachate did not alter developmental progression across early embryonic stages, at the concentrations tested.
+Thus, PVC leachate did not alter developmental progression across early
+embryonic stages, at the concentrations tested.
