@@ -75,10 +75,9 @@ tidy_vials <- read.csv("../../output/dataframes/tidy_vials.csv")
 tidy_vials <- tidy_vials %>%
   mutate(
     treatment = factor(treatment, 
-                       levels = c("control", "low", "mid", "high"), 
-                       ordered = TRUE),
+                       levels = c("control", "low", "mid", "high")),
     hpf = factor(hpf, 
-                 levels = c(4, 9, 14), ordered = TRUE))
+                 levels = c(4, 9, 14)))
 
 summary(tidy_vials)
 ```
@@ -311,7 +310,7 @@ counts_summary <- long_stage_counts %>%
   mutate(treatment = factor(treatment, 
                         levels = c("control", "low", "mid", "high")))
 
-head(counts_summary)
+kable(counts_summary)
 ```
 
 Table: Stage composition means
@@ -593,6 +592,11 @@ Using a multivariate negative binomial generalized linear model (MNB.GLM),
 This tests whether the whole multivariate response vector `Y` is
 affected by treatment, hpf, or their interaction fitting separate GLMs
 for each stage.
+```{r N_obs}
+tidy_vials_stage_counts <- tidy_vials_stage_counts %>% 
+  mutate(N_obs = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula) %>% 
+  filter(N_obs > 0) # drop samples with zero embryos
+```
 
 ```{r Y}
 
@@ -604,14 +608,11 @@ Y <- mvabund(tidy_vials_stage_counts[,
                                        "n_earlygastrula")])
 ```
 
-```{r N_obs}
-tidy_vials_stage_counts <- tidy_vials_stage_counts %>% 
-  mutate(N_obs = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula + .Machine$double.xmin) # add small constant to avoid log(0)
-```
+
 
 ::: callout-caution
 I initially ran the following and got a warning:
-`Error in if (any(z$var.est == 0)) { : missing value where TRUE/FALSE needed` when I included the `offset = log(N_obs)` term. This is likely because some vials had zero total embryos (N_obs = 0), leading to log(0) which is undefined. To fix this, I added a small constant (e.g., `.Machine$double.xmin`) to N_obs to avoid taking the log of zero.
+`Error in if (any(z$var.est == 0)) { : missing value where TRUE/FALSE needed` when I included the `offset = log(N_obs)` term. This is likely because some vials had zero total embryos (N_obs = 0), leading to log(0) which is undefined. To fix this, I added a small constant (e.g., `.Machine$double.xmin`) to N_obs to avoid taking the log of zero... BUT this maybe wasn't the best approach so now I'm trying filtering the observations with zero embryos??
 :::  
 
 ```{r}
@@ -638,7 +639,7 @@ summary(mod_all, nBoot = 5000)
 
 ```{r}
 set.seed(04072026)
-anova(mod_all, p.uni = "adjusted")
+anova(mod_all, nBoot = 5000, p.uni = "adjusted")
 ```
 What does the multivariate test tell us:
 treatment: 
@@ -690,7 +691,7 @@ mod_red <- manyglm(
   data = tidy_vials_stage_counts
 )
 
-anova(mod_all, mod_red)
+anova(mod_all, mod_red, nBoot = 5000, p.uni = "adjusted")
 ```
 ::: callout-note
 This indicates that the interaction does significantly improve model fit, so we keep it in the model!
@@ -711,18 +712,21 @@ fitted_long <- fitted_vals %>%
     values_to = "fitted_count"
   )
 
-# Plot
-ggplot(fitted_long,
-       aes(x = hpf, y = fitted_count, color = treatment, group = treatment)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
-  facet_wrap(~ stage, scales = "free_y") +
+fitted_prop <- fitted_long %>%
+  group_by(sample_id) %>%
+  mutate(total = sum(fitted_count),
+         prop = fitted_count / total)
+
+ggplot(fitted_prop,
+       aes(x = hpf, y = prop, color = treatment)) +
+  geom_line(aes(group = treatment), linewidth = 1) +
+  facet_wrap(~ stage) +
   theme_minimal(base_size = 14) +
   labs(
-    title = "Fitted developmental stage trajectories",
-    subtitle = "Visualizing the treatment × hpf multivariate interaction",
-    y = "Fitted count"
+    title = "Compositional developmental trajectories",
+    subtitle = "Stage proportions across time by treatment"
   )
+
 ```
 
 -   lines for different treatments **diverge more at some hpf than
@@ -730,11 +734,11 @@ ggplot(fitted_long,
     divergences across several stages sum into the significant
     multivariate effects found.
 
-```{r}
+```{r prediction-grid}
 # 1. prediction grid
 pred_grid <- expand.grid(
   treatment = levels(tidy_vials_stage_counts$treatment),
-  hpf = sort(unique(tidy_vials_stage_counts$hpf))
+  hpf = levels(tidy_vials_stage_counts$hpf)
 )
 
 # make sure factor structure matches original data
@@ -744,29 +748,73 @@ pred_grid$treatment <- factor(
 )
 
 # if hpf is a factor in your model, keep it as factor
-if (is.factor(tidy_vials_stage_counts$hpf)) {
-  pred_grid$hpf <- factor(
-    pred_grid$hpf,
-    levels = levels(tidy_vials_stage_counts$hpf)
-  )
-}
+pred_grid$hpf <- factor(
+  pred_grid$hpf,
+  levels = levels(tidy_vials_stage_counts$hpf)
+)
 
 # 2. get fitted values from the model and SE!
-pred_obj <- predict(mod_all, newdata = pred_grid, type = "response", se.fit = TRUE)
+pred_obj <- predict(mod_all, newdata = pred_grid, type = "response")
 
-# rename 5 columns in SE fit to reflect our 5 stages!
-colnames(pred_obj$se.fit) <- colnames(pred_obj$fit)
 ```
 
-```{r}
+```{r prediction-control}
 # 3. join and pivot fitted values
 fit_df <- pred_grid %>%
-  bind_cols(as.data.frame(pred_obj$fit)) %>%
+  bind_cols(as.data.frame(pred_obj)) %>%
   pivot_longer(
     cols = starts_with("n_"),
     names_to = "stage",
     values_to = "fitted_count"
   )
+
+#6 extract control values for difference calculation
+control_df <- fit_df %>%
+  filter(treatment == "control") %>% 
+  rename(
+    control_fitted = fitted_count,
+  ) %>% 
+  dplyr::select(hpf, stage, control_fitted)
+
+# calculate difference between control and fitted counts
+diff_df <- fit_df %>%
+  left_join(control_df, by = c("hpf", "stage")) %>%
+  mutate(
+    diff_from_control = fitted_count - control_fitted,
+  ) %>% 
+  filter(treatment != "control") %>%
+  mutate(
+    Stage = case_when(
+      stage == "n_egg" ~ "Egg",
+      stage == "n_cleavage" ~ "Cleavage",
+      stage == "n_morula" ~ "Morula",
+      stage == "n_prawnchip" ~ "Prawnchip",
+      stage == "n_earlygastrula" ~ "Early gastrula"
+    ), 
+    Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
+  )
+
+```
+
+```{r prediction-plot}
+ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_wrap(~ stage) +
+  labs(
+    title = "Treatment minus control differences in fitted stage counts",
+    subtitle = "Positive values indicate more embryos than control; negative values indicate fewer",
+    x = "Hours post-fertilization",
+    y = "Difference from control (fitted count)",
+    color = "Treatment"
+  ) +
+  theme_bw()
+```
+
+
+
+## SE?
 
 # 4. join and pivot fitted SEs
 se_df <- pred_grid %>%
@@ -784,9 +832,7 @@ pred_df <- fit_df %>%
     ci_min = fitted_count - 1.96 * se_fit,
     ci_max = fitted_count + 1.96 * se_fit
   )
-```
 
-```{r}
 # 6. extract control values
 control_df <- pred_df %>%
   filter(treatment == "control") %>% 
@@ -816,9 +862,8 @@ diff_df <- pred_df %>%
     ), 
     Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
   )
-```
 
-```{r}
+
 ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
   geom_line() +
@@ -832,12 +877,12 @@ ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = t
     color = "Treatment"
   ) +
   theme_bw()
-```
 
-## emmeans
+
+## emmeans?
 ```{r}
 library(emmeans)
-emmeans(mod_all, pairwise ~ treatment | hpf)
+#emmeans(mod_all, pairwise ~ treatment | hpf)
 ```
 
 
@@ -850,7 +895,7 @@ ggplot(diff_df, aes(
   color = treatment
 )) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
+  #geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
   geom_point(
     position = position_dodge(width = 0.5),
     size = 2
@@ -871,23 +916,6 @@ ggplot(diff_df, aes(
 write_csv(diff_df, "../../output/dataframes/diff_from_control_counts.csv")
 ```
 
-```{r}
-fitted_prop <- fitted_long %>%
-  group_by(sample_id) %>%
-  mutate(total = sum(fitted_count),
-         prop = fitted_count / total)
-
-ggplot(fitted_prop,
-       aes(x = hpf, y = prop, color = treatment)) +
-  geom_line(aes(group = treatment), linewidth = 1) +
-  facet_wrap(~ stage) +
-  theme_minimal(base_size = 14) +
-  labs(
-    title = "Compositional developmental trajectories",
-    subtitle = "Stage proportions across time by treatment"
-  )
-
-```
 
 What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
