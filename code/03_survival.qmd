@@ -265,7 +265,7 @@ survival_summary
 ```{r}
 survival_data_summary <- survival_summary %>%
   left_join(summary_data) %>% 
-  dplyr::select(hpf, treatment, mean_survival_rate, sd_survival_rate, mean_embryo, sd_embryo)
+  dplyr::select(hpf, treatment, mean_embryo, sd_embryo)
 
 survival_table_wide <- survival_data_summary %>%
   mutate(
@@ -278,16 +278,16 @@ survival_table_wide <- survival_data_summary %>%
     # keep factor for ordering
     hpf = factor(hpf, levels = c(4, 9, 14)),
     # create a LABEL column that is NOT a factor code
-    hpf_label = paste0(as.character(hpf), " hpf"),
+    #hpf_label = paste0(as.character(hpf), " hpf"),
     treatment  = factor(treatment, levels = c("control", "low", "mid", "high")),
     cell = sprintf(
-      "%.1f%% (%.1f ± %.1f)",
-      mean_survival_rate * 100,
+      "%.1f ± %.1f",
+      #mean_survival_rate * 100,
       mean_embryo,
       sd_embryo
     )
   ) %>%
-  select(hpf, hpf_label, treatment, cell) %>%
+  dplyr::select(hpf, treatment, cell) %>%
   pivot_wider(
     names_from  = treatment,
     values_from = cell
@@ -298,7 +298,7 @@ survival_table_wide <- survival_data_summary %>%
 # Rename and drop numeric hpf column
 survival_table_wide_print <- survival_table_wide %>%
   rename(
-    `Hours post-fertilization` = hpf_label,  # character, not factor codes
+    `Hours post-fertilization` = hpf,  # character, not factor codes
     `Control (FSW)`           = control,
     `Low (0.01 mg/L)`         = low,
     `Mid (0.1 mg/L)`          = mid,

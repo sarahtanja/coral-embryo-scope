@@ -120,25 +120,25 @@ theme_sleek_axe <- function() {
       axis.line.y  = element_line(color = "grey70"),
       
       plot.title = element_text(
-        size  = 14,
+        size  = 12,
         color = "grey40",
         hjust = 0.5,
         margin = margin(b = 20)
       ),
       
-      strip.text = element_text(size = 8, color = "grey40"),
+      strip.text = element_text(size = 10, color = "grey40"),
       
       plot.subtitle = element_text(
-        size   = 12,
+        size   = 11,
         color  = "grey40",
         hjust  = 0.5,
         margin = margin(b = 40)
       ),
       
-      axis.title = element_text(size = 8, color = "grey40"),
-      axis.text = element_text(size = 7, color = "grey40"),
-      legend.title = element_text(size = 8, color = "grey40"),
-      legend.text = element_text(size = 7, color = "grey40")
+      axis.title = element_text(size = 9, color = "grey40"),
+      axis.text = element_text(size = 9, color = "grey40"),
+      legend.title = element_text(size = 9, color = "grey40"),
+      legend.text = element_text(size = 9, color = "grey40")
     )
 }
 
@@ -237,16 +237,16 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatm
   ) +
   labs(
     x = "Hours post-fertilization", 
-    y = "Viable embryo counts",
-    title = "Relative survival",
-    subtitle = ("(viable embryo counts and percentages)")
+    y = "Embryo count",
+    title = "Survival",
+    subtitle = ("(Embryo counts across treatments and timepoints)")
   ) +
-  geom_hline(yintercept = 30, linetype = "dashed") +
+  #geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
-    limits = c(0, 34), breaks = c(0, 10, 20, 30),
-    sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
-                        breaks = seq(0, 100, 10),
-                        labels = scales::label_number(accuracy = 1, suffix = "%"))
+    limits = c(0, 34), breaks = c(0, 10, 20, 30)
+    #sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
+                        #breaks = seq(0, 100, 10),
+                        #labels = scales::label_number(accuracy = 1, suffix = "%"))
   ) +
   theme_sleek_axe() +
   theme(
@@ -511,7 +511,7 @@ library(ggimage)
 
 ### Stage legend
 ```{r}
-stage_legend_df <- tibble::tibble(
+stage_legend_circ <- tibble::tibble(
   stage = factor(c("egg", 
                    "cleavage", 
                    "morula", 
@@ -542,7 +542,38 @@ stage_legend_df <- tibble::tibble(
 ```
 
 ```{r}
-stage_legend_plot <- ggplot(stage_legend_df, aes(x = 0, y = label)) +
+stage_legend_sq <- tibble::tibble(
+  stage = factor(c("egg", 
+                   "cleavage", 
+                   "morula", 
+                   "prawnchip", 
+                   "earlygastrula"),
+  levels = c("egg", 
+             "cleavage",
+             "morula", 
+             "prawnchip",
+             "earlygastrula"),
+  ordered = TRUE),
+  label = factor(c("Egg", 
+            "Cleavage", 
+            "Morula", 
+            "Prawnchip", 
+            "Early gastrula"), 
+  levels = c("Egg", 
+            "Cleavage", 
+            "Morula", 
+            "Prawnchip", 
+            "Early gastrula"),
+    ordered = TRUE),
+  img = c('../legend/egg_sq.png', 
+          '../legend/cleavage_sq.png', 
+          '../legend/morula_sq.png', 
+          '../legend/prawn_sq.png', 
+          '../legend/gastrula_sq.png'))
+```
+
+```{r}
+stage_legend_plot <- ggplot(stage_legend_sq, aes(x = 0, y = label)) +
   geom_image(aes(image = img), size = 0.18) +
   #geom_text(aes(label = label), 
   #          hjust = 0, nudge_x = 0.1, 
@@ -559,7 +590,7 @@ stage_legend_plot
 
 ### Status legend
 ```{r}
-status_legend_df <- tibble::tibble(
+status_legend_circ <- tibble::tibble(
   status = factor(c("",
                     " ",
                     "Malformed", 
@@ -580,7 +611,28 @@ status_legend_df <- tibble::tibble(
 ```
 
 ```{r}
-status_legend_plot <- ggplot(status_legend_df, aes(x = 0, y = status)) +
+status_legend_sq <- tibble::tibble(
+  status = factor(c("",
+                    " ",
+                    "Malformed", 
+                    "Uncertain/Torn", 
+                    "Typical"),
+                    levels = c("",
+                    " ",
+                    "Malformed", 
+                    "Uncertain/Torn", 
+                    "Typical"), 
+                    ordered = TRUE),
+  img = c('',
+          ' ',
+          '../legend/malformed_sq.png', 
+          '../legend/torn_sq.png', 
+          '../legend/typical_sq.png')
+)
+```
+
+```{r}
+status_legend_plot <- ggplot(status_legend_sq, aes(x = 0, y = status)) +
   geom_image(aes(image = img), size = 0.18) +
   scale_x_continuous() +
   scale_y_discrete(limit = rev, position = "right") +
@@ -634,18 +686,25 @@ diff_df <- read_csv("../output/dataframes/diff_from_control_counts.csv") %>%
   mutate(
     treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
     hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE),
+    stage     = factor(stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
+  )
+
+boot_ci <- read_csv("../output/dataframes/bootstrap_ci_counts.csv") %>% 
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE),
     Stage     = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
   )
 ```
 
 ```{r}
-timing_forest <- ggplot(diff_df, aes(
-  x = diff_from_control,
+timing_forest <- ggplot(boot_ci, aes(
+  x = mean,
   y = Stage,
   color = treatment
 )) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "#AEF1FF") +
-  geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
+  geom_linerange(aes(xmin = lo, xmax = hi), position = position_dodge(width = 0.5)) +
   geom_point(
     position = position_dodge(width = 0.5),
     size = 2
@@ -668,11 +727,11 @@ timing_forest <- ggplot(diff_df, aes(
     breaks = names(labs_map),
     labels = labs_map
   ) +
-  scale_y_discrete(limits = rev(levels(diff_df$Stage))) +  # reverse y-axis order
+  scale_y_discrete(limits = rev(levels(boot_ci$Stage))) +  #  y-axis order
   labs(
     title = "Treatment minus control differences in fitted stage counts",
     subtitle = "Points right of zero = more embryos than control; left = fewer",
-    x = "Difference from control (fitted count)",
+    x = "Difference from control (bootstrapped fitted counts scaled to 1)",
     y = "Developmental stage",
     color = "PVC Leachate"
   ) +
@@ -708,5 +767,59 @@ timing_forest_legendary
 
 ```{r}
 ggsave("../figs/timing_forest_plot.png", width = 8, height = 6, dpi = 900)
+```
+
+# Morphology boxplot
+```{r}
+long_morph <- read_csv("../output/dataframes/fitted_long_status_counts.csv") 
+```
+
+
+```{r}
+long_morph <- long_morph %>%
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE),
+    status    = sub("^n_", "", status),  # remove leading "n_"
+    status    = factor(
+      status,
+      levels = c("malformed", "uncertain", "typical"),
+      ordered = TRUE
+    )
+  )
+```
+
+```{r}
+# Plot
+ggplot(long_morph, aes(x = hpf, 
+                        y = fitted_count, 
+                        color = treatment,
+                        fill = treatment,
+                        group = interaction(hpf, treatment)
+                        )
+       ) +
+  geom_boxplot(alpha = 0.65, outlier.shape = NA) +
+  facet_wrap(~status, scales = "free_y") +
+  labs(
+    title = "Fitted developmental status trajectories",
+    subtitle = "Visualizing the treatment × hpf multivariate interaction",
+    y = "Fitted count"
+  )+
+  scale_color_manual(
+    name   = "PVC leachate",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  scale_fill_manual(
+    name   = "PVC leachate",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  )+
+  theme_sleek_axe()
+```
+```{r}
+ggsave("../figs/morphology_boxplot.png", width = 8, height = 6, dpi = 900)
 ```
 

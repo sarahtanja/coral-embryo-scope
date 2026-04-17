@@ -144,19 +144,17 @@ long_stage_counts <- tidy_vials_stage_counts %>%
 
 
 str(long_stage_counts)
-```
 
-```{r}
 summary(long_stage_counts$n)
 ```
 
-```{r, eval=FALSE}
+```{r write-long-stage-counts, eval=FALSE}
 write_csv(long_stage_counts, "../../output/dataframes/long_timing_counts.csv")
 ```
 
 #### Overdispersion
 
-```{r}
+```{r mean-var}
 mean(long_stage_counts$n)
 var(long_stage_counts$n)
 ```
@@ -166,7 +164,7 @@ var(long_stage_counts$n)
 
 #### Zero-inflation
 
-```{r}
+```{r hist}
 hist(long_stage_counts$n, breaks = 30)
 ```
 
@@ -175,7 +173,7 @@ hist(long_stage_counts$n, breaks = 30)
     code displays the proportion of total zeros for each stage (across
     treatment and hpf):
 
-```{r}
+```{r proportion-zero}
 long_stage_counts %>%
   group_by(stage) %>%
   summarize(prop_zero = mean(n == 0))
@@ -188,7 +186,7 @@ Formally check for Zero inflation by running a zero-inflated negative
 binomial model and comparing it to a standard negative binomial model
 using an anova to compare them ... AIC?
 
-```{r}
+```{r nb-vs-zinb}
 # Fit standard negative binomial model
 nb_model <- glmmTMB(n ~ treatment * hpf, 
                     family = nbinom2,
@@ -219,21 +217,21 @@ necessarily “zero inflation” in the statistical sense.... So the ZINM
 model is capturing stage absence at certain timepoints, aka the
 transition in development.
 
-```{r}
+```{r summary-zinb}
 summary(zinb_model)
 ```
 
-```{r}
+```{r residuals-nb}
 sim_nb <- simulateResiduals(nb_model)
 plot(sim_nb)
 ```
 
-```{r}
+```{r residuals-zinb}
 sim_zinb <- simulateResiduals(zinb_model)
 plot(sim_zinb)
 ```
 
-```{r}
+```{r test-zero-inflation}
 testZeroInflation(simulateResiduals(nb_model))
 ```
 
@@ -293,8 +291,8 @@ ggplot(long_stage_counts, aes(x = treatment, y = n, fill = stage)) +
 
 Calculate stage count means
 
-```{r}
-# Step 2: Calculate mean proportions for each stage within each treatment
+```{r mean-counts}
+# Step 2: Calculate mean counts for each stage within each treatment
 counts_summary <- long_stage_counts %>%
   group_by(treatment, stage, hpf) %>%
   summarize(mean_counts = mean(n), .groups = "drop") %>% 
@@ -313,53 +311,18 @@ counts_summary <- long_stage_counts %>%
 kable(counts_summary)
 ```
 
-Table: Stage composition means
-
-```{r mean-counts-table}
-stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
-treat_levels <- c("control", "low", "mid", "high")
-hpf_levels   <- c(4, 9, 14)
-
-table_stage_count <- counts_summary %>%
-  filter(stage %in% stage_levels) %>%
-  mutate(
-    stage     = factor(stage,     levels = stage_levels),
-    treatment = factor(treatment, levels = treat_levels),
-    hpf       = factor(hpf,       levels = hpf_levels)
-  ) %>%
-  dplyr::select(stage, hpf, treatment, mean_counts) %>%
-  pivot_wider(
-    names_from  = c(treatment, hpf),
-    values_from = mean_counts,
-    values_fill = 0,
-    # column names like "4 hpf - control"
-    names_glue  = "{hpf} hpf - {treatment}"
-  ) %>%
-  dplyr::select(stage, 
-                `4 hpf - control`, `4 hpf - low`, `4 hpf - mid`, `4 hpf - high`,
-                `9 hpf - control`, `9 hpf - low`, `9 hpf - mid`, `9 hpf - high`,
-                `14 hpf - control`, `14 hpf - low`, `14 hpf - mid`, `14 hpf - high`) %>%
-  arrange(stage) %>%
-  # turn to % (numeric) for nice formatting
-  mutate(across(-stage, ~ round(.x, 1))) %>%
-  rename(Stage = stage) 
-
-
-kable(table_stage_count)
-```
-
 # Proportions
 
 Drop the samples with zero embryos (drop zeros)
 
-```{r}
+```{r drop-zeros}
 tidy_vials_dropz <- tidy_vials %>% 
   filter(sample_id != c("3L9", "7H9"))
 ```
 
 Calculate proportion means
 
-```{r}
+```{r pivot-drop-zeros}
 # Step 1: Pivot to long format
 long_timing_proportions <- tidy_vials_dropz %>%
   pivot_longer(
@@ -372,7 +335,7 @@ long_timing_proportions <- tidy_vials_dropz %>%
 anyNA(long_timing_proportions)
 ```
 
-```{r}
+```{r mean-proportions}
 # Step 2: Calculate mean proportions for each stage within each treatment
 prop_summary <- long_timing_proportions %>%
   group_by(treatment, stage, hpf) %>%
@@ -393,7 +356,7 @@ head(prop_summary)
 
 Save proportion summary as a csv
 
-```{r}
+```{r write-proportions}
 write_csv(prop_summary, "../../output/dataframes/prop_summary.csv")
 ```
 
@@ -422,7 +385,6 @@ embryos, this counts data is a better more accurate representation of
 the underlying data we used for the analysis so that is what we will use
 for our manuscript.
 :::
-
 
 ```{r mean-proportions-table}
 stage_levels <- c("egg", "cleavage", "morula", "prawnchip", "earlygastrula")
@@ -582,16 +544,18 @@ Advice from UW Biostats Class Consult:
 
 <object data="biostats-consult.pdf" type="application/pdf" width="100%" height="500px">
 
-<p>Unable to display PDF file. <a href="biostats-consult.pdf">Download</a> instead.</p>
+<p>Unable to display PDF file.
+<a href="biostats-consult.pdf">Download</a> instead.</p>
 
 </object>
 
-# MVABUND/ MANYGLM
+# Fit the manyglm model
 
-Using a multivariate negative binomial generalized linear model (MNB.GLM), 
-This tests whether the whole multivariate response vector `Y` is
-affected by treatment, hpf, or their interaction fitting separate GLMs
-for each stage.
+Using a multivariate negative binomial generalized linear model
+(MNB.GLM), This tests whether the whole multivariate response vector `Y`
+is affected by treatment, hpf, or their interaction fitting separate
+GLMs for each stage.
+
 ```{r N_obs}
 tidy_vials_stage_counts <- tidy_vials_stage_counts %>% 
   mutate(N_obs = n_egg + n_cleavage + n_morula + n_prawnchip + n_earlygastrula) %>% 
@@ -608,14 +572,18 @@ Y <- mvabund(tidy_vials_stage_counts[,
                                        "n_earlygastrula")])
 ```
 
-
-
 ::: callout-caution
 I initially ran the following and got a warning:
-`Error in if (any(z$var.est == 0)) { : missing value where TRUE/FALSE needed` when I included the `offset = log(N_obs)` term. This is likely because some vials had zero total embryos (N_obs = 0), leading to log(0) which is undefined. To fix this, I added a small constant (e.g., `.Machine$double.xmin`) to N_obs to avoid taking the log of zero... BUT this maybe wasn't the best approach so now I'm trying filtering the observations with zero embryos??
-:::  
+`Error in if (any(z$var.est == 0)) { : missing value where TRUE/FALSE needed`
+when I included the `offset = log(N_obs)` term. This is likely because
+some vials had zero total embryos (N_obs = 0), leading to log(0) which
+is undefined. To fix this, I added a small constant (e.g.,
+`.Machine$double.xmin`) to N_obs to avoid taking the log of zero... BUT
+this maybe wasn't the best approach so now I'm trying filtering the
+observations with zero embryos??
+:::
 
-```{r}
+```{r manyglm}
 set.seed(03262026)
 
 mod_all <- manyglm(
@@ -630,42 +598,106 @@ mod_all <- manyglm(
 plot.manyglm(mod_all)
 ```
 
-> Here, setting a large number of bootstrap replicates reduces the variability of the simulated p-values. This gives a coefficient table with separate rows for each of the treatment levels versus the control baseline. The client can then assess whether each dose differs from control over time. For instance, whether high leachate differs from control at 14 hpf for a specific stage. This gives more information than just whether treatment as a whole explains the deviance, as provided by the anova command.
+> Here, setting a large number of bootstrap replicates reduces the
+> variability of the simulated p-values. This gives a coefficient table
+> with separate rows for each of the treatment levels versus the control
+> baseline. The client can then assess whether each dose differs from
+> control over time. For instance, whether high leachate differs from
+> control at 14 hpf for a specific stage. This gives more information
+> than just whether treatment as a whole explains the deviance, as
+> provided by the anova command.
 
-```{r}
+```{r summary-mod}
 set.seed(04072026)
 summary(mod_all, nBoot = 5000)
 ```
 
-```{r}
+::: callout-important
+
+##### Results interpretation
+Wald value is the effect size squared over the variance; which tells us
+how big the effect is relative to the noise. $$ 
+\text{effect size}^{2} / variance
+$$ hpf9 5.872 0.0002 \* **hpf14 2.760 0.0030**
+
+At 9 hpf, embryo composition is very different from 4 hpf At 14 hpf,
+also different from 4 hpf Model is correctly detecting stage composition
+changes over time
+
+treatmentlow:hpf14 0.053 0.0002 ***treatmentmid:hpf14 0.046 0.0002***
+treatmenthigh:hpf14 0.053 0.0002 \*\*\*
+
+Wald value is very tiny, but the p value is significant. This indicates
+the effect is tiny... but consistent, small shifts across multiple
+responses
+
+Developmental time strongly structured embryo composition, with clear
+differences between 4, 9, and 14 hpf. These expected temporal shifts
+dominate the model, while treatment effects emerge only through
+stage-specific interactions.
+
+Visual inspection suggests that these shifts may reflect delayed
+progression at higher doses, with earlier developmental stages
+persisting longer relative to controls.
+:::
+
+```{r anova-mod}
 set.seed(04072026)
 anova(mod_all, nBoot = 5000, p.uni = "adjusted")
 ```
-What does the multivariate test tell us:
-treatment: 
-p=0.999 → no main effect of leachate 
-hpf: 
-p=0.001 → huge main effect (developmental stage dominates)
-treatment × hpf: 
-p=0.001 → interaction is real
+::: callout-important
+##### Results interpretation
+The multivariate results tell us that treatment as a whole doesn't have a significant effect on stage composition (p=0.999), but developmental stage (hpf) has a huge effect (p=0.001), and the interaction between treatment and hpf is also significant (p=0.001). This means that the effect of leachate on stage composition depends on developmental stage, even though there is no overall treatment effect. The treatment effects are stage-specific, subtle, or even opposing across stages, which is why we see a significant interaction without a main effect of treatment.
 
-The effect of leachate depends on developmental stage, even though there is no overall treatment effect. There is no consistent direction of treatment effect across all stages. Effects are stage-specific, subtle or opposing.
+The univariate results tell us that the prawnchip stage interaction term P = 0.036 is driving the significant interaction, with a significant effect of treatment at 14 hpf. The other stages show borderline or non-significant effects, suggesting that the overall multivariate interaction is being driven mostly by changes in the prawnchip stage at 14 hpf.
+
+Prawnchip counts differ by treatment at 14 hpf
+The relationship between treatment and prawnchip counts changes across time
+This includes 14 hpf, but depends on the whole trajectory from 4 to 14 hpf
+Treatment is slightly altering how embryos move through the prawnchip stage... either lingering longer in prawnchip, or exiting prawnchip faster. 
+
+> Univariate tests suggest that this interaction is primarily driven by differences in the prawnchip stage, indicating that treatment may alter the timing of progression through this intermediate developmental stage.
+
+or
+
+> This pattern is consistent with subtle shifts in developmental timing, where embryos may transition into or out of the prawnchip stage at different rates under leachate exposure.
+:::
+
+What does the multivariate test tell us: treatment: p=0.999 → no main
+effect of leachate hpf: p=0.001 → huge main effect (developmental stage
+dominates) treatment × hpf: p=0.001 → interaction is real
+
+The effect of leachate depends on developmental stage, even though there
+is no overall treatment effect. There is no consistent direction of
+treatment effect across all stages. Effects are stage-specific, subtle
+or opposing.
 
 What do the univariate tests tell us:
 
-| Stage variable  | p-value    | Interpretation    |
-| --------------- | ---------- | ----------------- |
-| n_egg           | 0.064      | borderline        |
-| n_cleavage      | 0.143      | nothing           |
-| n_morula        | 0.064      | borderline        |
-| n_prawnchip     | ~0.05–0.06 | borderline        |
-| n_earlygastrula | **0.045**  | ✅ **significant** |
+| Stage variable  | p-value     | Interpretation     |
+|-----------------|-------------|--------------------|
+| n_egg           | 0.064       | borderline         |
+| n_cleavage      | 0.143       | nothing            |
+| n_morula        | 0.064       | borderline         |
+| n_prawnchip     | \~0.05–0.06 | borderline         |
+| n_earlygastrula | **0.045**   | ✅ **significant** |
 
 ::: callout-important
 Interaction is being driven mostly by early gastrula
 :::
 
-> Understand the driving factors behind significant aggregate results and null individual effects: in Wang et al., 2012, Fig.1, the authors of mvabund provide an analysis of deviance table that shows that treatment is deemed to have a significant effect on the abundance of Copepods through a multivariate test, but individual tests (i.e., species-by-species) are not deemed significant. The discussion in the Section “Testing Hypotheses about the Community-Environment Association” in Wang et al., 2012 can be relevant here. We believe that an important driving factor for this is that univariate p-values (i.e., a p-value for testing the significance of the interaction for each development stage) are corrected for multiple comparisons, which can reduce power for detecting the effects.
+> Understand the driving factors behind significant aggregate results
+> and null individual effects: in Wang et al., 2012, Fig.1, the authors
+> of mvabund provide an analysis of deviance table that shows that
+> treatment is deemed to have a significant effect on the abundance of
+> Copepods through a multivariate test, but individual tests (i.e.,
+> species-by-species) are not deemed significant. The discussion in the
+> Section “Testing Hypotheses about the Community-Environment
+> Association” in Wang et al., 2012 can be relevant here. We believe
+> that an important driving factor for this is that univariate p-values
+> (i.e., a p-value for testing the significance of the interaction for
+> each development stage) are corrected for multiple comparisons, which
+> can reduce power for detecting the effects.
 
 ::: callout-warning
 Stage and hpf are not independent!!! We know that hpf will explain most
@@ -681,7 +713,11 @@ development?" We tested whether treatment effects on stage composition
 varied across developmental time (treatment × hpf interaction).
 :::
 
-Check the reduced additive vs full interaction model.. this sees if the interaction term adds explanatory power or if its superfluous
+# Additive vs Interaction
+
+Check the reduced additive vs full interaction model.. this sees if the
+interaction term adds explanatory power or if its superfluous
+
 ```{r reduced-MNBGLM}
 set.seed(03262026)
 mod_red <- manyglm(
@@ -693,11 +729,16 @@ mod_red <- manyglm(
 
 anova(mod_all, mod_red, nBoot = 5000, p.uni = "adjusted")
 ```
+
 ::: callout-note
-This indicates that the interaction does significantly improve model fit, so we keep it in the model!
+##### Results interpretation
+This indicates that the interaction does significantly improve model
+fit, so we keep it in the model!
 :::
 
-```{r}
+# Visualize fitted values
+
+```{r fitted-values}
 # Get fitted values
 fitted_vals <- as.data.frame(fitted(mod_all))
 fitted_vals$sample_id <- tidy_vials_stage_counts$sample_id
@@ -734,32 +775,60 @@ ggplot(fitted_prop,
     divergences across several stages sum into the significant
     multivariate effects found.
 
+# Predictions from the model
+End goal is a forest plot where each point is:
+
+$ predicted treatment value − predicted control value $
+
+And you want the horizontal line to show:
+
+how much that estimated difference would vary if the experiment were repeated
+
+That is what the bootstrap CI is doing.
+
+A prediction grid is a table of the combinations we want predictions for. 
+Because our model used an offset, we need to give the grid an N_obs value to get predictions on the scale of proportions rather than counts. We set N_obs = 1 to get predictions of proportions, and this allows us to remove differences due to vial size and focus on composition-like fitted counts. I think of it as counts normalized to a common total of 1, which is equivalent to modeling proportions.
 ```{r prediction-grid}
-# 1. prediction grid
+# build prediction grid
 pred_grid <- expand.grid(
   treatment = levels(tidy_vials_stage_counts$treatment),
-  hpf = levels(tidy_vials_stage_counts$hpf)
+  hpf = levels(tidy_vials_stage_counts$hpf), 
+  obs = 1 # set to 1 for predictions of proportions
 )
 
-# make sure factor structure matches original data
+# make treatment unordered factor
 pred_grid$treatment <- factor(
   pred_grid$treatment,
   levels = levels(tidy_vials_stage_counts$treatment)
 )
 
-# if hpf is a factor in your model, keep it as factor
+# make hpf unordered factor
 pred_grid$hpf <- factor(
   pred_grid$hpf,
   levels = levels(tidy_vials_stage_counts$hpf)
 )
-
-# 2. get fitted values from the model and SE!
-pred_obj <- predict(mod_all, newdata = pred_grid, type = "response")
-
 ```
 
-```{r prediction-control}
-# 3. join and pivot fitted values
+## Predict fitted values
+Here we ask the model, "For each treatment and time combination, what is the expected count of embryos in each stage, assuming a total of 1 embryo (N_obs = 1)?" This gives us predicted proportions for each stage under each treatment and time condition, which we can then use to calculate differences from control and visualize with confidence intervals.
+
+```{r predict-values}
+# get fitted values from the model!
+pred_obj <- predict(mod_all, newdata = pred_grid, type = "response")
+
+head(pred_obj)
+```
+This returns predicted counts for:
+n_egg
+n_cleavage
+n_morula
+n_prawnchip
+n_earlygastrula
+
+These are model-based expected stage counts for every treatment and timepoint.
+
+Pivot longer
+```{r}
 fit_df <- pred_grid %>%
   bind_cols(as.data.frame(pred_obj)) %>%
   pivot_longer(
@@ -768,90 +837,158 @@ fit_df <- pred_grid %>%
     values_to = "fitted_count"
   )
 
-#6 extract control values for difference calculation
-control_df <- fit_df %>%
-  filter(treatment == "control") %>% 
-  rename(
-    control_fitted = fitted_count,
-  ) %>% 
-  dplyr::select(hpf, stage, control_fitted)
+head(fit_df)
+```
 
-# calculate difference between control and fitted counts
+Define control as reference
+```{r}
+control_df <- fit_df %>%
+  filter(treatment == "control") %>%
+  dplyr::select(hpf, stage, control_fitted = fitted_count)
+
+head(control_df)
+```
+
+Compute treatment minus control
+```{r}
 diff_df <- fit_df %>%
   left_join(control_df, by = c("hpf", "stage")) %>%
-  mutate(
-    diff_from_control = fitted_count - control_fitted,
-  ) %>% 
-  filter(treatment != "control") %>%
-  mutate(
-    Stage = case_when(
-      stage == "n_egg" ~ "Egg",
-      stage == "n_cleavage" ~ "Cleavage",
-      stage == "n_morula" ~ "Morula",
-      stage == "n_prawnchip" ~ "Prawnchip",
-      stage == "n_earlygastrula" ~ "Early gastrula"
-    ), 
-    Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
-  )
+  mutate(diff_from_control = fitted_count - control_fitted) %>%
+  filter(treatment != "control")
 
+head(diff_df)
 ```
 
-```{r prediction-plot}
-ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_line() +
-  geom_point(size = 2) +
-  facet_wrap(~ stage) +
-  labs(
-    title = "Treatment minus control differences in fitted stage counts",
-    subtitle = "Positive values indicate more embryos than control; negative values indicate fewer",
-    x = "Hours post-fertilization",
-    y = "Difference from control (fitted count)",
-    color = "Treatment"
-  ) +
-  theme_bw()
-```
+## Build bootstrap mean + CI
+Right now you have one model fit, one set of predicted differences. But if you repeated the experiment with slightly different vials, you would not get exactly the same answer. The bootstrap mimics that. It asks: “If I repeatedly re-sampled my vials and refit the model, how much would these treatment-control differences move around?”
+That gives uncertainty around each point estimate. Sample the vials with replacement from your original dataset. This creates a new pseudo-dataset the same size as the original, but with some vials repeated and some left out. Conceptually, this is one “alternate version” of your experiment.
 
+```{r}
+# Resample with replacement
+boot_dat <- tidy_vials_stage_counts %>%
+  slice_sample(n = nrow(tidy_vials_stage_counts), replace = TRUE)
 
+# Rebuild the response matrix
+Y_boot <- mvabund(boot_dat[, c(
+  "n_egg", "n_cleavage", "n_morula",
+  "n_prawnchip", "n_earlygastrula"
+)])
 
-## SE?
+# Refit the model on the bootstrap sample
+mod_boot <- manyglm(
+  Y_boot ~ treatment * hpf,
+  family = "negative.binomial",
+  offset = log(N_obs),
+  data = boot_dat
+)
 
-# 4. join and pivot fitted SEs
-se_df <- pred_grid %>%
-  bind_cols(as.data.frame(pred_obj$se.fit)) %>%
+# Predict the bootstrap fitted values on the same prediction grid
+pred_boot <- predict(mod_boot, newdata = pred_grid, type = "response")
+
+# Pivot longer
+boot_df <- pred_grid %>%
+  bind_cols(as.data.frame(pred_boot)) %>%
   pivot_longer(
     cols = starts_with("n_"),
     names_to = "stage",
-    values_to = "se_fit"
+    values_to = "fitted_count"
   )
 
-# 5. combine fit + SE and build CIs
-pred_df <- fit_df %>%
-  left_join(se_df, by = c("treatment", "hpf", "stage")) %>%
-  mutate(
-    ci_min = fitted_count - 1.96 * se_fit,
-    ci_max = fitted_count + 1.96 * se_fit
+# Pull out controls
+boot_control_df <- boot_df %>%
+  filter(treatment == "control") %>%
+  dplyr::select(hpf, stage, control_fitted = fitted_count)
+
+# Treatment minus control
+boot_diff_df <- boot_df %>%
+  left_join(boot_control_df, by = c("hpf", "stage")) %>%
+  mutate(diff_from_control = fitted_count - control_fitted) %>%
+  filter(treatment != "control")
+```
+
+```{r bootstrap-function}
+# function for one bootstrap replicate
+one_boot <- function(i, dat, pred_grid) {
+  
+  # resample rows (whole vials) with replacement
+  boot_dat <- dat %>%
+    slice_sample(n = nrow(dat), replace = TRUE)
+  
+  # rebuild response matrix
+  Y_boot <- mvabund(boot_dat[, c(
+    "n_egg", "n_cleavage", "n_morula",
+    "n_prawnchip", "n_earlygastrula"
+  )])
+  
+  # refit model
+  mod_boot <- manyglm(
+    Y_boot ~ treatment * hpf,
+    family = "negative.binomial",
+    offset = log(N_obs),
+    data = boot_dat
+  )
+  
+  # predict on same grid
+  pred_boot <- predict(mod_boot, newdata = pred_grid, type = "response")
+  
+  # long format predictions
+  boot_df <- pred_grid %>%
+    bind_cols(as.data.frame(pred_boot)) %>%
+    pivot_longer(
+      cols = starts_with("n_"),
+      names_to = "stage",
+      values_to = "fitted_count"
+    )
+  
+  # pull out controls
+  boot_control_df <- boot_df %>%
+    filter(treatment == "control") %>%
+    dplyr::select(hpf, stage, control_fitted = fitted_count)
+  
+  # treatment minus control
+  boot_diff_df <- boot_df %>%
+    left_join(boot_control_df, by = c("hpf", "stage")) %>%
+    mutate(diff_from_control = fitted_count - control_fitted) %>%
+    filter(treatment != "control") %>%
+    mutate(iter = i)
+  
+  return(boot_diff_df)
+}
+```
+
+```{r}
+
+# number of bootstrap replicates
+B <- 500
+
+# run all bootstrap replicates and stack results
+boot_preds <- map_dfr(
+  1:B,
+  one_boot,
+  dat = tidy_vials_stage_counts,
+  pred_grid = pred_grid
+)
+
+# summarize directly into bootstrap CI table
+boot_ci <- boot_preds %>%
+  group_by(treatment, hpf, stage) %>%
+  summarise(
+    mean = mean(diff_from_control),
+    lo = quantile(diff_from_control, 0.025),
+    hi = quantile(diff_from_control, 0.975),
+    .groups = "drop"
   )
 
-# 6. extract control values
-control_df <- pred_df %>%
-  filter(treatment == "control") %>% 
-  rename(
-    control_fitted = fitted_count,
-    control_se = se_fit
-  ) %>% 
-  dplyr::select(hpf, stage, control_fitted, control_se)
+head(boot_ci)
+```
 
-# 7. compute treatment - control difference and CI
-diff_df <- pred_df %>%
-  left_join(control_df, by = c("hpf", "stage")) %>%
-  mutate(
-    diff_from_control = fitted_count - control_fitted,
-    diff_se = sqrt(se_fit^2 + control_se^2),
-    diff_ci_min = diff_from_control - 1.96 * diff_se,
-    diff_ci_max = diff_from_control + 1.96 * diff_se
-  ) %>% 
-  filter(treatment != "control") %>%
+one_boot(...) = one resample, one refit, one set of treatment-control differences
+boot_preds = all bootstrap replicates stacked together
+boot_ci = final summary table for your forest plot
+
+# Forest plot
+```{r}
+boot_ci <- boot_ci %>%
   mutate(
     Stage = case_when(
       stage == "n_egg" ~ "Egg",
@@ -859,67 +996,51 @@ diff_df <- pred_df %>%
       stage == "n_morula" ~ "Morula",
       stage == "n_prawnchip" ~ "Prawnchip",
       stage == "n_earlygastrula" ~ "Early gastrula"
-    ), 
-    Stage = factor(Stage, levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"), ordered = TRUE)
+    ),
+    Stage = factor(
+      Stage,
+      levels = c("Egg", "Cleavage", "Morula", "Prawnchip", "Early gastrula"),
+      ordered = TRUE
+    )
   )
 
-
-ggplot(diff_df, aes(x = hpf, y = diff_from_control, color = treatment, group = treatment)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_line() +
-  geom_point(size = 2) +
-  facet_wrap(~ stage) +
-  labs(
-    title = "Treatment minus control differences in fitted stage counts",
-    subtitle = "Positive values indicate more embryos than control; negative values indicate fewer",
-    x = "Hours post-fertilization",
-    y = "Difference from control (fitted count)",
-    color = "Treatment"
-  ) +
-  theme_bw()
-
-
-## emmeans?
-```{r}
-library(emmeans)
-#emmeans(mod_all, pairwise ~ treatment | hpf)
-```
-
-
-## Forest plot
-
-```{r forest-plot}
-ggplot(diff_df, aes(
-  x = diff_from_control,
-  y = Stage,
-  color = treatment
-)) +
+ggplot(boot_ci, aes(x = mean, y = Stage, color = treatment)) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  #geom_linerange(aes(xmin = diff_ci_min, xmax = diff_ci_max), position = position_dodge(width = 0.5)) +
-  geom_point(
-    position = position_dodge(width = 0.5),
-    size = 2
-  ) +
+  geom_errorbarh(aes(xmin = lo, xmax = hi),
+                 position = position_dodge(width = 0.5),
+                 height = 0.2) +
+  geom_point(position = position_dodge(width = 0.5), size = 2) +
   facet_wrap(~ hpf, nrow = 1) +
-  scale_y_discrete(limits = rev(levels(diff_df$Stage))) +  # reverse y-axis order
+  scale_y_discrete(limits = rev(levels(boot_ci$Stage))) +
   labs(
-    title = "Treatment minus control differences in fitted stage counts",
-    subtitle = "Points right of zero = more embryos than control; left = fewer",
-    x = "Difference from control (fitted count)",
+    x = "Difference from control",
     y = "Developmental stage",
     color = "Treatment"
   ) +
   theme_bw()
 ```
+Each horizontal line represents:
+“How much would this treatment − control difference change if we repeated the experiment 500 times?”
+
+forest plot notes:
+✅ built from predicted differences
+✅ uncertainty from bootstrap (not model SE)
+✅ intervals often cross 0
+✅  mall effect sizes,  ow and miid levels of leachate speeding  up embryonic development very slightly? 
+
+
 
 ```{r}
 write_csv(diff_df, "../../output/dataframes/diff_from_control_counts.csv")
+write_csv(boot_ci, "../../output/dataframes/bootstrap_ci_counts.csv")
 ```
-
 
 What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
 preventing their degradation.
+
+What the bootstrapped data shows.. maybe speeding up development very slightly?
+
 
 # Method
 
@@ -956,21 +1077,15 @@ effects and interaction terms was assessed using Analysis of Deviance
 
 # Result
 
-no overall effect of PVC leachate (
-𝑝
-=
-0.999
-p=0.999). However, a significant interaction between leachate and developmental stage (
-𝑝
-=
-0.001
-p=0.001) indicates that treatment effects vary across embryonic stages.
+no overall effect of PVC leachate ( 𝑝 = 0.999 p=0.999). However, a
+significant interaction between leachate and developmental stage ( 𝑝 =
+0.001 p=0.001) indicates that treatment effects vary across embryonic
+stages.
 
-Univariate tests suggest that this interaction is primarily driven by differences in the proportion of early gastrula (
-𝑝
-=
-0.045
-p=0.045), with weaker, non-significant trends observed in earlier developmental stages.
+Univariate tests suggest that this interaction is primarily driven by
+differences in the proportion of early gastrula ( 𝑝 = 0.045 p=0.045),
+with weaker, non-significant trends observed in earlier developmental
+stages.
 
 A multivariate generalized linear model revealed a significant treatment
 × developmental stage interaction (Dev=40.3, df=6, p=0.009), indicating
