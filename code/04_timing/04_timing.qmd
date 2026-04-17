@@ -474,7 +474,7 @@ Bayes/anova style.
 But our embryos do not meet those assumptions:
 
 | Violation | Why |
-|----------------------------------|--------------------------------------|
+|----|----|
 | Counts do **not sum to a fixed total** | Viable embryos vary across vials |
 | Some stages **do not exist at certain timepoints** | Multinomial cannot handle biologically impossible categories |
 | Counts are **strongly overdispersed & zero-inflated** | Requires negative binomial + mvabund handling |
@@ -613,8 +613,8 @@ summary(mod_all, nBoot = 5000)
 ```
 
 ::: callout-important
-
 ##### Results interpretation
+
 Wald value is the effect size squared over the variance; which tells us
 how big the effect is relative to the noise. $$ 
 \text{effect size}^{2} / variance
@@ -645,22 +645,42 @@ persisting longer relative to controls.
 set.seed(04072026)
 anova(mod_all, nBoot = 5000, p.uni = "adjusted")
 ```
+
 ::: callout-important
 ##### Results interpretation
-The multivariate results tell us that treatment as a whole doesn't have a significant effect on stage composition (p=0.999), but developmental stage (hpf) has a huge effect (p=0.001), and the interaction between treatment and hpf is also significant (p=0.001). This means that the effect of leachate on stage composition depends on developmental stage, even though there is no overall treatment effect. The treatment effects are stage-specific, subtle, or even opposing across stages, which is why we see a significant interaction without a main effect of treatment.
 
-The univariate results tell us that the prawnchip stage interaction term P = 0.036 is driving the significant interaction, with a significant effect of treatment at 14 hpf. The other stages show borderline or non-significant effects, suggesting that the overall multivariate interaction is being driven mostly by changes in the prawnchip stage at 14 hpf.
+The multivariate results tell us that treatment as a whole doesn't have
+a significant effect on stage composition (p=0.999), but developmental
+stage (hpf) has a huge effect (p=0.001), and the interaction between
+treatment and hpf is also significant (p=0.001). This means that the
+effect of leachate on stage composition depends on developmental stage,
+even though there is no overall treatment effect. The treatment effects
+are stage-specific, subtle, or even opposing across stages, which is why
+we see a significant interaction without a main effect of treatment.
 
-Prawnchip counts differ by treatment at 14 hpf
-The relationship between treatment and prawnchip counts changes across time
-This includes 14 hpf, but depends on the whole trajectory from 4 to 14 hpf
-Treatment is slightly altering how embryos move through the prawnchip stage... either lingering longer in prawnchip, or exiting prawnchip faster. 
+The univariate results tell us that the prawnchip stage interaction term
+P = 0.036 is driving the significant interaction, with a significant
+effect of treatment at 14 hpf. The other stages show borderline or
+non-significant effects, suggesting that the overall multivariate
+interaction is being driven mostly by changes in the prawnchip stage at
+14 hpf.
 
-> Univariate tests suggest that this interaction is primarily driven by differences in the prawnchip stage, indicating that treatment may alter the timing of progression through this intermediate developmental stage.
+Prawnchip counts differ by treatment at 14 hpf The relationship between
+treatment and prawnchip counts changes across time This includes 14 hpf,
+but depends on the whole trajectory from 4 to 14 hpf Treatment is
+slightly altering how embryos move through the prawnchip stage... either
+lingering longer in prawnchip, or exiting prawnchip faster.
+
+> Univariate tests suggest that this interaction is primarily driven by
+> differences in the prawnchip stage, indicating that treatment may
+> alter the timing of progression through this intermediate
+> developmental stage.
 
 or
 
-> This pattern is consistent with subtle shifts in developmental timing, where embryos may transition into or out of the prawnchip stage at different rates under leachate exposure.
+> This pattern is consistent with subtle shifts in developmental timing,
+> where embryos may transition into or out of the prawnchip stage at
+> different rates under leachate exposure.
 :::
 
 What does the multivariate test tell us: treatment: p=0.999 → no main
@@ -732,6 +752,7 @@ anova(mod_all, mod_red, nBoot = 5000, p.uni = "adjusted")
 
 ::: callout-note
 ##### Results interpretation
+
 This indicates that the interaction does significantly improve model
 fit, so we keep it in the model!
 :::
@@ -776,18 +797,26 @@ ggplot(fitted_prop,
     multivariate effects found.
 
 # Predictions from the model
+
 End goal is a forest plot where each point is:
 
-$ predicted treatment value − predicted control value $
+\$ predicted treatment value − predicted control value \$
 
 And you want the horizontal line to show:
 
-how much that estimated difference would vary if the experiment were repeated
+how much that estimated difference would vary if the experiment were
+repeated
 
 That is what the bootstrap CI is doing.
 
-A prediction grid is a table of the combinations we want predictions for. 
-Because our model used an offset, we need to give the grid an N_obs value to get predictions on the scale of proportions rather than counts. We set N_obs = 1 to get predictions of proportions, and this allows us to remove differences due to vial size and focus on composition-like fitted counts. I think of it as counts normalized to a common total of 1, which is equivalent to modeling proportions.
+A prediction grid is a table of the combinations we want predictions
+for. Because our model used an offset, we need to give the grid an N_obs
+value to get predictions on the scale of proportions rather than counts.
+We set N_obs = 1 to get predictions of proportions, and this allows us
+to remove differences due to vial size and focus on composition-like
+fitted counts. I think of it as counts normalized to a common total of
+1, which is equivalent to modeling proportions.
+
 ```{r prediction-grid}
 # build prediction grid
 pred_grid <- expand.grid(
@@ -810,7 +839,13 @@ pred_grid$hpf <- factor(
 ```
 
 ## Predict fitted values
-Here we ask the model, "For each treatment and time combination, what is the expected count of embryos in each stage, assuming a total of 1 embryo (N_obs = 1)?" This gives us predicted proportions for each stage under each treatment and time condition, which we can then use to calculate differences from control and visualize with confidence intervals.
+
+Here we ask the model, "For each treatment and time combination, what is
+the expected count of embryos in each stage, assuming a total of 1
+embryo (N_obs = 1)?" This gives us predicted proportions for each stage
+under each treatment and time condition, which we can then use to
+calculate differences from control and visualize with confidence
+intervals.
 
 ```{r predict-values}
 # get fitted values from the model!
@@ -818,16 +853,15 @@ pred_obj <- predict(mod_all, newdata = pred_grid, type = "response")
 
 head(pred_obj)
 ```
-This returns predicted counts for:
-n_egg
-n_cleavage
-n_morula
-n_prawnchip
+
+This returns predicted counts for: n_egg n_cleavage n_morula n_prawnchip
 n_earlygastrula
 
-These are model-based expected stage counts for every treatment and timepoint.
+These are model-based expected stage counts for every treatment and
+timepoint.
 
 Pivot longer
+
 ```{r}
 fit_df <- pred_grid %>%
   bind_cols(as.data.frame(pred_obj)) %>%
@@ -841,6 +875,7 @@ head(fit_df)
 ```
 
 Define control as reference
+
 ```{r}
 control_df <- fit_df %>%
   filter(treatment == "control") %>%
@@ -850,6 +885,7 @@ head(control_df)
 ```
 
 Compute treatment minus control
+
 ```{r}
 diff_df <- fit_df %>%
   left_join(control_df, by = c("hpf", "stage")) %>%
@@ -860,8 +896,16 @@ head(diff_df)
 ```
 
 ## Build bootstrap mean + CI
-Right now you have one model fit, one set of predicted differences. But if you repeated the experiment with slightly different vials, you would not get exactly the same answer. The bootstrap mimics that. It asks: “If I repeatedly re-sampled my vials and refit the model, how much would these treatment-control differences move around?”
-That gives uncertainty around each point estimate. Sample the vials with replacement from your original dataset. This creates a new pseudo-dataset the same size as the original, but with some vials repeated and some left out. Conceptually, this is one “alternate version” of your experiment.
+
+Right now you have one model fit, one set of predicted differences. But
+if you repeated the experiment with slightly different vials, you would
+not get exactly the same answer. The bootstrap mimics that. It asks: “If
+I repeatedly re-sampled my vials and refit the model, how much would
+these treatment-control differences move around?” That gives uncertainty
+around each point estimate. Sample the vials with replacement from your
+original dataset. This creates a new pseudo-dataset the same size as the
+original, but with some vials repeated and some left out. Conceptually,
+this is one “alternate version” of your experiment.
 
 ```{r}
 # Resample with replacement
@@ -982,11 +1026,12 @@ boot_ci <- boot_preds %>%
 head(boot_ci)
 ```
 
-one_boot(...) = one resample, one refit, one set of treatment-control differences
-boot_preds = all bootstrap replicates stacked together
+one_boot(...) = one resample, one refit, one set of treatment-control
+differences boot_preds = all bootstrap replicates stacked together
 boot_ci = final summary table for your forest plot
 
 # Forest plot
+
 ```{r}
 boot_ci <- boot_ci %>%
   mutate(
@@ -1019,16 +1064,14 @@ ggplot(boot_ci, aes(x = mean, y = Stage, color = treatment)) +
   ) +
   theme_bw()
 ```
-Each horizontal line represents:
-“How much would this treatment − control difference change if we repeated the experiment 500 times?”
 
-forest plot notes:
-✅ built from predicted differences
-✅ uncertainty from bootstrap (not model SE)
-✅ intervals often cross 0
-✅  mall effect sizes,  ow and miid levels of leachate speeding  up embryonic development very slightly? 
+Each horizontal line represents: “How much would this treatment −
+control difference change if we repeated the experiment 500 times?”
 
-
+forest plot notes: ✅ built from predicted differences ✅ uncertainty
+from bootstrap (not model SE) ✅ intervals often cross 0 ✅ mall effect
+sizes, ow and miid levels of leachate speeding up embryonic development
+very slightly?
 
 ```{r}
 write_csv(diff_df, "../../output/dataframes/diff_from_control_counts.csv")
@@ -1039,8 +1082,8 @@ What I observed.. felt like there were more intact eggs lingering in the
 14hpf high group, like PVC treatment was somehow preserving them, or
 preventing their degradation.
 
-What the bootstrapped data shows.. maybe speeding up development very slightly?
-
+What the bootstrapped data shows.. maybe speeding up development very
+slightly?
 
 # Method
 

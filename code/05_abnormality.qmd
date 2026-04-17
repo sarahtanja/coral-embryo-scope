@@ -59,6 +59,8 @@ library(ggplot2)
 library(DHARMa)
 library(mvabund)
 library(scales)
+library(MASS) # for multinomial or negative binomial GLM
+library(glmmTMB) # for zero-inflated negative binomial
 ```
 
 ## Load data
@@ -115,7 +117,7 @@ long_status_counts <- tidy_status %>%
 head(long_status_counts)
 ```
 
-```{r write-long}
+```{r write-long, eval=FALSE}
 write_csv(long_status_counts, "../output/dataframes/long_status_counts.csv")
 ```
 
@@ -125,7 +127,7 @@ summary(long_status_counts$n)
 
 #### Overdispersion
 
-```{r}
+```{r overdispersion}
 var(long_status_counts$n)
 mean(long_status_counts$n)
 ```
@@ -134,13 +136,13 @@ mean(long_status_counts$n)
 
 #### Zero-inflation
 
-```{r}
+```{r hist-zi}
 hist(long_status_counts$n, breaks = 30)
 ```
 
 -   Most of the values are 0! Visually, we can see there are lots of zeros in our data due to our experimental structure. The following code displays the proportion of total zeros for each stage (across treatment and hpf):
 
-```{r}
+```{r zero-summary}
 long_status_counts %>%
   group_by(status) %>%
   summarize(prop_zero = mean(n == 0))
@@ -204,7 +206,7 @@ There are not more zeros than expected.
 
 # Stacked bar chart of status counts
 
-```{r}
+```{r plot-counts-stacked}
 ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~hpf,

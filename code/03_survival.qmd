@@ -39,7 +39,7 @@ knitr::opts_chunk$set(
 
 # Load libraries
 
-```{r}
+```{r libraries}
 library(tidyverse)
 library(emmeans)
 library(ggbeeswarm)
@@ -53,7 +53,7 @@ library(broom)
 
 # Load in data
 
-```{r}
+```{r tidy-data}
 tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
 ```
 
@@ -61,7 +61,7 @@ tidy_vials <- read.csv("../output/dataframes/tidy_vials.csv")
 
 Set factor levels for treatment and hpf
 
-```{r}
+```{r factors}
 treat_levels <- c("control", "low", "mid", "high")
 hpf_levels   <- c(4, 9, 14)          # use numeric to match numeric hpf
 map_leachate <- c(control = 0, low = 0.01, mid = 0.1, high = 1)
@@ -84,14 +84,14 @@ str(survival)
 
 ## Set colors
 
-```{r}
+```{r colors}
 leachate_colors <- c("#ABCFE2", "#8B7EC8", "#5E409D", "#31234E")
 stage_colors <- c("#FEE6CE", "#FDAE6B", "#F16913")
 ```
 
 ## Boxplot
 
-```{r, fig.height=6}
+```{r boxplot, fig.height=6}
 # labels for legend
 labs_map <- c(control = "0 (control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
@@ -170,16 +170,10 @@ line <- ggplot(mean_trajectories, aes(x = hpf_factor, y = mean_viable,
 line
 ```
 
-## Relative survival
+## Survival
 
 -   **Cross-sectional design**:\
-    At each timepoint (4, 9, 14 hpf) you *sample a different subset* of embryos — i.e., you don’t track the same individuals over time. You have **counts of viable (surviving) embryos** per treatment × timepoint combination. So, at each timepoint, you can measure *proportion surviving* relative to the **starting number of embryos**
-
-Calculate the proportionate change from one time point to the next:
-
-Relative survival to time hpf4 = (mean embryo count at hpf4)/(mean \_eggs_per_vial) Relative survival to time hpf9 = (mean embryo count at hpf9)/(mean \_eggs_per_vial). Relative survival to time hpf14 = (mean embryo count at hpf14)/(mean \_eggs_per_vial).
-
-We take our theoretical 'starting point' from the knowledge that a *M. cap* bundle has 15+/- 5.1 eggs. In each vial we placed 2 bundles.
+    At each timepoint (4, 9, 14 hpf) you *sample a different subset* of embryos — i.e., you don’t track the same individuals over time. You have **counts of viable (surviving) embryos** per treatment × timepoint combination. 
 
 ```{r}
 set.seed(123)  # for reproducibility
@@ -205,10 +199,6 @@ sd_eggs_per_vial <- sd(eggs_per_vial)
 mean_eggs_per_vial
 sd_eggs_per_vial
 ```
-
-::: callout-note
-Here we use mean total embryos = 30, SD = 6.4 as a starting point, our 100%, that we used to compare all our counts to for relative survival
-:::
 
 ```{r}
 survival <- survival %>%
@@ -244,10 +234,11 @@ ggplot(survival_summary, aes(x = hpf, y = mean_survival_rate, color = treatment,
   theme_minimal()
 ```
 
-# Survival rates & embryo counts
+# Mean embryo counts
 
-```{r}
-# Calculate mean and SD for each hpf group
+## grouped by hpf, treatment
+```{r calc-means}
+# Calculate mean and SD for each hpf,treatment group
 summary_data <- survival %>%
   group_by(hpf, treatment) %>%
   summarise(
@@ -257,17 +248,13 @@ summary_data <- survival %>%
   )
 
 summary_data
-survival_summary
 ```
 
-## Table 1. Survival rates & counts
+## table of mean embryo counts ± SD for each hpf, treatment group
 
-```{r}
-survival_data_summary <- survival_summary %>%
-  left_join(summary_data) %>% 
-  dplyr::select(hpf, treatment, mean_embryo, sd_embryo)
+```{r table-means}
 
-survival_table_wide <- survival_data_summary %>%
+survival_table_wide <- summary_data %>%
   mutate(
     across(
       c(mean_embryo, sd_embryo),
@@ -282,7 +269,6 @@ survival_table_wide <- survival_data_summary %>%
     treatment  = factor(treatment, levels = c("control", "low", "mid", "high")),
     cell = sprintf(
       "%.1f ± %.1f",
-      #mean_survival_rate * 100,
       mean_embryo,
       sd_embryo
     )
@@ -315,30 +301,44 @@ survival_table_wide_print <- survival_table_wide %>%
 survival_table_wide_print
 ```
 
-```{r}
+```{r save-means-table}
 write.csv(survival_table_wide_print, "../output/tables/table_survival_summary.csv", row.names = FALSE)
 ```
 
-We can generate the table in .doc format for copy and pasting into Google Doc manuscript draft, or html format for viewing in browser.
-
-```{r, eval=FALSE}
-sjPlot::tab_df(
-  table_wide_print,
-  title         = "Survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
-  show.rownames = FALSE,          # rownames will be 4, 9, 14 (hpf)
-  digits        = 1,
-  file          = "../output/tables/table_survival_sjplot.doc"  # optional: save as HTML
+## grouped by hpf only!
+```{r calc-hpf-means}
+# Calculate mean and SD for each hpf,treatment group
+hpf_summary_data <- survival %>%
+  group_by(hpf) %>%
+  summarise(
+  mean_embryo = mean(n_viable),
+  sd_embryo   = sd(n_viable),
+  n           = n(),
+  se_embryo   = sd(n_viable) / sqrt(n()),
+  .groups = "drop"
 )
 
-stargazer::stargazer(
-  table_wide_print,
-  type        = "html",
-  digits      = 1,
-  summary = FALSE,
-  rownames = FALSE,
-  title       = "Relative survival rate (%) and viable embryo counts (±sd) by treatment and developmental time",
-  out         = "../output/tables/table_survival_stargazer.doc"
-)
+hpf_summary_data
+```
+```{r}
+
+hpf_wide_print <- hpf_summary_data %>% 
+ mutate(
+    across(
+      c(mean_embryo, sd_embryo, se_embryo),
+      ~ round(.x, 1)
+    ),
+    cell = sprintf(
+      "%.1f ± %.1f",
+      mean_embryo,
+      sd_embryo
+    )
+  ) %>% 
+  dplyr::select(hpf, cell) %>%
+  rename(`Hours post-fertilization` = hpf, 
+         `Mean number of viable embryos (± SD)` = cell)
+
+hpf_wide_print
 ```
 
 # Two-way ANOVA
