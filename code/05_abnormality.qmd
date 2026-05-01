@@ -41,13 +41,17 @@ knitr::opts_chunk$set(
 
 Here we are assessing the counts of embryos that were annotated as typical, uncertain/torn, or malformed across treatments and developmental time. We want to know whether the overall composition of these morphological status categories differs across treatment and time, and if so, which categories are driving those differences.
 
-uncertain/torn embryos are those that were difficult to classify as typical or malformed due to fragmentation. It's important to know tat torn or fragmented embryos can continue developing into normal larvae, so we are not necessarily treating them as malformed. Instead, we are interested in whether the proportion of uncertain embryos changes across time and treatment, which could indicate that leachate exposure is increasing fragmentation or making it harder to classify embryos cleanly.
-
 ![an example of a malformed embryo](images/malformed_sq.png){fig-alt="a malformed embryo kind of looks like strung out lumpy playdough"}
+
+The clearly malformed embryos were disintegrating into stringy clumps of cells (the cellular structure was falling apart)
 
 ![a torn embryo looks like pita bread broken in half, communion style](images/torn_sq.png){fig-alt="a torn embryo looks like pita bread broken in half, communion style"}
 
+Uncertain (torn) embryos are those that were difficult to classify as typical or malformed due to fragmentation. For example, this embryo clearly reached the prawn chip stage developmentally, and was then torn. It's important to know that torn or fragmented embryos can continue developing into normal larvae, so we are not necessarily treating them as malformed. Instead, we are interested in whether the proportion of uncertain embryos changes across time and treatment, which could indicate that leachate exposure is increasing fragmentation or making it harder to classify embryos cleanly.
+
 ![A typical embryo in the between prawn chip and early gastrula phase, like a pancake](images/typical_sq.png){fig-alt="A typical embryo in the between prawn chip and early gastrula phase, like a pancake"}
+
+A typical prawn chip embryo with visible symbiodinacea algal cells
 
 # Setup
 
@@ -80,7 +84,7 @@ tidy_status <- tidy_vials %>%
 str(tidy_status)
 ```
 
-```{r write-tidy eval=FALSE}
+```{r write-tidy, eval=FALSE}
 write_csv(tidy_status, "../output/dataframes/tidy_status.csv")
 ```
 
@@ -209,6 +213,22 @@ There are not more zeros than expected.
 ```{r plot-counts-stacked}
 ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
   geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hours post-fertilization",
+                       "9" = "9 hours post-fertilization",
+                       "14" = "14 hours post-fertilization")
+             )) +
+  labs(title = "Embryo stage counts by treatment over time",
+       x = "Treatment",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_manual(values = status.colors)
+```
+
+```{r plot-counts-fill}
+ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
+  geom_bar(stat = "identity", position = "fill") +
   facet_wrap(~hpf,
              labeller = labeller(
                hpf = c("4" = "4 hours post-fertilization",

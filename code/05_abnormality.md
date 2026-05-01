@@ -4,8 +4,8 @@
 
 - [<span class="toc-section-number">1</span> Background](#background)
 - [<span class="toc-section-number">2</span> Setup](#setup)
-  - [<span class="toc-section-number">2.1</span> Install
-    packages](#install-packages)
+  - [<span class="toc-section-number">2.1</span> Load
+    libraries](#load-libraries)
   - [<span class="toc-section-number">2.2</span> Load data](#load-data)
   - [<span class="toc-section-number">2.3</span> Set
     colors](#set-colors)
@@ -15,10 +15,8 @@
   counts](#stacked-bar-chart-of-status-counts)
 - [<span class="toc-section-number">5</span> Calculate status count
   means](#calculate-status-count-means)
-  - [<span class="toc-section-number">5.1</span> Table: Status
-    composition means](#table-status-composition-means)
-- [<span class="toc-section-number">6</span> MVABUD/
-  MANYGLM](#mvabud-manyglm)
+- [<span class="toc-section-number">6</span> Fit the manyglm
+  model](#fit-the-manyglm-model)
 - [<span class="toc-section-number">7</span> Method](#method)
 - [<span class="toc-section-number">8</span> Result](#result)
 - [<span class="toc-section-number">9</span> Discussion
@@ -26,9 +24,42 @@
 
 # Background
 
+Here we are assessing the counts of embryos that were annotated as
+typical, uncertain/torn, or malformed across treatments and
+developmental time. We want to know whether the overall composition of
+these morphological status categories differs across treatment and time,
+and if so, which categories are driving those differences.
+
+<img src="images/malformed_sq.png"
+data-fig-alt="a malformed embryo kind of looks like strung out lumpy playdough"
+alt="an example of a malformed embryo" />
+
+The clearly malformed embryos were disintegrating into stringy clumps of
+cells (the cellular structure was falling apart)
+
+<img src="images/torn_sq.png"
+data-fig-alt="a torn embryo looks like pita bread broken in half, communion style"
+alt="a torn embryo looks like pita bread broken in half, communion style" />
+
+Uncertain (torn) embryos are those that were difficult to classify as
+typical or malformed due to fragmentation. For example, this embryo
+clearly reached the prawn chip stage developmentally, and was then torn.
+It’s important to know that torn or fragmented embryos can continue
+developing into normal larvae, so we are not necessarily treating them
+as malformed. Instead, we are interested in whether the proportion of
+uncertain embryos changes across time and treatment, which could
+indicate that leachate exposure is increasing fragmentation or making it
+harder to classify embryos cleanly.
+
+<img src="images/typical_sq.png"
+data-fig-alt="A typical embryo in the between prawn chip and early gastrula phase, like a pancake"
+alt="A typical embryo in the between prawn chip and early gastrula phase, like a pancake" />
+
+A typical prawn chip embryo with visible symbiodinacea algal cells
+
 # Setup
 
-## Install packages
+## Load libraries
 
 ``` r
 library(tidyverse)
@@ -36,6 +67,8 @@ library(ggplot2)
 library(DHARMa)
 library(mvabund)
 library(scales)
+library(MASS) # for multinomial or negative binomial GLM
+library(glmmTMB) # for zero-inflated negative binomial
 ```
 
 ## Load data
@@ -88,25 +121,32 @@ long_status_counts <- tidy_status %>%
     names_to = c(".value", "status"),
     names_pattern = "(n)_(.*)"
   ) %>% 
-  mutate(hpf = factor(hpf, levels = c(4, 9, 14), 
-                      ordered = TRUE),
-         status = factor(status, levels = c("malformed", "uncertain", "typical"), 
-                      ordered = TRUE),
-         treatment = factor(treatment, levels = c("control", "low", "mid", "high"), 
-                      ordered = TRUE))
+  mutate(hpf = factor(hpf, levels = c(4, 9, 14)),
+         status = factor(status, levels = c("malformed", 
+                                            "uncertain", 
+                                            "typical")),
+         treatment = factor(treatment, levels = c("control", 
+                                                  "low", 
+                                                  "mid", 
+                                                  "high"))
+         )
 
 head(long_status_counts)
 ```
 
     # A tibble: 6 × 6
       sample_id treatment hpf   date       status        n
-      <chr>     <ord>     <ord> <date>     <ord>     <dbl>
+      <chr>     <ord>     <ord> <date>     <fct>     <dbl>
     1 10C14     control   14    2024-06-07 typical      20
     2 10C14     control   14    2024-06-07 uncertain     1
     3 10C14     control   14    2024-06-07 malformed     2
     4 10C4      control   4     2024-06-07 typical      29
     5 10C4      control   4     2024-06-07 uncertain     0
     6 10C4      control   4     2024-06-07 malformed     0
+
+``` r
+write_csv(long_status_counts, "../output/dataframes/long_status_counts.csv")
+```
 
 ``` r
 summary(long_status_counts$n)
@@ -138,7 +178,7 @@ mean(long_status_counts$n)
 hist(long_status_counts$n, breaks = 30)
 ```
 
-![](05_abnormality_files/figure-commonmark/unnamed-chunk-9-1.png)
+![](05_abnormality_files/figure-commonmark/hist-zi-1.png)
 
 - Most of the values are 0! Visually, we can see there are lots of zeros
   in our data due to our experimental structure. The following code
@@ -153,14 +193,131 @@ long_status_counts %>%
 
     # A tibble: 3 × 2
       status    prop_zero
-      <ord>         <dbl>
+      <fct>         <dbl>
     1 malformed    0.620 
     2 uncertain    0.463 
     3 typical      0.0185
 
 More than 50% of the counts for our `uncertain` and `malformed` statuses
-are zeros…. Our data is zero-inflated in two out of the three statuses
-we are testing.
+are zeros….
+
+Formally check for Zero inflation by running a zero-inflated negative
+binomial model and comparing it to a standard negative binomial model
+using an anova to compare them … AIC?
+
+``` r
+# Fit standard negative binomial model
+nb_model <- glmmTMB(n ~ treatment * hpf, 
+                    family = nbinom2,
+                    data = long_status_counts)
+
+# Fit zero-inflated negative binomial model
+zinb_model <- glmmTMB(n ~ treatment * hpf, 
+                      ziformula = ~1, 
+                      family = nbinom2, 
+                      data = long_status_counts)
+
+# compare with anova
+anova(nb_model, zinb_model)
+```
+
+    Data: long_status_counts
+    Models:
+    nb_model: n ~ treatment * hpf, zi=~0, disp=~1
+    zinb_model: n ~ treatment * hpf, zi=~1, disp=~1
+               Df    AIC    BIC  logLik deviance  Chisq Chi Df Pr(>Chisq)    
+    nb_model   13 1726.6 1775.7 -850.29   1700.6                             
+    zinb_model 14 1717.4 1770.3 -844.69   1689.4 11.194      1  0.0008206 ***
+    ---
+    Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+> [!NOTE]
+>
+> AIC decreases a tiny bit from nb to zinb from 1726.6 to 1717.4
+
+Clearly there are way more typical embryos across the board compared to
+uncertain/torn and malformed. This is expected!
+
+``` r
+summary(zinb_model)
+```
+
+     Family: nbinom2  ( log )
+    Formula:          n ~ treatment * hpf
+    Zero inflation:     ~1
+    Data: long_status_counts
+
+          AIC       BIC    logLik -2*log(L)  df.resid 
+       1717.4    1770.3    -844.7    1689.4       310 
+
+
+    Dispersion parameter for nbinom2 family (): 0.822 
+
+    Conditional model:
+                      Estimate Std. Error z value Pr(>|z|)    
+    (Intercept)        2.04747    0.09235  22.171  < 2e-16 ***
+    treatment.L       -0.05340    0.16072  -0.332  0.73970    
+    treatment.Q       -0.05651    0.15895  -0.356  0.72217    
+    treatment.C        0.01374    0.15719   0.087  0.93033    
+    hpf.L             -0.70136    0.14311  -4.901 9.55e-07 ***
+    hpf.Q              0.35310    0.13510   2.614  0.00896 ** 
+    treatment.L:hpf.L -0.11591    0.28550  -0.406  0.68476    
+    treatment.Q:hpf.L -0.28983    0.28307  -1.024  0.30589    
+    treatment.C:hpf.L -0.07228    0.28075  -0.257  0.79682    
+    treatment.L:hpf.Q -0.01118    0.27184  -0.041  0.96719    
+    treatment.Q:hpf.Q -0.12545    0.26752  -0.469  0.63913    
+    treatment.C:hpf.Q  0.01945    0.26279   0.074  0.94101    
+    ---
+    Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+    Zero-inflation model:
+                Estimate Std. Error z value Pr(>|z|)    
+    (Intercept)  -1.0104     0.2227  -4.537 5.71e-06 ***
+    ---
+    Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+``` r
+sim_nb <- simulateResiduals(nb_model)
+plot(sim_nb)
+```
+
+![](05_abnormality_files/figure-commonmark/residuals-nb-1.png)
+
+``` r
+sim_zinb <- simulateResiduals(zinb_model)
+plot(sim_zinb)
+```
+
+![](05_abnormality_files/figure-commonmark/residuals-zinb-1.png)
+
+``` r
+testZeroInflation(simulateResiduals(nb_model))
+```
+
+![](05_abnormality_files/figure-commonmark/test-zero-inflation-1.png)
+
+
+        DHARMa zero-inflation test via comparison to expected zeros with
+        simulation under H0 = fitted model
+
+    data:  simulationOutput
+    ratioObsSim = 1.0198, p-value = 0.776
+    alternative hypothesis: two.sided
+
+There are not more zeros than expected.
+
+> “There was no evidence of excess zeros based on simulation-based
+> diagnostics (DHARMa; p=0.776), despite improved fit of a zero-inflated
+> model.”
+>
+> You do NOT need a zero-inflated model
+>
+> Your diagnostics say NB is adequate with respect to zeros.
+>
+> The ZINB model is just being more flexible—not more correct.
+>
+> *This is not random zero inflation. This is just lots of natural
+> zeros*
 
 # Stacked bar chart of status counts
 
@@ -180,12 +337,30 @@ ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
   scale_fill_manual(values = status.colors)
 ```
 
-![](05_abnormality_files/figure-commonmark/unnamed-chunk-11-1.png)
+![](05_abnormality_files/figure-commonmark/plot-counts-stacked-1.png)
+
+``` r
+ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
+  geom_bar(stat = "identity", position = "fill") +
+  facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hours post-fertilization",
+                       "9" = "9 hours post-fertilization",
+                       "14" = "14 hours post-fertilization")
+             )) +
+  labs(title = "Embryo stage counts by treatment over time",
+       x = "Treatment",
+       y = "Embryo count") +
+  theme_minimal() +
+  scale_fill_manual(values = status.colors)
+```
+
+![](05_abnormality_files/figure-commonmark/plot-counts-fill-1.png)
 
 # Calculate status count means
 
 ``` r
-# Step 2: Calculate mean proportions for each stage within each treatment
+# Step 2: Calculate mean counts for each morph status within each treatment
 status_summary <- long_status_counts %>%
   group_by(treatment, status, hpf) %>%
   summarize(mean_counts = mean(n), .groups = "drop") %>% 
@@ -239,85 +414,18 @@ knitr::kable(status_summary,
 |   high    |  typical  |  9  |    10.44    |
 |   high    |  typical  | 14  |    8.00     |
 
-## Table: Status composition means
+# Fit the manyglm model
+
+Using a multivariate negative binomial generalized linear model
+(MNB.GLM), This tests whether the whole multivariate response vector `Y`
+is affected by treatment, hpf, or their interaction fitting separate
+GLMs for each stage.
 
 ``` r
-table_status <- status_summary %>%
-  pivot_wider(
-    names_from  = c(treatment, hpf),
-    values_from = mean_counts,
-    values_fill = 0,
-    # column names like "4 hpf - control"
-    names_glue  = "{hpf} hpf - {treatment}"
-  ) %>%
-  dplyr::select(status, 
-                `4 hpf - control`, `4 hpf - low`, `4 hpf - mid`, `4 hpf - high`,
-                `9 hpf - control`, `9 hpf - low`, `9 hpf - mid`, `9 hpf - high`,
-                `14 hpf - control`, `14 hpf - low`, `14 hpf - mid`, `14 hpf - high`) %>%
-  arrange(status) %>%
-  # turn to % (numeric) for nice formatting
-  mutate(across(-status, ~ round(.x, 1))) %>%
-  rename(Status = status) 
-
-
-knitr::kable(table_status, 
-             align = "l",
-             booktabs = TRUE)
+tidy_status <- tidy_status %>% 
+  mutate(N_obs = n_typical + n_uncertain + n_malformed) %>% 
+  filter(N_obs > 0) # drop samples with zero embryos
 ```
-
-| Status | 4 hpf - control | 4 hpf - low | 4 hpf - mid | 4 hpf - high | 9 hpf - control | 9 hpf - low | 9 hpf - mid | 9 hpf - high | 14 hpf - control | 14 hpf - low | 14 hpf - mid | 14 hpf - high |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| malformed | 0.4 | 0.9 | 0.9 | 0.2 | 0.9 | 1.2 | 1.6 | 0.6 | 0.8 | 0.7 | 1.3 | 0.7 |
-| uncertain | 0.7 | 0.7 | 0.3 | 0.1 | 2.3 | 2.2 | 2.0 | 2.4 | 0.8 | 1.3 | 0.8 | 1.7 |
-| typical | 26.3 | 26.7 | 23.7 | 25.9 | 11.0 | 10.3 | 11.7 | 10.4 | 10.6 | 11.4 | 13.4 | 8.0 |
-
-``` r
-library(sjPlot)
-
-sjPlot::tab_df(
-  table_status,
-  title         = "Mean status composition (counts of embryos) by treatment and developmental time (hpf)",
-  show.rownames = FALSE,
-  digits        = 1
-)
-```
-
-|  |  |  |  |  |  |  |  |  |  |  |  |  |
-|:--:|:--:|:--:|:--:|:--:|:--:|----|----|----|----|----|----|----|
-| Status | X4.hpf...control | X4.hpf...low | X4.hpf...mid | X4.hpf...high | X9.hpf...control | X9.hpf...low | X9.hpf...mid | X9.hpf...high | X14.hpf...control | X14.hpf...low | X14.hpf...mid | X14.hpf...high |
-| malformed | 0.4 | 0.9 | 0.9 | 0.2 | 0.9 | 1.2 | 1.6 | 0.6 | 0.8 | 0.7 | 1.3 | 0.7 |
-| uncertain | 0.7 | 0.7 | 0.3 | 0.1 | 2.3 | 2.2 | 2.0 | 2.4 | 0.8 | 1.3 | 0.8 | 1.7 |
-| typical | 26.3 | 26.7 | 23.7 | 25.9 | 11.0 | 10.3 | 11.7 | 10.4 | 10.6 | 11.4 | 13.4 | 8.0 |
-
-Mean status composition (counts of embryos) by treatment and
-developmental time (hpf)
-
-``` r
-library(stargazer)
-
-stargazer::stargazer(
-  table_status,
-  type      = "html",  # or "latex" if knitting to PDF
-  summary   = FALSE,
-  rownames  = FALSE,
-  digits    = 1,
-  title     = "Mean status composition (counts of embryos) by treatment and developmental time (hpf)",
-  out       = "../output/tables/table_status_counts.doc"  # optional
-)
-```
-
-
-    <table style="text-align:center"><caption><strong>Mean status composition (counts of embryos) by treatment and developmental time (hpf)</strong></caption>
-    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Status</td><td>4 hpf - control</td><td>4 hpf - low</td><td>4 hpf - mid</td><td>4 hpf - high</td><td>9 hpf - control</td><td>9 hpf - low</td><td>9 hpf - mid</td><td>9 hpf - high</td><td>14 hpf - control</td><td>14 hpf - low</td><td>14 hpf - mid</td><td>14 hpf - high</td></tr>
-    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">1</td><td>0.4</td><td>0.9</td><td>0.9</td><td>0.2</td><td>0.9</td><td>1.2</td><td>1.6</td><td>0.6</td><td>0.8</td><td>0.7</td><td>1.3</td><td>0.7</td></tr>
-    <tr><td style="text-align:left">2</td><td>0.7</td><td>0.7</td><td>0.3</td><td>0.1</td><td>2.3</td><td>2.2</td><td>2</td><td>2.4</td><td>0.8</td><td>1.3</td><td>0.8</td><td>1.7</td></tr>
-    <tr><td style="text-align:left">3</td><td>26.3</td><td>26.7</td><td>23.7</td><td>25.9</td><td>11</td><td>10.3</td><td>11.7</td><td>10.4</td><td>10.6</td><td>11.4</td><td>13.4</td><td>8</td></tr>
-    <tr><td colspan="13" style="border-bottom: 1px solid black"></td></tr></table>
-
-# MVABUD/ MANYGLM
-
-This tests whether the whole multivariate response vector `Y` is
-affected by treatment, hpf, or their interaction.
 
 ``` r
 Y <- mvabund(tidy_status[, 
@@ -328,13 +436,49 @@ Y <- mvabund(tidy_status[,
 mod_all <- manyglm(
   Y ~ treatment * hpf,
   family = "negative.binomial",
+  offset = log(N_obs),
   data = tidy_status
 )
 
-anova(mod_all, p.uni = "adjusted")
+plot(mod_all)
 ```
 
-    Time elapsed: 0 hr 0 min 15 sec
+![](05_abnormality_files/figure-commonmark/unnamed-chunk-2-1.png)
+
+``` r
+set.seed(04092026)
+summary(mod_all, nBoot = 5000)
+```
+
+
+    Test statistics:
+                      wald value Pr(>wald)    
+    (Intercept)           29.470    0.0002 ***
+    treatment.L            1.009    0.4711    
+    treatment.Q            1.664    0.1882    
+    treatment.C            1.591    0.2314    
+    hpf.L                  6.100    0.0002 ***
+    hpf.Q                  7.554    0.0002 ***
+    treatment.L:hpf.L      2.338    0.0382 *  
+    treatment.Q:hpf.L      1.840    0.1352    
+    treatment.C:hpf.L      1.108    0.4673    
+    treatment.L:hpf.Q      0.903    0.5557    
+    treatment.Q:hpf.Q      0.639    0.7219    
+    treatment.C:hpf.Q      0.571    0.7718    
+    --- 
+    Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1 
+
+    Test statistic:  9.775, p-value: 2e-04 
+    Arguments:
+     Test statistics calculated assuming response assumed to be uncorrelated 
+     P-value calculated using 5000 resampling iterations via pit.trap resampling (to account for correlation in testing).
+
+``` r
+set.seed(04092026)
+anova(mod_all, nBoot = 5000, p.uni = "adjusted")
+```
+
+    Time elapsed: 0 hr 1 min 30 sec
 
     Analysis of Deviance Table
 
@@ -342,10 +486,10 @@ anova(mod_all, p.uni = "adjusted")
 
     Multivariate test:
                   Res.Df Df.diff   Dev Pr(>Dev)    
-    (Intercept)      107                           
-    treatment        104       3  5.47    0.701    
-    hpf              102       2 90.91    0.001 ***
-    treatment:hpf     96       6 12.12    0.886    
+    (Intercept)      105                           
+    treatment        102       3  4.67    0.607    
+    hpf              100       2 75.36   <2e-16 ***
+    treatment:hpf     94       6 11.41    0.770    
     ---
     Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -353,18 +497,12 @@ anova(mod_all, p.uni = "adjusted")
                   n_typical          n_uncertain          n_malformed         
                         Dev Pr(>Dev)         Dev Pr(>Dev)         Dev Pr(>Dev)
     (Intercept)                                                               
-    treatment         0.372    0.949       0.858    0.949       4.238    0.470
-    hpf              63.751    0.001      25.242    0.001       1.914    0.387
-    treatment:hpf     4.689    0.870       6.143    0.854       1.292    0.982
+    treatment         0.108    0.960        1.71    0.605       2.853    0.563
+    hpf              15.303    0.001      49.998   <2e-16       10.06    0.006
+    treatment:hpf      0.96    0.968       8.603    0.562       1.851    0.968
     Arguments:
      Test statistics calculated assuming uncorrelated response (for faster computation) 
-    P-value calculated using 999 iterations via PIT-trap resampling.
-
-``` r
-plot(mod_all)
-```
-
-![](05_abnormality_files/figure-commonmark/unnamed-chunk-16-1.png)
+    P-value calculated using 5000 iterations via PIT-trap resampling.
 
 ``` r
 # Get fitted values
@@ -381,11 +519,14 @@ fitted_long <- fitted_vals %>%
   )
 
 # Plot
-ggplot(fitted_long,
-       aes(x = hpf, y = fitted_count, color = treatment, group = treatment)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
-  facet_wrap(~ status, scales = "free_y") +
+ggplot(fitted_long, aes(x = hpf, 
+                        y = fitted_count, 
+                        color = treatment, 
+                        group = interaction(hpf, treatment)
+                        )
+       ) +
+  geom_boxplot(alpha = 0.65, outlier.shape = NA) +
+  facet_wrap(~status, scales = "free_y") +
   theme_minimal(base_size = 14) +
   labs(
     title = "Fitted developmental status trajectories",
@@ -394,33 +535,17 @@ ggplot(fitted_long,
   )
 ```
 
-![](05_abnormality_files/figure-commonmark/unnamed-chunk-17-1.png)
-
-There are more uncertain and malformed embryos in the prawnchip stage
-relative to other stages, regardless of treatment. This may indicate
-that this stage is the most sensitive to fragmentation and other
-morphological abnormalities. No clear patterns emerged due to treatment,
-and treatment and treatment:hpf interaction were not found to be
-significant.
+![](05_abnormality_files/figure-commonmark/unnamed-chunk-3-1.png)
 
 ``` r
-fitted_prop <- fitted_long %>%
-  group_by(treatment) %>%
-  mutate(total = sum(fitted_count),
-         prop = fitted_count / total)
-
-ggplot(fitted_prop,
-       aes(x = hpf, y = prop, color = status)) +
-  geom_line(aes(group = status), linewidth = 1) +
-  facet_wrap(~ treatment) +
-  theme_minimal(base_size = 14) +
-  labs(
-    title = "Compositional status trajectories",
-    subtitle = "Status proportions across time by treatment"
-  )
+write_csv(fitted_long, "../output/dataframes/fitted_long_status_counts.csv")
 ```
 
-![](05_abnormality_files/figure-commonmark/unnamed-chunk-18-1.png)
+There are more uncertain and malformed embryos at 9 hpf relative to 4 or
+14… regardless of treatment. This may indicate that this stage is the
+most sensitive to fragmentation and other morphological abnormalities.
+No clear patterns emerged due to treatment, and treatment and
+treatment:hpf interaction were not found to be significant.
 
 # Method
 
@@ -533,25 +658,37 @@ sessionInfo()
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     other attached packages:
-     [1] stargazer_5.2.3 sjPlot_2.9.0    scales_1.4.0    mvabund_4.2.8  
+     [1] glmmTMB_1.1.13  MASS_7.3-65     scales_1.4.0    mvabund_4.2.8  
      [5] DHARMa_0.4.7    lubridate_1.9.4 forcats_1.0.1   stringr_1.6.0  
      [9] dplyr_1.1.4     purrr_1.2.1     readr_2.1.6     tidyr_1.3.2    
     [13] tibble_3.3.1    ggplot2_4.0.1   tidyverse_2.0.0
 
     loaded via a namespace (and not attached):
-     [1] gtable_0.3.6       xfun_0.54          insight_1.4.4      lattice_0.22-7    
-     [5] tzdb_0.5.0         vctrs_0.6.5        tools_4.5.1        Rdpack_2.6.4      
-     [9] generics_0.1.4     parallel_4.5.1     pkgconfig_2.0.3    Matrix_1.7-4      
-    [13] RColorBrewer_1.1-3 S7_0.2.1           lifecycle_1.0.5    compiler_4.5.1    
-    [17] farver_2.1.2       sjmisc_2.8.11      statmod_1.5.1      htmltools_0.5.9   
-    [21] yaml_2.3.12        pillar_1.11.1      nloptr_2.2.1       crayon_1.5.3      
-    [25] MASS_7.3-65        reformulas_0.4.3.1 boot_1.3-32        nlme_3.1-168      
-    [29] sjlabelled_1.2.0   tidyselect_1.2.1   digest_0.6.39      stringi_1.8.7     
-    [33] labeling_0.4.3     splines_4.5.1      fastmap_1.2.0      grid_4.5.1        
-    [37] cli_3.6.5          magrittr_2.0.4     dichromat_2.0-0.1  utf8_1.2.6        
-    [41] withr_3.0.2        bit64_4.6.0-1      tweedie_2.3.5      timechange_0.3.0  
-    [45] rmarkdown_2.30     bit_4.6.0          otel_0.2.0         lme4_1.1-38       
-    [49] hms_1.1.4          evaluate_1.0.5     knitr_1.51         rbibutils_2.4     
-    [53] viridisLite_0.4.2  mgcv_1.9-4         rlang_1.1.6        Rcpp_1.1.1        
-    [57] glue_1.8.0         rstudioapi_0.18.0  vroom_1.6.7        minqa_1.2.8       
-    [61] jsonlite_2.0.0     R6_2.6.1          
+     [1] tidyselect_1.2.1    viridisLite_0.4.2   farver_2.1.2       
+     [4] S7_0.2.1            fastmap_1.2.0       TH.data_1.1-5      
+     [7] promises_1.5.0      digest_0.6.39       mime_0.13          
+    [10] timechange_0.3.0    estimability_1.5.1  lifecycle_1.0.5    
+    [13] survival_3.8-3      statmod_1.5.1       magrittr_2.0.4     
+    [16] compiler_4.5.1      rlang_1.1.6         tools_4.5.1        
+    [19] utf8_1.2.6          yaml_2.3.12         knitr_1.51         
+    [22] labeling_0.4.3      bit_4.6.0           plyr_1.8.9         
+    [25] RColorBrewer_1.1-3  gap.datasets_0.0.6  multcomp_1.4-29    
+    [28] withr_3.0.2         numDeriv_2016.8-1.1 grid_4.5.1         
+    [31] xtable_1.8-4        iterators_1.0.14    emmeans_2.0.1      
+    [34] dichromat_2.0-0.1   cli_3.6.5           mvtnorm_1.3-3      
+    [37] rmarkdown_2.30      crayon_1.5.3        reformulas_0.4.3.1 
+    [40] generics_0.1.4      otel_0.2.0          rstudioapi_0.18.0  
+    [43] tzdb_0.5.0          minqa_1.2.8         splines_4.5.1      
+    [46] parallel_4.5.1      vctrs_0.6.5         boot_1.3-32        
+    [49] Matrix_1.7-4        sandwich_3.1-1      jsonlite_2.0.0     
+    [52] hms_1.1.4           bit64_4.6.0-1       qgam_2.0.0         
+    [55] foreach_1.5.2       tweedie_2.3.5       gap_1.6            
+    [58] glue_1.8.0          nloptr_2.2.1        codetools_0.2-20   
+    [61] stringi_1.8.7       gtable_0.3.6        later_1.4.5        
+    [64] lme4_1.1-38         pillar_1.11.1       htmltools_0.5.9    
+    [67] R6_2.6.1            TMB_1.9.19          Rdpack_2.6.4       
+    [70] doParallel_1.0.17   shiny_1.12.1        vroom_1.6.7        
+    [73] evaluate_1.0.5      lattice_0.22-7      rbibutils_2.4      
+    [76] httpuv_1.6.16       Rcpp_1.1.1          coda_0.19-4.1      
+    [79] nlme_3.1-168        mgcv_1.9-4          xfun_0.57          
+    [82] zoo_1.8-15          pkgconfig_2.0.3    

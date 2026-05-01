@@ -50,6 +50,7 @@ library(ggtext)
 library(ggsidekick)
 library(patchwork)
 library(cowplot) # for draw_image
+library(ggimage) # for embryo pics in legend
 ```
 
 # Load in data
@@ -301,9 +302,9 @@ ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
     )+
     facet_wrap(~hpf,
              labeller = labeller(
-               hpf = c("4" = "4 hours post-fertilization",
-                       "9" = "9 hours post-fertilization",
-                       "14" = "14 hours post-fertilization")
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
              ))+
   theme_sleek_axe()+
   theme(
@@ -504,10 +505,6 @@ patch_pretty
 ```
 
 ## Legends
-
-```{r}
-library(ggimage)
-```
 
 ### Stage legend
 ```{r}
@@ -821,5 +818,17 @@ ggplot(long_morph, aes(x = hpf,
 ```
 ```{r}
 ggsave("../figs/morphology_boxplot.png", width = 8, height = 6, dpi = 900)
+```
+
+# TIMING ONLY
+
+```{r}
+T1 <- timing + stage_legend_plot + plot_layout(widths = c(4, 1.1))
+T1
+```
+
+```{r, fig.height=12}
+T2 <- T1 / timing_forest_legendary + plot_layout(heights = c(1, 1))
+T2
 ```
 
