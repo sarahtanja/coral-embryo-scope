@@ -1,0 +1,352 @@
+---
+title: "A visaul table of crosses"
+subtitle: "Who spawned and when?"
+date: 05/13/2026
+date-modified: today
+format:
+  gfm: 
+    toc: true
+    number-sections: true
+  html:
+    theme: journal
+    highlight-style: github
+    page-layout: article
+    code-background: true
+    code-tools: 
+      source: true
+      toggle: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    df-print: kable
+    smooth-scroll: true
+    link-external-icon: true
+    link-external-newwindow: true
+    reference-location: margin
+    citation-location: margin
+---
+# Load libraries
+```{r}
+library(tidyverse)
+library(patchwork)
+library(ggsidekick)
+```
+
+# Custom theme
+```{r}
+theme_sleek_axe <- function() {
+  theme_sleek() +
+    theme(
+      panel.border = element_rect(
+        color = "grey70",
+        fill = NA,
+        linewidth = 0.5
+      ),
+      #axis.line.x  = element_line(color = "grey70"),
+      #axis.line.y  = element_line(color = "grey70"),
+      
+      plot.title = element_text(
+        size  = 10,
+        color = "grey40",
+        hjust = 0.5,
+        margin = margin(b = 20)
+      ),
+      
+      strip.text = element_text(size = 8, color = "grey40"),
+      
+      plot.subtitle = element_text(
+        size   = 8,
+        color  = "grey40",
+        hjust  = 0.5,
+        margin = margin(b = 40)
+      ),
+      
+      axis.title = element_text(size = 8, color = "grey40"),
+      axis.text = element_text(size = 7, color = "grey40"),
+      legend.title = element_text(size = 8, color = "grey40"),
+      legend.text = element_text(size = 7, color = "grey40")
+    )
+}
+```
+
+```{r}
+parents <- c(
+  "30-Orange", 
+  "1-White", 
+  "D", 
+  "N", 
+  "H", 
+  "M", 
+  "B", 
+  "J", 
+  "E", 
+  "G", 
+  "L", 
+  "F",
+  "Q", 
+  "C", 
+  "A"
+)
+```
+
+```{r}
+fixnfreeze <- read_csv("../data/metadata/metadataFixNFreeze.csv")
+```
+
+# Who spawned when?
+Here I want a little heatmap of colonies on the y axis and the spawning dates (july 5th , 6th , 7th) on the x axis as binary heat cells
+```{r}
+whowhen <- fixnfreeze %>% 
+  dplyr::select(date, 
+                parent_colony_a, 
+                parent_colony_b, 
+              ) %>%
+   mutate(
+    parent_colony_a = recode(
+      parent_colony_a,
+      "1_white" = "1-White", 
+      "15_orange" = "15-Orange"
+    ), 
+    parent_colony_b = recode(
+      parent_colony_b, 
+      "1_white" = "1-White", 
+      "15_orange" = "15-Orange"
+    )
+  ) %>% 
+  dplyr::filter(
+    parent_colony_a != "J/N",
+    parent_colony_b != "J/N") %>% 
+  distinct() %>% 
+  drop_na() %>% 
+  
+  # Put both parent columns into one colony column
+  pivot_longer(
+    cols = c(parent_colony_a, parent_colony_b),
+    names_to = "parent",
+    values_to = "colony"
+  ) %>%
+  
+  distinct(date, colony) %>% 
+  
+  mutate(spawned = 1) 
+  
+
+# Complete missing combinations as non-spawning
+whowhen_complete <- whowhen %>%
+  complete(
+    colony,
+    date,
+    fill = list(spawned = 0)
+  )    
+  
+```
+
+
+```{r}
+# Order colonies by number of spawning nights
+colony_order <- whowhen_complete %>%
+  group_by(colony) %>%
+  summarize(n_spawned = sum(spawned), 
+            first_spawn = min(date[spawned == 1])
+  ) %>%
+  arrange(desc(n_spawned), first_spawn) %>%
+  pull(colony)
+
+# Apply ordering
+whowhen_complete <- whowhen_complete %>%
+  mutate(
+    colony = factor(colony, levels = colony_order)
+  )
+```
+
+
+```{r whowhen-plot, fig.width=4, fig.height=2}
+whowhen_plot <- ggplot(
+  whowhen_complete,
+  aes(
+    x = factor(colony),
+    y = date,
+    fill = factor(spawned)
+  )
+) +
+  
+  geom_tile(color = "white", linewidth = 1) +
+  
+  scale_fill_manual(
+    values = c(
+      "0" = "cornsilk",
+      "1" = "coral3"
+    ),
+    labels = c(
+      "Did not spawn",
+      "Spawned"
+    ),
+    name = ""
+  ) +
+  
+  labs(
+    x = "",
+    y = "Spawn date",
+    title = "Colony spawning across collection nights \nand DNA/RNA Sample pool structure "
+  ) +
+  
+  coord_equal()+
+  
+  theme_sleek_axe()+
+  
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    axis.line = element_blank(),
+    axis.text.x = element_blank(), 
+    axis.ticks = element_blank()
+  )
+
+whowhen_plot
+```
+- 16 genetically distinct colonies
+
+
+# Sample pool structure for DNA/RNA
+
+123C is from cross 1, 2, & 3... 
+```{r}
+pool <- read_csv("../data/metadata/pool.csv")
+```
+
+
+```{r}
+fnf <- fixnfreeze %>% 
+  dplyr::select(date, parent_colony_a, parent_colony_b, cross_n, leach_code, hpf, destiny) %>%
+  filter(destiny == "freeze") %>% 
+  mutate(
+    parent_colony_a = recode(
+      parent_colony_a,
+      "1_white" = "1-White", 
+      "15_orange" = "15-Orange"
+    ), 
+    parent_colony_b = recode(
+      parent_colony_b, 
+      "1_white" = "1-White", 
+      "15_orange" = "15-Orange"
+    )
+  ) %>% 
+  distinct() %>% 
+  drop_na() %>% 
+  mutate(
+    leachate = case_when(
+      leach_code == "C" ~ "control", 
+      leach_code == "L" ~ "low", 
+      leach_code == "M" ~ "mid", 
+      leach_code == "H" ~ "high")
+  )
+```
+
+Pivot pool crosses longer so we can join it to fnf
+```{r}
+pool_long <- pool %>% 
+  pivot_longer(
+    cols = starts_with("cross"),
+    names_to = "cross",
+    values_to = "cross_n"
+  ) %>% 
+  select(!cross)
+```
+
+join
+```{r}
+pool_df <- pool_long %>% 
+  left_join(., fnf) %>% 
+  select(!c(leach_code, destiny)) %>% 
+  drop_na()
+```
+Pivot longer longer
+```{r}
+pool_longer <- pool_df %>% 
+  pivot_longer(
+    cols = starts_with("parent"), 
+    names_to = "ab", 
+    values_to = "colony"
+  ) %>% 
+  # Split J/N into two rows
+  separate_rows(colony, sep = "/") %>%
+  
+  mutate(
+    colony = trimws(colony)
+  ) %>%
+  select(!ab)
+
+meta <- pool_longer %>%
+  distinct(sample_id, leachate, hpf)
+
+pool_heat <- pool_longer %>%
+  distinct(sample_id, colony) %>%
+  mutate(parent_present = 1) %>%
+  complete(
+    sample_id,
+    colony,
+    fill = list(parent_present = 0)
+  ) %>% 
+  left_join(meta)
+```
+```{r}
+# Apply ordering
+pool_heat <- pool_heat %>%
+  mutate(
+    colony = factor(colony, levels = colony_order)
+  )
+```
+
+
+Now a heatmap!
+
+```{r pool-plot, fig.width = 4, fig.height=12}
+pool_plot <- ggplot(pool_heat,
+       aes(x = factor(colony),
+           y = sample_id,
+           fill = factor(parent_present))) +
+  geom_tile(color = "white", linewidth = 0.2) +
+  scale_fill_manual(
+    values = c("0" = "cornsilk", "1" = "coral"),
+    labels = c("Absent", "Present"),
+    name = ""
+  ) +
+  labs(
+    x = "Parent colony",
+    y = "Sample ID"
+  ) +
+  coord_equal()+ 
+  
+  theme_sleek_axe()+
+  
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 0.9
+    ))
+
+pool_plot
+```
+
+```{r, fig.width=6, fig.height=10}
+whowhenpool <- whowhen_plot / pool_plot
+
+whowhenpool
+```
+```{r}
+ggsave(
+  "../figs/whowhenpool.png",
+  whowhenpool,
+  width = 6,
+  height = 10,
+  dpi = 900
+)
+```
+
+
+# Sample crosses for developmental microscopy

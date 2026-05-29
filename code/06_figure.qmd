@@ -122,29 +122,61 @@ theme_sleek_axe <- function() {
       
       plot.title = element_text(
         size  = 12,
-        color = "grey40",
+        color = "grey30",
         hjust = 0.5,
         margin = margin(b = 20)
       ),
       
-      strip.text = element_text(size = 10, color = "grey40"),
+      strip.text = element_text(size = 10, color = "grey30"),
       
       plot.subtitle = element_text(
-        size   = 11,
-        color  = "grey40",
+        size   = 10,
+        color  = "grey30",
         hjust  = 0.5,
         margin = margin(b = 40)
       ),
       
-      axis.title = element_text(size = 9, color = "grey40"),
-      axis.text = element_text(size = 9, color = "grey40"),
-      legend.title = element_text(size = 9, color = "grey40"),
-      legend.text = element_text(size = 9, color = "grey40")
+      axis.title = element_text(size = 10, color = "grey30"),
+      axis.text = element_text(size = 10, color = "grey30"),
+      legend.title = element_text(size = 10, color = "grey30"),
+      legend.text = element_text(size = 10, color = "grey30")
     )
 }
 
 ```
 
+```{r}
+theme_pptx <- function() {
+  theme_sleek() +
+    theme(
+      panel.border = element_blank(),
+      axis.line.x  = element_line(color = "grey70"),
+      axis.line.y  = element_line(color = "grey70"),
+      
+      plot.title = element_text(
+        size  = 40,
+        color = "grey30",
+        hjust = 0.5,
+        margin = margin(b = 20)
+      ),
+      
+      strip.text = element_text(size = 24, color = "grey30"),
+      
+      plot.subtitle = element_text(
+        size   = 24,
+        color  = "grey30",
+        hjust  = 0.5,
+        margin = margin(b = 40)
+      ),
+      
+      axis.title = element_text(size = 24, color = "grey30"),
+      axis.text = element_text(size = 24, color = "grey30"),
+      legend.title = element_text(size = 24, color = "grey30"),
+      legend.text = element_text(size = 24, color = "grey30")
+    )
+}
+
+```
 
 ## Set colorscheme
 
@@ -213,297 +245,6 @@ status.colors <- c(typical = "#75C165",
                    malformed = "#8B0069")
 ```
 
-# Survival boxplot
-
-```{r}
-# labels for legend
-labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
-              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
-
-survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, color = treatment, fill = treatment)) +
-  geom_boxplot(alpha = 0.65, outlier.shape = NA) +
-  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)),
-                dodge.width = 0.7, priority = "density", cex = 1.2) +
-  scale_fill_manual(
-    name   = "PVC leachate",
-    values = leachate.colors,
-    breaks = names(labs_map),
-    labels = labs_map
-  ) +
-  scale_color_manual(
-    name   = "PVC leachate",
-    values = leachate.colors,
-    breaks = names(labs_map),
-    labels = labs_map
-  ) +
-  labs(
-    x = "Hours post-fertilization", 
-    y = "Embryo count",
-    title = "Survival",
-    subtitle = ("(Embryo counts across treatments and timepoints)")
-  ) +
-  #geom_hline(yintercept = 30, linetype = "dashed") +
-  scale_y_continuous(
-    limits = c(0, 34), breaks = c(0, 10, 20, 30)
-    #sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
-                        #breaks = seq(0, 100, 10),
-                        #labels = scales::label_number(accuracy = 1, suffix = "%"))
-  ) +
-  theme_sleek_axe() +
-  theme(
-    axis.ticks.x = element_blank(), 
-    legend.position = "bottom",
-    axis.title.y.right = element_text(margin = margin(l = 0)),
-    plot.title = element_text(margin = margin(b = 1)),
-    plot.subtitle = element_text(margin = margin(t = 0, b=10))
-  )
-  
-
-survival
-```
-
-```{r}
-ggsave("../figs/embryo_survival_box.png", width = 8, height = 6, dpi = 600)
-```
-
-
-# Timing stacked barplot
-
-## Percent composition of stage categories 
-
-```{r}
-prop_summary <- prop_summary %>% 
-  mutate(
-    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
-    stage     = factor(stage, levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"), ordered = TRUE),
-    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE)
-  )
-```
-
-
-```{r}
-# Step 3: Plot
-tick_map <- c(control = "control", low = "low",
-              mid = "mid", high = "high")
-
-timing <- prop_summary %>% 
-ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = stage.5.colors) +
-  ggtitle("Developmental timing (stage composition)")+
-  labs(y = "", x = "PVC Leachate", fill = "Embryonic stage") +
-  scale_x_discrete(
-    breaks = names(tick_map),  # control, low, mid, high
-    labels = tick_map          # pretty labels you defined
-  )+
-  scale_y_continuous(
-    expand = c(0, 0),   # << bars start flush at y = 0
-    labels = scales::label_number(accuracy = 1, suffix = "%")  
-    )+
-    facet_wrap(~hpf,
-             labeller = labeller(
-               hpf = c("4" = "4 hpf",
-                       "9" = "9 hpf",
-                       "14" = "14 hpf")
-             ))+
-  theme_sleek_axe()+
-  theme(
-    legend.position = "none", 
-    panel.border = element_blank(),
-    #plot.title = element_text(margin = margin(b = 40)),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
-  )
-
-timing
-```
-### Add pretty stage icons
-
-```{r}
-timing_pretty <- ggdraw() +
-  draw_plot(timing, 0, 0, 1, 1) +   # base plot fills the whole panel
-  draw_image('../legend/egg.png',         x = 0.08,  y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../legend/cleavage.png',    x = 0.205, y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../legend/morula.png',      x = 0.33,  y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../legend/prawnchip.png',   x = 0.455, y = 0.79, width = 0.15, height = 0.15) +
-  draw_image('../legend/earlygastrula.png',
-                                   x = 0.58,  y = 0.79, width = 0.15, height = 0.15)
-timing_pretty
-```
-
-```{r}
-ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
-```
-
-## Stage counts for each stage category 
-```{r}
-stage_count_plot <- long_timing_counts %>% 
-ggplot(., aes(x = treatment, y =n, fill = stage)) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = stage.5.colors) +
-  labs(y = "Embryo count", 
-       x = "PVC Leachate", 
-       fill = "Embryonic stage",
-       title = "Developmental timing",
-       subtitle = "(stage composition)") +
-  scale_x_discrete(
-    breaks = names(tick_map),  # control, low, mid, high
-    labels = tick_map          # pretty labels you defined
-  )+
-  scale_y_continuous(
-    expand = c(0, 0),   # << bars start flush at y = 0
-    labels = scales::label_number(accuracy = 1)  
-    )+
-    facet_wrap(~hpf,
-             labeller = labeller(
-               hpf = c("4" = "4 hpf",
-                       "9" = "9 hpf",
-                       "14" = "14 hpf")
-             ))+
-  theme_sleek_axe()+
-  theme(
-    legend.position = "none", 
-    panel.border = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-    plot.title = element_text(
-    margin = margin(b = 1)   
-  ),
-  plot.subtitle = element_text(
-    margin = margin(t = 0, b = 10)   
-  )
-  )
-
-stage_count_plot
-```
-
-
-
-
-
-# Abnormalities barplot
-
-## Percent composition of status categories 
-```{r}
-status_summary <- status_summary %>%
-  mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"), 
-                       ordered = TRUE),
-         treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
-         hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE))
-
-abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill = status))+
-  geom_bar(stat = "identity")+
-  scale_fill_manual(values = status.colors)+
-  ggtitle("Morphology (status composition)")+
-  labs(y = "", x = "PVC Leachate", fill = "Embryonic status")+
-  scale_x_discrete(
-    labels = tick_map          # pretty labels you defined
-  )+
-  scale_y_continuous(
-    expand = c(0, 0),   # << bars start flush at y = 0
-    labels = scales::label_number(accuracy = 1, suffix = "%")
-  )+
-      facet_wrap(~hpf,
-             labeller = labeller(
-               hpf = c("4" = "4 hours post-fertilization",
-                       "9" = "9 hours post-fertilization",
-                       "14" = "14 hours post-fertilization")
-             ))+
-  theme_sleek_axe()+
-  theme(
-    legend.position = "none",
-    panel.border = element_blank(),
-    #plot.title = element_text(margin = margin(b = 40)),
-      axis.text.x = element_text(
-      angle = 45,      # rotate 45°
-      hjust = 1,       # horizontal justification
-      vjust = 1        # tweak if you want
-    ))
-
-abnormality
-```
-
-## Status counts for each status category
-```{r}
-status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
-  geom_bar(stat = "identity", position = "stack") +
-  facet_wrap(~hpf,
-             labeller = labeller(
-               hpf = c("4" = "4 hpf",
-                       "9" = "9 hpf",
-                       "14" = "14 hpf")
-             )) +
-  scale_fill_manual(values = status.colors) +
-  scale_x_discrete(
-    breaks = names(tick_map),  # control, low, mid, high
-    labels = tick_map          # pretty labels you defined
-  )+
-  scale_y_continuous(
-    expand = c(0, 0)) +
-  labs(title = "Morphological abnormality",
-       subtitle = "(status composition)",
-       x = "PVC Leachate",
-       y = "Embryo count") +
-  theme_sleek_axe()+
-  theme(
-    panel.border = element_blank(), 
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-    plot.title = element_text(
-    margin = margin(b = 1)   
-  ),
-  plot.subtitle = element_text(
-    margin = margin(t = 0, b=10)   
-  )
-  )
-
-status_count_plot
-```
-
-
-```{r}
-ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
-```
-# Patchwork 
-
-## Add caption 
-A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure.
-
-
-## Patch it together
-
-```{r, fig.height=12, fig.width=10}
-patch <- survival / (timing | abnormality)+
-  plot_annotation(
-    title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
-    tag_levels = "A") &
-      theme(
-        plot.tag = element_text(size = 11, 
-                                colour = "grey40"),
-        plot.title = element_text(
-          size   = 12,
-          color  = "grey30",
-          hjust  = 0.5,    # center
-         # margin = margin(b = 30) # add space BELOW title
-        )
-      )
-
-patch
-```
-
-## Add pretty embryo icons with `ggdraw()`
-Add in embryos on top of the patchwork figure with ggdraw and draw_image. Do this step last! When I tried to ggdraw on the Timing subplot and then patch it together the aspect ration got very wonky. Once you ggdraw a plot it becomes a raster image and patchwork can't handle that well. Definately add the fiddly little ggdraw icons at the end!
-
-```{r, fig.height=12, fig.width=10}
-patch_pretty <- ggdraw() +
-  draw_plot(patch, 0, 0, 1, 1) +   # base plot fills the whole panel
-  draw_image('../legend/egg.png',         x = 0.05,  y = 0.415, width = 0.056, height = 0.056) +
-  draw_image('../legend/cleavage.png',    x = 0.11, y = 0.415, width = 0.056, height = 0.0568) +
-  draw_image('../legend/morula.png',      x = 0.17,  y = 0.415, width = 0.056, height = 0.056) +
-  draw_image('../legend/prawnchip.png',   x = 0.23, y = 0.415, width = 0.056, height = 0.056) +
-  draw_image('../legend/earlygastrula.png', x = 0.29,  y = 0.415, width = 0.056, height = 0.056)
-
-patch_pretty
-```
-
 ## Legends
 
 ### Stage legend
@@ -569,7 +310,7 @@ stage_legend_sq <- tibble::tibble(
           '../legend/gastrula_sq.png'))
 ```
 
-```{r}
+```{r stage-legend-plot}
 stage_legend_plot <- ggplot(stage_legend_sq, aes(x = 0, y = label)) +
   geom_image(aes(image = img), size = 0.18) +
   #geom_text(aes(label = label), 
@@ -628,7 +369,7 @@ status_legend_sq <- tibble::tibble(
 )
 ```
 
-```{r}
+```{r status-legend-plot}
 status_legend_plot <- ggplot(status_legend_sq, aes(x = 0, y = status)) +
   geom_image(aes(image = img), size = 0.18) +
   scale_x_continuous() +
@@ -640,6 +381,318 @@ status_legend_plot <- ggplot(status_legend_sq, aes(x = 0, y = status)) +
 
 status_legend_plot
 ```
+
+
+# Survival boxplot
+
+```{r}
+# labels for legend
+labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
+              mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+
+survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, fill = treatment)) +
+  geom_boxplot(alpha = 0.6, color="grey20", outlier.shape = NA) +
+  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)), color="grey30",
+                dodge.width = 0.7, priority = "density", cex = 1.2) +
+  scale_fill_manual(
+    name   = "PVC leachate",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  scale_color_manual(
+    name   = "PVC leachate",
+    values = leachate.colors,
+    breaks = names(labs_map),
+    labels = labs_map
+  ) +
+  labs(
+    x = "Hours post-fertilization", 
+    y = "Embryo count",
+    title = "Survival",
+    subtitle = ("(Embryo counts across treatments and timepoints)")
+  ) +
+  #geom_hline(yintercept = 30, linetype = "dashed") +
+  scale_y_continuous(
+    limits = c(0, 34), breaks = c(0, 10, 20, 30)
+    #sec.axis = sec_axis(~ . / 30 * 100, name = "Percent relative survival",
+                        #breaks = seq(0, 100, 10),
+                        #labels = scales::label_number(accuracy = 1, suffix = "%"))
+  ) +
+  theme_sleek_axe() +
+  theme(
+    axis.ticks.x = element_blank(), 
+    legend.position = "bottom",
+    axis.title.y.right = element_text(margin = margin(l = 0)),
+    plot.title = element_text(margin = margin(b = 1)),
+    plot.subtitle = element_text(margin = margin(t = 0, b=10))
+  )
+  
+
+survival
+```
+
+```{r}
+ggsave("../figs/embryo_survival_box.png", width = 8, height = 6, dpi = 600)
+```
+
+```{r, fig.width=16, fig.height=9}
+survival + theme_pptx()
+```
+```{r}
+ggsave("../figs/survival_pptx.png",
+       width=16, 
+       height=9,
+       dpi=600)
+```
+
+
+# Timing stacked barplot
+
+## Percent composition of stage categories 
+
+```{r}
+prop_summary <- prop_summary %>% 
+  mutate(
+    treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+    stage     = factor(stage, levels = c("egg", "cleavage", "morula", "prawnchip", "earlygastrula"), ordered = TRUE),
+    hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE)
+  )
+```
+
+
+```{r}
+# Step 3: Plot
+tick_map <- c(control = "control", low = "low",
+              mid = "mid", high = "high")
+
+timing <- prop_summary %>% 
+ggplot(., aes(x = treatment, y = mean_prop*100, fill = stage)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = stage.5.colors) +
+  ggtitle("Developmental timing (stage composition)")+
+  labs(y = "", x = "PVC Leachate", fill = "Embryonic stage") +
+  scale_x_discrete(
+    breaks = names(tick_map),  # control, low, mid, high
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0),   # << bars start flush at y = 0
+    labels = scales::label_number(accuracy = 1, suffix = "%")  
+    )+
+    facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
+             ))+
+  theme_sleek_axe()+
+  theme(
+    legend.position = "none", 
+    panel.border = element_blank(),
+    #plot.title = element_text(margin = margin(b = 40)),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+  )
+
+timing
+```
+
+```{r}
+ggsave("../figs/embryo_stage_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+## Stage counts for each stage category 
+```{r}
+stage_count_plot <- long_timing_counts %>% 
+ggplot(., aes(x = treatment, y =n, fill = stage)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = stage.5.colors) +
+  labs(y = "Embryo count", 
+       x = "PVC Leachate", 
+       fill = "Embryonic stage",
+       title = "Developmental timing",
+       subtitle = "(stage composition)") +
+  scale_x_discrete(
+    breaks = names(tick_map),  # control, low, mid, high
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0),   # << bars start flush at y = 0
+    labels = scales::label_number(accuracy = 1)  
+    )+
+    facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
+             ))+
+  theme_sleek_axe()+
+  theme(
+    legend.position = "none", 
+    panel.border = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    plot.title = element_text(
+    margin = margin(b = 1)   
+  ),
+  plot.subtitle = element_text(
+    margin = margin(t = 0, b = 10)   
+  )
+  )
+
+stage_count_plot
+```
+
+```{r}
+ggsave("../figs/embryo_stage_stepbar.png", 
+       width = 8, height = 6, dpi = 600
+       )
+```
+
+```{r, fig.width=16, fig.height=9}
+stage_count_plot + theme_pptx()
+```
+```{r}
+ggsave("../figs/stage_stepbar_pptx.png",
+       width=16, 
+       height=9, 
+       dpi=600)
+```
+
+
+# Abnormalities barplot
+
+## Percent composition of status categories 
+```{r}
+status_summary <- status_summary %>%
+  mutate(status = factor(status, levels = c("malformed", "uncertain", "typical"), 
+                       ordered = TRUE),
+         treatment = factor(treatment, levels = treat_levels, ordered = TRUE),
+         hpf       = factor(hpf, levels = hpf_levels, ordered = TRUE))
+
+abnormality <- ggplot(status_summary, aes(x = treatment, y = mean_prop*100, fill = status))+
+  geom_bar(stat = "identity")+
+  scale_fill_manual(values = status.colors)+
+  ggtitle("Morphology (status composition)")+
+  labs(y = "", x = "PVC Leachate", fill = "Embryonic status")+
+  scale_x_discrete(
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0),   # << bars start flush at y = 0
+    labels = scales::label_number(accuracy = 1, suffix = "%")
+  )+
+      facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
+             ))+
+  theme_sleek_axe()+
+  theme(
+    legend.position = "none",
+    panel.border = element_blank(),
+    #plot.title = element_text(margin = margin(b = 40)),
+      axis.text.x = element_text(
+      angle = 45,      # rotate 45°
+      hjust = 1,       # horizontal justification
+      vjust = 1        # tweak if you want
+    ))
+
+abnormality
+```
+```{r}
+ggsave("../figs/embryo_status_stackedbar.png", width = 8, height = 6, dpi = 600)
+```
+
+## Status counts for each status category
+```{r}
+status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill = status)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~hpf,
+             labeller = labeller(
+               hpf = c("4" = "4 hpf",
+                       "9" = "9 hpf",
+                       "14" = "14 hpf")
+             )) +
+  scale_fill_manual(values = status.colors) +
+  scale_x_discrete(
+    breaks = names(tick_map),  # control, low, mid, high
+    labels = tick_map          # pretty labels you defined
+  )+
+  scale_y_continuous(
+    expand = c(0, 0)) +
+  labs(title = "Morphological abnormality",
+       subtitle = "(status composition)",
+       x = "PVC Leachate",
+       y = "Embryo count") +
+  theme_sleek_axe()+
+  theme(
+    panel.border = element_blank(), 
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    plot.title = element_text(
+    margin = margin(b = 1)   
+  ),
+  plot.subtitle = element_text(
+    margin = margin(t = 0, b=10)   
+  )
+  )
+
+status_count_plot
+```
+
+```{r}
+ggsave("../figs/embryo_status_stepbar.png", width = 8, height = 6, dpi = 600)
+```
+
+```{r, fig.width=16, fig.height=9}
+status_count_plot + theme_pptx()
+```
+```{r}
+ggsave("../figs/status_stepbar_pptx.png",
+       width=16,
+       height=9, 
+       dpi=600)
+```
+
+
+# Patchwork 
+
+## Add caption 
+A. Boxplot showing mean and individual counts of viable embryos at 4, 9, and 14 hours post-fertilization (hpf) following exposure to different doses of PVC leachate, illustrating no significant differences or trends in survival due to leachate exposure levels. B. Stacked barplot indicating the stage composition of samples at each treatment and timepoint, showing that PVC leachate levels did not influence the developmental timing across samples. C. Stacked barplot indicating the status composition of samples at each treatment and timepoint showing no significant differences in morphological abnormalities due to PVC leachate exposure.
+
+
+## Patch it together
+
+```{r, fig.height=12, fig.width=10}
+patch <- survival / (timing | abnormality)+
+  plot_annotation(
+    title = "Embryo survival, developmental timing, and morphological status following PVC leachate exposure",
+    tag_levels = "A") &
+      theme(
+        plot.tag = element_text(size = 11, 
+                                colour = "grey40"),
+        plot.title = element_text(
+          size   = 12,
+          color  = "grey30",
+          hjust  = 0.5,    # center
+         # margin = margin(b = 30) # add space BELOW title
+        )
+      )
+
+patch
+```
+```{r}
+ggsave("../figs/patch_stacked.png",
+       width=10,
+       height=12,
+       dpi=900)
+```
+
+## Add pretty embryo icons with `ggdraw()`
+Add in embryos on top of the patchwork figure with ggdraw and draw_image. Do this step last! When I tried to ggdraw on the Timing subplot and then patch it together the aspect ration got very wonky. Once you ggdraw a plot it becomes a raster image and patchwork can't handle that well. Definately add the fiddly little ggdraw icons at the end!
+
+
 ### Panels
 ```{r}
 B_panel <- stage_count_plot + stage_legend_plot + plot_layout(widths = c(4, 1.1))
@@ -650,8 +703,19 @@ C_panel <- status_count_plot + status_legend_plot + plot_layout(widths = c(4, 1.
 B_panel
 ```
 ```{r}
+ggsave("../figs/stage_legendary.png", width=6, height=4, dpi=600 
+       )
+```
+
+```{r}
 C_panel
 ```
+
+```{r}
+ggsave("../figs/morph_legendary.png", width=6, height=4, dpi=600 
+       )
+```
+
 
 # Final Patch
 ```{r, fig.height=12, fig.width=10}
@@ -659,7 +723,7 @@ final_plot <- (
   wrap_elements(survival)/ 
   (wrap_elements(B_panel) | wrap_elements(C_panel))
 ) + plot_layout(heights = c(1, 1))+
-  plot_annotation(tag_levels = "a")&
+  plot_annotation(tag_levels = "A")&
   theme(
     plot.tag = element_text(
       color = "grey40",
@@ -698,13 +762,14 @@ boot_ci <- read_csv("../output/dataframes/bootstrap_ci_counts.csv") %>%
 timing_forest <- ggplot(boot_ci, aes(
   x = mean,
   y = Stage,
-  color = treatment
+  color = treatment,
+  fill = treatment
 )) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "#AEF1FF") +
   geom_linerange(aes(xmin = lo, xmax = hi), position = position_dodge(width = 0.5)) +
   geom_point(
     position = position_dodge(width = 0.5),
-    size = 2
+    shape=21
   ) +
   facet_wrap(~hpf,
              labeller = labeller(
@@ -766,6 +831,50 @@ timing_forest_legendary
 ggsave("../figs/timing_forest_plot.png", width = 8, height = 6, dpi = 900)
 ```
 
+```{r}
+geom_pptx <- function() {
+  update_geom_defaults("point",   list(size = 5, stroke = 1.2))
+  update_geom_defaults("line",    list(linewidth = 1.5))
+  update_geom_defaults("boxplot", list(linewidth = 1.2))
+  update_geom_defaults("violin",  list(linewidth = 1.2))
+  update_geom_defaults("vline", list(linewidth = 1.5))
+  update_geom_defaults("hline", list(linewidth = 1.5))
+  update_geom_defaults("abline", list(linewidth = 1.5))
+  update_geom_defaults("errorbar", list(linewidth = 1.5))
+  update_geom_defaults("pointrange", list(linewidth = 1.5))
+  update_geom_defaults("crossbar", list(linewidth = 1.5))
+  update_geom_defaults("linerange", list(linewidth = 1.5))
+}
+```
+
+
+```{r, fig.height=9, fig.width=16}
+geom_pptx()
+timing_forest_pptx <- timing_forest + theme_pptx() + theme(legend.position = "bottom")
+timing_forest_pptx
+```
+
+```{r, fig.width=16, fig.height=9}
+timing_forest_legendary_pptx <- timing_forest_pptx + 
+  stage_legend_plot +
+  theme(
+    axis.text.y.right = element_blank()
+  ) + 
+  plot_layout(widths = c(4, 1))
+
+timing_forest_legendary_pptx
+```
+
+
+
+```{r}
+ggsave("../figs/timing_forest_legendary_pptx.png", 
+       width=16,
+       height=9,
+       dpi=600)
+```
+
+
 # Morphology boxplot
 ```{r}
 long_morph <- read_csv("../output/dataframes/fitted_long_status_counts.csv") 
@@ -817,18 +926,52 @@ ggplot(long_morph, aes(x = hpf,
   theme_sleek_axe()
 ```
 ```{r}
-ggsave("../figs/morphology_boxplot.png", width = 8, height = 6, dpi = 900)
+ggsave("../figs/stage_effects_morphology_boxplot.png", width = 8, height = 6, dpi = 900)
 ```
 
 # TIMING ONLY
 
+legend with text on the right
 ```{r}
-T1 <- timing + stage_legend_plot + plot_layout(widths = c(4, 1.1))
+stage_legend_left <- ggplot(stage_legend_sq, aes(x = 0, y = label)) +
+  geom_image(aes(image = img), size = 0.18) +
+  scale_x_continuous(
+    limits = c(-0.22, 0.12),
+    expand = c(0, 0)
+  ) +
+  scale_y_discrete(
+    limits = rev,
+    position = "left"
+  ) +
+  theme_void() +
+  theme(
+    axis.text.y.left = element_text(
+      size = 8,
+      color = "grey40",
+      hjust = 1,
+      margin = margin(r = 2)   # reduce gap between text and image
+    ),
+    axis.text.y.right = element_blank(),
+    plot.margin = margin(0, 0, 0, 0)
+  )
+
+stage_legend_left
+```
+
+
+```{r}
+T1 <- stage_legend_left + timing + plot_layout(widths = c(0.7, 4))
 T1
 ```
 
-```{r, fig.height=12}
-T2 <- T1 / timing_forest_legendary + plot_layout(heights = c(1, 1))
+```{r, fig.width=10}
+T2 <- (timing_forest + T1) +
+  plot_annotation(tag_levels = "A")+
+  plot_layout(widths = c(5, 5))
 T2
+```
+save T2
+```{r}
+ggsave("../figs/timing_highlight.png", width = 10, height = 6, dpi = 900)
 ```
 
