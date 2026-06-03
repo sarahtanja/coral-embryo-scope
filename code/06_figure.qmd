@@ -189,60 +189,57 @@ Leachate options
 Ocean environmental watery tones
 blue-purple
 ```{r}
-leachate_0 <- c("#B0F4FA", "#75C165", "#A96C00", "#8B0069")
-leachate_1 <- c("#D5ECC0", "#6ACFBA", "#399AC2", "#80146E")
-leachate_2 <- c("#E4EBD6", "#8CC4AD", "#3E909F", "#4E4E7A")
-leachate_3 <- c("#DAE6FF", "#BBC7FF", "#9CA9FF", "#7D8BFF")
-
-leachate.colors <- c(control = "#AEF1FF", 
+leachate.colors.og <- c(control = "#AEF1FF", 
                 low = "#BBC7FF",
                 mid = "#7D8BFF", 
                 high = "#592F7D")
+
+leachate.colors <- c(control = "#5ABDAC", 
+                low = "#A699D8",
+                mid = "#7D8BFF", 
+                high = "#592F7D")
+
 ```
 
 ### Stage
 Earthy stony coral tones
 yellow-orange-red
 ```{r}
-stage_0 <- c("#DCC14F", "#D89500", "#C86600")
-stage_1 <- c("#DCC14F", "#9F3D2F", "#000000")
-stage_2 <- c("#A2223C", "#E6AA83",  "#D9685B")
-stage_3 <- c("#D9685B", "#D89500",  "#9F3D2F")
-stage_4 <- c("#FFE362", "#EBA600", "#8D5300")
+stage.5.colors.alt <- c(
+  egg           = "#FFF4A3",
+  cleavage      = "#FFD166",
+  morula        = "#F8961E",
+  prawnchip     = "#E76F51",
+  earlygastrula = "#9B2226"
+  )
 
-stage.5.colors <- c(egg = "#FFE362",
-                    cleavage = "#EBA600", 
-                    morula = "#E6AA83",
-                    prawnchip = "#D9685B", 
-                    earlygastrula = "#A2223C")
+stage.5.colors <- c(
+  egg           = "#FFE066",
+  cleavage      = "#FFBA08",
+  morula        = "#F48C06",
+  prawnchip     = "#DC2F02",
+  earlygastrula = "#6A040F"
+  )
 
+stage.3.colors <- c(
+  cleavage      = "#FFBA08",
+  prawnchip     = "#DC2F02",
+  earlygastrula = "#6A040F"
+  )
 
-stage.3.colors <- c(cleavage = "#EBA600", 
-                  prawnchip = "#D9685B", 
-                  earlygastrula = "#A2223C")
-```
+stage.3.colors.og <- c(
+  cleavage = "#EBA600", 
+  prawnchip = "#D9685B", 
+  earlygastrula = "#A2223C"
+  )
 
-### Spawn night
-
-```{r}
-night_0 <- c("#FDE725", "#440154", "#21918C")
-night_1 <- c("#FFCEF4", "#578B21", "#201158")
-night_2 <- c("#E3FAA5", "#B16776", "#1E2440")
-
-night.colors <- c(July_6th = "#E3FAA5", 
+night.colors <- c(July_6th = "#21918C", 
                   July_7th = "#578B21", 
                   July_8th = "#1E2440")
 
-night.colors.alt <- c(July_6th = "#21918C", 
-                  July_7th = "#201158", 
-                  July_8th = "#1E2440")
-```
-
-### Status
-```{r}
-status.colors <- c(typical = "#75C165", 
-                   uncertain = "#E3FAA5", 
-                   malformed = "#8B0069")
+status.colors <- c(typical = "#7CCD7C", 
+                   uncertain = "#8B8378", 
+                   malformed = "#8B0A50")
 ```
 
 ## Legends
@@ -391,8 +388,8 @@ labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
 
 survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, fill = treatment)) +
-  geom_boxplot(alpha = 0.6, color="grey20", outlier.shape = NA) +
-  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)), color="grey30",
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  geom_beeswarm(aes(group = interaction(hpf_factor, treatment)),
                 dodge.width = 0.7, priority = "density", cex = 1.2) +
   scale_fill_manual(
     name   = "PVC leachate",
