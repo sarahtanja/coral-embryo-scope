@@ -143,9 +143,6 @@ theme_sleek_axe <- function() {
     )
 }
 
-```
-
-```{r}
 theme_pptx <- function() {
   theme_sleek() +
     theme(
@@ -180,31 +177,25 @@ theme_pptx <- function() {
 
 ## Set colorscheme
 
-```{r}
-#colorspace::hclwizard()
-```
-
 ### Leachate
-Leachate options
-Ocean environmental watery tones
-blue-purple
-```{r}
+
+```{r colors}
 leachate.colors.og <- c(control = "#AEF1FF", 
                 low = "#BBC7FF",
                 mid = "#7D8BFF", 
                 high = "#592F7D")
 
 leachate.colors <- c(control = "#5ABDAC", 
-                low = "#A699D8",
+                low = "#BBC7FF",
                 mid = "#7D8BFF", 
                 high = "#592F7D")
 
-```
+stage.5.colors.og <- c(egg           = "#FFE362",
+                    cleavage      = "#EBA600", 
+                    morula        = "#E6AA83",
+                    prawnchip     = "#D9685B", 
+                    earlygastrula = "#A2223C")
 
-### Stage
-Earthy stony coral tones
-yellow-orange-red
-```{r}
 stage.5.colors.alt <- c(
   egg           = "#FFF4A3",
   cleavage      = "#FFD166",
@@ -237,7 +228,11 @@ night.colors <- c(July_6th = "#21918C",
                   July_7th = "#578B21", 
                   July_8th = "#1E2440")
 
-status.colors <- c(typical = "#7CCD7C", 
+status.colors <- c(typical   = "#75C165", 
+                   uncertain = "#E3FAA5", 
+                   malformed = "#8B0069")
+
+status.colors.alt <- c(typical = "#7CCD7C", 
                    uncertain = "#8B8378", 
                    malformed = "#8B0A50")
 ```
