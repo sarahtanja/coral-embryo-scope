@@ -180,19 +180,19 @@ theme_pptx <- function() {
 
 ```{r geoms}
 geom_defaults <- function() {
-  update_geom_defaults("point",      list(size = 1.5, stroke = 0.5))
-  update_geom_defaults("line",       list(linewidth = 0.5))
-  update_geom_defaults("boxplot",    list(linewidth = 0.5))
-  update_geom_defaults("violin",     list(linewidth = 0.5))
-  update_geom_defaults("vline",      list(linewidth = 0.5))
-  update_geom_defaults("hline",      list(linewidth = 0.5))
-  update_geom_defaults("abline",     list(linewidth = 0.5))
-  update_geom_defaults("errorbar",   list(linewidth = 0.5))
-  update_geom_defaults("pointrange", list(linewidth = 0.5))
-  update_geom_defaults("crossbar",   list(linewidth = 0.5))
-  update_geom_defaults("linerange",  list(linewidth = 0.5))
-  update_geom_defaults("path", list(linewidth = 0.5))
-  update_geom_defaults("segment", list(linewidth = 0.5))
+  update_geom_defaults("point",      list(size = 1.8, stroke = 0.9))
+  update_geom_defaults("line",       list(linewidth = 0.9))
+  update_geom_defaults("boxplot",    list(linewidth = 0.9))
+  update_geom_defaults("violin",     list(linewidth = 0.9))
+  update_geom_defaults("vline",      list(linewidth = 0.9))
+  update_geom_defaults("hline",      list(linewidth = 0.9))
+  update_geom_defaults("abline",     list(linewidth = 0.9))
+  update_geom_defaults("errorbar",   list(linewidth = 0.9))
+  update_geom_defaults("pointrange", list(linewidth = 0.9))
+  update_geom_defaults("crossbar",   list(linewidth = 0.9))
+  update_geom_defaults("linerange",  list(linewidth = 0.9))
+  update_geom_defaults("path", list(linewidth = 0.9))
+  update_geom_defaults("segment", list(linewidth = 0.9))
   update_geom_defaults("text", list(size = 3))
 }
 
@@ -223,7 +223,13 @@ leachate.colors.og <- c(control = "#AEF1FF",
                 mid = "#7D8BFF", 
                 high = "#592F7D")
 
-leachate.colors <- c(control = "#5ABDAC", 
+"cadetblue2"
+"darkslategray1"
+"lightblue3"
+"lightskyblue2"
+
+
+leachate.colors <- c(control = "lightskyblue2", 
                 low = "#BBC7FF",
                 mid = "#7D8BFF", 
                 high = "#592F7D")
@@ -360,9 +366,16 @@ status_legend_plot
 # Survival boxplot
 
 ```{r}
+head(survival_df)
+```
+
+
+```{r}
 # labels for legend
 labs_map <- c(control = "0 (FSW control)", low = "0.01 mg/L (low)",
               mid = "0.1 mg/L (mid)", high = "1 mg/L (high)")
+
+hpf_labs <- c("4" = "4 hpf", "9" = "9 hpf", "14" = "14 hpf")
 
 survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, fill = treatment, color=treatment)) +
   geom_boxplot(alpha = 0.6, outlier.shape = NA) +
@@ -381,11 +394,14 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, fill = treatme
     labels = labs_map
   ) +
   labs(
-    x = "Hours post-fertilization", 
+    x = "", 
     y = "Embryo count",
     title = "Survival",
     subtitle = ("(Embryo counts across treatments and timepoints)")
   ) +
+  scale_x_discrete(
+    labels = hpf_labs
+  )+
   #geom_hline(yintercept = 30, linetype = "dashed") +
   scale_y_continuous(
     limits = c(0, 34), breaks = c(0, 10, 20, 30)
@@ -395,6 +411,7 @@ survival <- ggplot(survival_df, aes(x = hpf_factor, y = n_viable, fill = treatme
   ) +
   theme_sleek_axe() +
   theme(
+    panel.border = element_blank(),
     axis.ticks.x = element_blank(), 
     legend.position = "bottom",
     axis.title.y.right = element_text(margin = margin(l = 0)),
@@ -800,6 +817,7 @@ status_count_plot <- ggplot(long_status_counts, aes(x = treatment, y = n, fill =
   )
   )
 
+geom_defaults()
 status_count_plot
 ```
 
@@ -808,6 +826,7 @@ ggsave("../figs/embryo_status_stepbar.png", width = 8, height = 6, dpi = 600)
 ```
 
 ```{r, fig.width=16, fig.height=9}
+geom_pptx()
 status_count_plot + theme_pptx()
 ```
 ```{r}
@@ -842,6 +861,7 @@ patch <- survival / (timing | abnormality)+
         )
       )
 
+geom_defaults()
 patch
 ```
 ```{r}
@@ -857,12 +877,12 @@ Add in embryos on top of the patchwork figure with ggdraw and draw_image. Do thi
 
 ### Panels
 ```{r}
-B_panel <- stage_count_plot + stage_legend_plot + plot_layout(widths = c(4, 1.1))
-C_panel <- status_count_plot + status_legend_plot + plot_layout(widths = c(4, 1.1))
+stage_panel <- timing + stage_legend_plot + plot_layout(widths = c(4, 1.1))
+status_panel <- abnormality + status_legend_plot + plot_layout(widths = c(4, 1.1))
 ```
 
 ```{r}
-B_panel
+stage_panel
 ```
 ```{r}
 ggsave("../figs/stage_legendary.png", width=6, height=4, dpi=600 
@@ -870,7 +890,7 @@ ggsave("../figs/stage_legendary.png", width=6, height=4, dpi=600
 ```
 
 ```{r}
-C_panel
+status_panel
 ```
 
 ```{r}
@@ -883,7 +903,7 @@ ggsave("../figs/morph_legendary.png", width=6, height=4, dpi=600
 ```{r, fig.height=12, fig.width=10}
 final_plot <- (
   wrap_elements(survival)/ 
-  (wrap_elements(B_panel) | wrap_elements(C_panel))
+  (wrap_elements(stage_panel) | wrap_elements(status_panel))
 ) + plot_layout(heights = c(1, 1))+
   plot_annotation(tag_levels = "A")&
   theme(
@@ -894,6 +914,7 @@ final_plot <- (
     )
   )
 
+geom_defaults()
 final_plot
 ```
 
@@ -927,13 +948,13 @@ timing_forest <- ggplot(boot_ci, aes(
   color = treatment,
   fill = treatment
 )) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "#5ABDAC") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "lightskyblue2" ) +
   geom_linerange(aes(xmin = lo, xmax = hi), position = position_dodge(width = 0.5)) +
   geom_point(
     position = position_dodge(width = 0.5),
     shape=21
   ) +
-  facet_wrap(~hpf,
+  facet_wrap(~hpf, strip.position = "bottom",
              labeller = labeller(
                hpf = c("4" = "4 hpf",
                        "9" = "9 hpf",
@@ -953,43 +974,53 @@ timing_forest <- ggplot(boot_ci, aes(
   ) +
   scale_y_discrete(limits = (levels(boot_ci$Stage))) +  #  y-axis order
   labs(
-    title = "Treatment minus control differences in fitted stage counts",
-    subtitle = "Points right of zero = more embryos than control; left = fewer",
-    x = "Difference from control (bootstrapped fitted counts scaled to 1)",
-    y = "Developmental stage",
+    title = "Treatment-associated shifts \n in developmental timing",
+    x = "Difference from control (bootstrapped fitted counts scaled to 1) \n Points right of zero = more embryos than control; left = fewer",
+    y = "",
     color = "PVC Leachate"
   ) +
   theme_sleek_axe()+
   theme(
     panel.border = element_blank(),
-    legend.position = "bottom",
+    legend.position = "none",
     plot.title = element_text(margin = margin(b = 1)),
-    plot.subtitle = element_text(margin = margin(t = 0, b=10))
+    plot.subtitle = element_text(margin = margin(t = 0, b=10)),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank()
   )
 geom_defaults()
 timing_forest
 ```
 
-```{r}
-stage_legend_plot +
-  theme(
-    axis.text.y.right = element_blank()
-  )
-```
-
-```{r}
-timing_forest_legendary <- timing_forest + 
-  stage_legend_plot +
-  theme(
-    axis.text.y.right = element_blank()
-  ) + 
-  plot_layout(widths = c(4, 1))
+```{r star}
+timing_forest_legendary <- timing_forest +
+  stage_legend_plot + 
+  plot_layout(widths = c(4, 1.1))
 
 geom_defaults()
-timing_forest_legendary
+timing_forest_legenstar <- ggdraw(timing_forest_legendary)+ 
+  draw_label("*",
+             color = "#7D8BFF",
+  x = 0.68,
+  y = 0.797,
+  size = 28
+)+ 
+  draw_label("*",
+             color = "#7D8BFF",
+  x = 0.511,
+  y = 0.661,
+  size = 28
+)
+
+timing_forest_legenstar
 ```
+
+
+
 ```{r}
-ggsave("../figs/timing_forest_plot.png", width = 8, height = 6, dpi = 900)
+ggsave("../figs/timing_forest_legendary_plot.png", width = 8, height = 6, dpi = 900)
 ```
 
 
@@ -1015,6 +1046,32 @@ ggsave("../figs/timing_forest_legendary_pptx.png",
        width=16,
        height=9,
        dpi=600)
+```
+
+```{r final-patch, fig.height=12, fig.width=12}
+final_patch <- (
+  (wrap_elements(survival) | wrap_elements(status_panel)) /
+  (wrap_elements(timing_forest_legendary) | wrap_elements(stage_panel))
+) + plot_layout(heights = c(1, 1))+
+  plot_annotation(tag_levels = "A")&
+  theme(
+    plot.tag = element_text(
+      color = "grey40",
+      face = "bold",
+      size = 12
+    )
+  )
+
+geom_defaults()
+final_patch
+```
+
+```{r}
+ggsave("../figs/final_patch.png", 
+       height=12, 
+       width=12,
+       dpi=900, 
+       plot=final_patch)
 ```
 
 
